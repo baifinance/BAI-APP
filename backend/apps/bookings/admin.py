@@ -8,3 +8,7 @@
 # -----------------------------------------------------------------------
 
 from django.contrib import admin  # noqa: F401
+
+from .models import AvailableSlot
+
+admin.site.register(AvailableSlot)

@@ -9,6 +9,10 @@
 #   ]
 # -----------------------------------------------------------------------
 
-from django.urls import path  # noqa: F401
+from django.urls import path
 
-urlpatterns = []
+from users.views import ProfileView
+
+urlpatterns = [
+    path("profile/", ProfileView.as_view(), name="user-profile"),
+]

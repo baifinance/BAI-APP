@@ -34,6 +34,9 @@ class Booking(models.Model):
     )
 
     slot_time = models.DateTimeField()
+    consultation_type = models.CharField(max_length=100, default="Initial Strategy Consultation")
+    meeting_platform = models.CharField(max_length=50, default="Google Meet")
+    notes = models.TextField(blank=True)
 
     status = models.CharField(
         max_length=20,

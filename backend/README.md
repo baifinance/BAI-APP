@@ -220,19 +220,22 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 6. Run database migrations
+### 6. Run database migrations (Sets up schema & pre-seeded data)
 
 ```bash
 python manage.py migrate
 ```
 
-### 7. Create an admin superuser
+> [!NOTE]
+> Running migrations automatically creates all database tables and seeds the default **Compliance Administrator account** (`compliance@bai.finance` / `SuperSecretPassword123!`) via data migration `0002_auto_20260824_1151`.
+
+### 7. (Optional) Create an additional superuser
 
 ```bash
 python manage.py createsuperuser
 ```
 
-Follow the prompts to set email, username, and password.
+Follow the prompts if you wish to create a custom personal admin account.
 
 ### 8. Start the development server
 
@@ -250,19 +253,30 @@ Alternatively, double-click `backend_start.bat` to automate steps 3–8:
 backend_start.bat
 ```
 
-This will create a venv, install deps, run migrations, and start the server.
+This will create a venv, install deps, run migrations (seeding the compliance account), and start the server.
 
 ---
 
 ## Environment Variables
 
-| Variable                | Description                                        | Example                                                              |
-| ----------------------- | -------------------------------------------------- | -------------------------------------------------------------------- |
-| `DJANGO_SETTINGS_MODULE` | Which settings file to load                       | `config.settings.development`                                        |
-| `SECRET_KEY`            | Cryptographic signing key (generate a long random string) | `django-insecure-abc123...`                                 |
-| `DEBUG`                 | Enable debug mode (never `True` in production)    | `True`                                                               |
-| `ALLOWED_HOSTS`         | Comma-separated list of allowed domain names       | `localhost,127.0.0.1`                                                |
-| `DATABASE_URL`          | PostgreSQL connection string                       | `postgresql://user:pass@host:5432/dbname`                            |
+| Variable | Description | Default / Example |
+| :--- | :--- | :--- |
+| `DJANGO_SETTINGS_MODULE` | Settings configuration module | `config.settings.development` |
+| `SECRET_KEY` | Cryptographic signing key | `django-insecure-abc123...` |
+| `DEBUG` | Enable debug mode (`True` for local, `False` in prod) | `True` |
+| `ALLOWED_HOSTS` | Comma-separated list of allowed host domains | `localhost,127.0.0.1` |
+| `DATABASE_URL` | PostgreSQL connection URL (Supabase pooler) | `postgresql://user:pass@host:5432/postgres` |
+| `FRONTEND_BASE_URL` | Base URL used in invitation activation links | `http://localhost:3000` |
+| `EMAIL_BACKEND` | Django email backend (`smtp` or `console`) | `django.core.mail.backends.console.EmailBackend` |
+| `EMAIL_HOST` | SMTP server host (e.g. Gmail / SendGrid) | `smtp.gmail.com` |
+| `EMAIL_PORT` | SMTP port | `587` |
+| `EMAIL_USE_TLS` | Enable TLS encryption | `True` |
+| `EMAIL_HOST_USER` | SMTP username / email address | `yourgmail@gmail.com` |
+| `EMAIL_HOST_PASSWORD` | SMTP app password / API key | `your-app-password` |
+| `DEFAULT_FROM_EMAIL` | Sender address shown in invite emails | `BAI Finance <no-reply@baifinance.com>` |
+
+> [!TIP]
+> **Local Testing without SMTP Credentials**: Set `EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend` in your `.env`. When an invitation is sent via the API or UI, the activation email and link will be printed directly to your Django server console!
 
 ---
 
@@ -445,16 +459,47 @@ python manage.py migrate
 
 **Indexes:** `(entity_type, entity_id)`, `(occurred_at)`
 
+## Preseeded Accounts
+ 
+ The database migrations include an initial administrator / compliance user created automatically via data migration [`0002_auto_20260824_1151`](apps/users/migrations/0002_auto_20260824_1151.py):
+ 
+ | Field | Value |
+ | :--- | :--- |
+ | **Email** | `compliance@bai.finance` |
+ | **Password** | `SuperSecretPassword123!` |
+ | **Role** | `compliance` |
+ | **Status** | `active` |
+ | **Permissions** | `is_staff=True`, `is_superuser=True` |
+ 
+ ### How to Seed / Re-seed:
+ - **Automatic**: Triggered on initial setup when you run `python manage.py migrate` (or run `backend_start.bat`).
+ - **Manual Re-seeding**: If the compliance user was deleted or modified and you need to reset it, roll back and re-apply migration 0002:
+   ```bash
+   python manage.py migrate users 0001
+   python manage.py migrate users 0002
+   ```
+
 ---
 
 ## API Endpoints
 
-| Method | Endpoint        | Description         | Status      |
-| ------ | --------------- | ------------------- | ----------- |
-| GET    | `/healthz`      | Health check        | ✅ Working  |
-| —      | `/admin/`       | Django admin panel   | ✅ Working  |
-| —      | `/api/users/`   | User management      | 🔲 Placeholder |
-| —      | `/api/auth/`    | Authentication       | 🔲 Placeholder |
+For full request/response schemas, payloads, error states, and token flows, refer to **[`endpoints.md`](endpoints.md)**.
+
+| Method | Endpoint | Description | Auth Required | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/healthz` | Health check | Public | ✅ Working |
+| `POST` | `/api/auth/login/` | Log in & issue HttpOnly JWT cookies | Public | ✅ Working |
+| `POST` | `/api/auth/logout/` | Log out & clear JWT cookies | Authenticated | ✅ Working |
+| `POST` | `/api/auth/token/refresh/` | Refresh access JWT cookie | Public (Cookie) | ✅ Working |
+| `GET` / `PUT` | `/api/auth/user/` | View/update current user profile | Authenticated | ✅ Working |
+| `POST` | `/api/auth/invitations/send/` | Send invitation link to Broker or Client | Authenticated | ✅ Working |
+| `POST` | `/api/auth/compliance/` | Create Compliance user & send invite | Compliance | ✅ Working |
+| `GET` | `/api/auth/invitations/validate/` | Validate token & retrieve invitee role | Public | ✅ Working |
+| `POST` | `/api/auth/invitations/accept/` | Accept invite, set password & create profile | Public | ✅ Working |
+| `GET` | `/api/auth/invitations/<id>/resend/` | Resend invitation email | Compliance | ✅ Working |
+| `GET` | `/api/auth/invitations/<id>/revoke/` | Revoke pending invitation | Compliance | ✅ Working |
+| — | `/admin/` | Django admin panel | Staff/Superuser | ✅ Working |
+| — | `/api/users/` | User CRUD management | Authenticated | 🔲 Placeholder |
 
 ---
 
@@ -465,20 +510,23 @@ python manage.py migrate
 - Project scaffold with clean architecture (`config/`, `apps/`, `common/`)
 - 8 Django apps with models, choices, and migrations
 - Custom User model with UUID PKs and email-based auth
+- Preseeded compliance account migration
+- Full Authentication & Invitation flow (`dj-rest-auth`, `SimpleJWT`, HttpOnly cookies)
+- Invitation lifecycle with 32-byte secure tokens, 7-day expiration & HTML email dispatch
+- Public activation workflow with role validation (`ClientProfile` & `BrokerProfile` creation)
 - PostgreSQL database connected via Supabase
 - Settings split (base / development / production)
 - CORS configured for frontend (`localhost:3000`)
 - Health check endpoint
 - Windows quick-start script (`backend_start.bat`)
+- Complete endpoint documentation in `endpoints.md`
 
 ### Pending 🔲
 
-- **API views & serializers** — All views are empty stubs
-- **URL patterns** — Only health check is wired up
-- **Tests** — All test files are placeholders
-- **CI/CD** — No pipelines configured
-- **Docker** — No containerization yet
-- **Documentation** — No API schema (Swagger/OpenAPI)
+- **Domain API views & serializers** — Loan applications, document center, bookings & communications views
+- **Tests** — Unit and integration test suites
+- **CI/CD** — Deployment pipelines
+- **Docker** — Containerization setup
 
 ---
 
