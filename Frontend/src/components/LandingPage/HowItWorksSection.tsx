@@ -48,10 +48,10 @@ export default function HowItWorksSection() {
   ];
 
   return (
-    <section id="how-it-works" className="py-24 bg-[#0B2369] text-white relative overflow-hidden">
+    <section id="how-it-works" className="py-24 bg-[#0038A8] text-white relative overflow-hidden">
       {/* Background Decorative Ambient Glows */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#163691]/30 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#163691]/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#002D87]/30 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#002D87]/20 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
@@ -60,7 +60,7 @@ export default function HowItWorksSection() {
         {/* ==================================================================== */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           {/* Centered Top Pill Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#071644] border border-[#163691] text-amber-400 text-xs font-extrabold uppercase tracking-widest mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#002266] border border-[#002D87] text-amber-400 text-xs font-extrabold uppercase tracking-widest mb-6">
             <span>HOW IT WORKS</span>
           </div>
 
@@ -84,15 +84,15 @@ export default function HowItWorksSection() {
             return (
               <div
                 key={idx}
-                className="bg-[#071644]/80 backdrop-blur-md rounded-3xl p-6 sm:p-7 border border-[#163691]/60 flex flex-col justify-between hover:bg-[#071644] hover:border-[#1F4BBF]/50 transition-all duration-300 shadow-lg"
+                className="bg-[#002266]/80 backdrop-blur-md rounded-3xl p-6 sm:p-7 border border-[#002D87]/60 flex flex-col justify-between hover:bg-[#002266] hover:border-[#0047D4]/50 transition-all duration-300 shadow-lg"
               >
                 <div>
                   {/* Card Top Row: Step Number & Circle Icon */}
                   <div className="flex items-center justify-between mb-8">
-                    <span className="inline-flex items-center justify-center px-3.5 py-1 rounded-full bg-[#0B2369] text-amber-400 text-sm font-extrabold tracking-wider border border-[#163691]">
+                    <span className="inline-flex items-center justify-center px-3.5 py-1 rounded-full bg-[#0038A8] text-amber-400 text-sm font-extrabold tracking-wider border border-[#002D87]">
                       {step.stepNumber}
                     </span>
-                    <div className="w-10 h-10 rounded-full bg-[#0B2369] border border-[#163691] text-white flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-[#0038A8] border border-[#002D87] text-white flex items-center justify-center">
                       <Icon className="w-5 h-5" />
                     </div>
                   </div>

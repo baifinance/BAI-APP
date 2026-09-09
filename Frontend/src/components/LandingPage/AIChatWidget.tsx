@@ -224,9 +224,9 @@ export default function AIChatWidget() {
       {isOpen && (
         <div
           className="mb-4 w-[90vw] sm:w-[400px] h-[550px] max-h-[82vh] bg-white rounded-2xl shadow-2xl border border-slate-200/80 flex flex-col overflow-hidden transition-all duration-300 transform animate-in fade-in slide-in-from-bottom-5"
-          style={{ boxShadow: "0 20px 50px -10px rgba(11, 35, 105, 0.25)" }}
+          style={{ boxShadow: "0 20px 50px -10px rgba(0, 56, 168, 0.25)" }}
         >
-          <div className="bg-gradient-to-r from-[#0B2369] via-[#0D2A7F] to-[#1429A9] text-white p-4 flex items-center justify-between shadow-md shrink-0">
+          <div className="bg-gradient-to-r from-[#0038A8] via-[#002F8E] to-[#0024A8] text-white p-4 flex items-center justify-between shadow-md shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-white/15 border border-white/20 flex items-center justify-center text-amber-400 shadow-inner">
                 <Sparkles className="w-5 h-5" />
@@ -281,7 +281,7 @@ export default function AIChatWidget() {
                   }`}
                 >
                   {msg.role === "assistant" ? (
-                    <div className="w-7 h-7 rounded-full bg-[#0B2369] text-white flex items-center justify-center text-xs shrink-0 mt-0.5 shadow-sm">
+                    <div className="w-7 h-7 rounded-full bg-[#0038A8] text-white flex items-center justify-center text-xs shrink-0 mt-0.5 shadow-sm">
                       <Bot className="w-4 h-4" />
                     </div>
                   ) : (
@@ -293,7 +293,7 @@ export default function AIChatWidget() {
                   <div
                     className={`p-3.5 rounded-2xl shadow-sm leading-relaxed ${
                       msg.role === "user"
-                        ? "bg-[#0B2369] text-white rounded-tr-xs"
+                        ? "bg-[#0038A8] text-white rounded-tr-xs"
                         : "bg-white text-slate-700 rounded-tl-xs border border-slate-100"
                     }`}
                   >
@@ -321,15 +321,15 @@ export default function AIChatWidget() {
 
             {isLoading && (
               <div className="flex items-start gap-2.5 max-w-[88%] self-start animate-in fade-in duration-300">
-                <div className="w-7 h-7 rounded-full bg-[#0B2369] text-white flex items-center justify-center text-xs shrink-0 mt-0.5 shadow-sm">
+                <div className="w-7 h-7 rounded-full bg-[#0038A8] text-white flex items-center justify-center text-xs shrink-0 mt-0.5 shadow-sm">
                   <Bot className="w-4 h-4" />
                 </div>
                 <div className="bg-white px-4 py-3 rounded-2xl rounded-tl-xs shadow-sm border border-slate-100 flex items-center gap-2">
                   <span className="text-[11px] text-slate-500 font-medium">BAI A.I is typing</span>
                   <div className="flex items-center gap-1 ml-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#0B2369] animate-bounce [animation-delay:-0.3s]" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#0B2369] animate-bounce [animation-delay:-0.15s]" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#0B2369] animate-bounce" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#0038A8] animate-bounce [animation-delay:-0.3s]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#0038A8] animate-bounce [animation-delay:-0.15s]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#0038A8] animate-bounce" />
                   </div>
                 </div>
               </div>
@@ -348,7 +348,7 @@ export default function AIChatWidget() {
                 type="button"
                 onClick={() => handleSendMessage(item.prompt)}
                 disabled={isLoading}
-                className="text-[11px] bg-white hover:bg-blue-50 text-[#0B2369] border border-slate-200 hover:border-blue-300 px-2.5 py-1 rounded-full whitespace-nowrap transition-all shrink-0 font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-[11px] bg-white hover:bg-blue-50 text-[#0038A8] border border-slate-200 hover:border-blue-300 px-2.5 py-1 rounded-full whitespace-nowrap transition-all shrink-0 font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {item.label}
               </button>
@@ -356,7 +356,7 @@ export default function AIChatWidget() {
           </div>
 
           <form onSubmit={handleSubmit} className="p-3 bg-white border-t border-slate-100 shrink-0">
-            <div className="flex items-center gap-2 bg-slate-100/90 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-[#0B2369]/30 focus-within:bg-white transition-all border border-slate-200/70">
+            <div className="flex items-center gap-2 bg-slate-100/90 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-[#0038A8]/30 focus-within:bg-white transition-all border border-slate-200/70">
               <input
                 type="text"
                 value={inputMessage}
@@ -370,7 +370,7 @@ export default function AIChatWidget() {
                 type="submit"
                 className={`p-2 rounded-lg transition-all duration-200 cursor-pointer ${
                   inputMessage.trim() && !isLoading
-                    ? "bg-[#0B2369] text-white hover:bg-[#071644] shadow-sm"
+                    ? "bg-[#0038A8] text-white hover:bg-[#002266] shadow-sm"
                     : "bg-slate-200 text-slate-400 cursor-not-allowed"
                 }`}
                 disabled={!inputMessage.trim() || isLoading}
@@ -390,8 +390,8 @@ export default function AIChatWidget() {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="group relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-[#0B2369] via-[#0D2A7F] to-[#1429A9] text-white shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 border-2 border-white/30 focus:outline-none focus:ring-4 focus:ring-[#0B2369]/30 cursor-pointer"
-        style={{ boxShadow: "0 10px 30px rgba(11, 35, 105, 0.4)" }}
+        className="group relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-[#0038A8] via-[#002F8E] to-[#0024A8] text-white shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 border-2 border-white/30 focus:outline-none focus:ring-4 focus:ring-[#0038A8]/30 cursor-pointer"
+        style={{ boxShadow: "0 10px 30px rgba(0, 56, 168, 0.4)" }}
         aria-label="Open A.I Assistant"
       >
         <span className="absolute inset-0 rounded-full bg-blue-400/20 animate-ping opacity-75 pointer-events-none" />

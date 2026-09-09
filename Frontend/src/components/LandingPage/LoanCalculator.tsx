@@ -36,11 +36,11 @@ export default function LoanCalculator() {
         
         {/* SECTION HEADER */}
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 text-[#0B2369] rounded-full text-xs font-bold uppercase tracking-wider mb-3 border border-slate-200">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 text-[#0038A8] rounded-full text-xs font-bold uppercase tracking-wider mb-3 border border-slate-200">
             <Calculator className="w-3.5 h-3.5" />
             <span>REPAYMENT ESTIMATOR</span>
           </div>
-          <h2 className="text-3xl font-extrabold text-[#0B2369] tracking-tight mb-3">
+          <h2 className="text-3xl font-extrabold text-[#0038A8] tracking-tight mb-3">
             Estimate your monthly repayments
           </h2>
           <p className="text-slate-600 text-sm">
@@ -58,7 +58,7 @@ export default function LoanCalculator() {
                 <label className="text-xs font-bold uppercase text-slate-500 tracking-wider">
                   Loan Amount
                 </label>
-                <span className="text-lg font-extrabold text-[#0B2369]">
+                <span className="text-lg font-extrabold text-[#0038A8]">
                   ${loanAmount.toLocaleString()}
                 </span>
               </div>
@@ -69,7 +69,7 @@ export default function LoanCalculator() {
                 step="25000"
                 value={loanAmount}
                 onChange={(e) => setLoanAmount(Number(e.target.value))}
-                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#0B2369]"
+                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#0038A8]"
               />
               <div className="flex justify-between text-[11px] text-slate-400 mt-1 font-medium">
                 <span>$100k</span>
@@ -83,7 +83,7 @@ export default function LoanCalculator() {
                 <label className="text-xs font-bold uppercase text-slate-500 tracking-wider">
                   Estimated Interest Rate
                 </label>
-                <span className="text-lg font-extrabold text-[#0B2369]">
+                <span className="text-lg font-extrabold text-[#0038A8]">
                   {interestRate.toFixed(2)}%
                 </span>
               </div>
@@ -94,7 +94,7 @@ export default function LoanCalculator() {
                 step="0.05"
                 value={interestRate}
                 onChange={(e) => setInterestRate(Number(e.target.value))}
-                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#0B2369]"
+                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#0038A8]"
               />
               <div className="flex justify-between text-[11px] text-slate-400 mt-1 font-medium">
                 <span>4.5%</span>
@@ -114,7 +114,7 @@ export default function LoanCalculator() {
                     onClick={() => setLoanTerm(term)}
                     className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
                       loanTerm === term
-                        ? "bg-[#0B2369] text-white border-[#0B2369] shadow-sm"
+                        ? "bg-[#0038A8] text-white border-[#0038A8] shadow-sm"
                         : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                     }`}
                   >
@@ -126,8 +126,8 @@ export default function LoanCalculator() {
           </div>
 
           {/* CALCULATION RESULT BOX */}
-          <div className="md:col-span-5 bg-[#0B2369] rounded-2xl p-6 text-white text-center flex flex-col items-center justify-center relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#163691]/20 rounded-full blur-2xl pointer-events-none" />
+          <div className="md:col-span-5 bg-[#0038A8] rounded-2xl p-6 text-white text-center flex flex-col items-center justify-center relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#002D87]/20 rounded-full blur-2xl pointer-events-none" />
 
             <span className="text-xs font-semibold text-slate-300 uppercase tracking-widest mb-1 block">
               Estimated Repayment
@@ -146,7 +146,7 @@ export default function LoanCalculator() {
 
             <Link
               href="#book"
-              className="w-full py-3 px-4 rounded-xl bg-white hover:bg-slate-100 text-[#0B2369] font-bold text-xs flex items-center justify-center gap-2 shadow-md"
+              className="w-full py-3 px-4 rounded-xl bg-white hover:bg-slate-100 text-[#0038A8] font-bold text-xs flex items-center justify-center gap-2 shadow-md"
             >
               <Calendar className="w-4 h-4" />
               <span>Lock in this rate now</span>

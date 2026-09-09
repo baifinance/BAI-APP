@@ -43,11 +43,11 @@ export default function Hero() {
             
             {/* Country Badges */}
             <div className="inline-flex items-center gap-2 p-1.5 pr-4 bg-white rounded-full shadow-xs border border-slate-200/80 mb-6">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-[#0B2369] rounded-full text-xs font-bold tracking-wide uppercase">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-[#0038A8] rounded-full text-xs font-bold tracking-wide uppercase">
                 <span className="text-sm">🇦🇺</span>
                 <span>AUSTRALIA</span>
               </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-[#0B2369] rounded-full text-xs font-bold tracking-wide uppercase">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-[#0038A8] rounded-full text-xs font-bold tracking-wide uppercase">
                 <span className="text-sm">🇵🇭</span>
                 <span>PHILIPPINES</span>
               </div>
@@ -57,9 +57,9 @@ export default function Hero() {
             </div>
 
             {/* Main Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#0B2369] tracking-tight leading-[1.12] mb-6">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#0038A8] tracking-tight leading-[1.12] mb-6">
               A friend in finance, from first home to{" "}
-              <span className="relative inline-block text-[#0B2369]">
+              <span className="relative inline-block text-[#0038A8]">
                 settled
                 <span className="absolute bottom-1 left-0 w-full h-[6px] bg-amber-400 rounded-full" />
               </span>
@@ -75,7 +75,7 @@ export default function Hero() {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto mb-10">
               <Link
                 href="#book"
-                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl text-base font-bold text-white bg-[#0B2369] hover:bg-[#071644] shadow-lg shadow-[#0B2369]/20 transition-all duration-200 hover:-translate-y-0.5"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl text-base font-bold text-white bg-[#0038A8] hover:bg-[#002266] shadow-lg shadow-[#0038A8]/20 transition-all duration-200 hover:-translate-y-0.5"
               >
                 <Calendar className="w-5 h-5" />
                 <span>Book a consultation</span>
@@ -84,9 +84,9 @@ export default function Hero() {
 
               <Link
                 href="#portal"
-                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl text-base font-bold text-[#0B2369] bg-white hover:bg-slate-100 border-2 border-[#0B2369]/20 shadow-xs transition-all duration-200 hover:-translate-y-0.5"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl text-base font-bold text-[#0038A8] bg-white hover:bg-slate-100 border-2 border-[#0038A8]/20 shadow-xs transition-all duration-200 hover:-translate-y-0.5"
               >
-                <Lock className="w-5 h-5 text-[#0B2369]" />
+                <Lock className="w-5 h-5 text-[#0038A8]" />
                 <span>Track your application</span>
               </Link>
             </div>
@@ -94,7 +94,7 @@ export default function Hero() {
             {/* 3 Feature Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full pt-4 border-t border-slate-200/60">
               <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/80 border border-slate-200/70 shadow-xs">
-                <div className="w-9 h-9 rounded-xl bg-slate-100 text-[#0B2369] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-slate-100 text-[#0038A8] flex items-center justify-center shrink-0">
                   <Users className="w-5 h-5" />
                 </div>
                 <div>
@@ -104,7 +104,7 @@ export default function Hero() {
               </div>
 
               <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/80 border border-slate-200/70 shadow-xs">
-                <div className="w-9 h-9 rounded-xl bg-slate-100 text-[#0B2369] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-slate-100 text-[#0038A8] flex items-center justify-center shrink-0">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
@@ -114,7 +114,7 @@ export default function Hero() {
               </div>
 
               <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/80 border border-slate-200/70 shadow-xs">
-                <div className="w-9 h-9 rounded-xl bg-slate-100 text-[#0B2369] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-slate-100 text-[#0038A8] flex items-center justify-center shrink-0">
                   <Activity className="w-5 h-5" />
                 </div>
                 <div>
@@ -132,14 +132,14 @@ export default function Hero() {
             <div className="relative w-full max-w-[540px] aspect-[4/3.8] sm:aspect-[4/3.4]">
               
               {/* SINGULAR PHOTO CONTAINER PLACEHOLDER */}
-              <div className="w-full h-full rounded-3xl overflow-hidden bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200/80 border-2 border-dashed border-[#0B2369]/30 shadow-soft-xl relative flex flex-col items-center justify-center p-8 transition-all duration-300">
+              <div className="w-full h-full rounded-3xl overflow-hidden bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200/80 border-2 border-dashed border-[#0038A8]/30 shadow-soft-xl relative flex flex-col items-center justify-center p-8 transition-all duration-300">
                 <div className="absolute inset-0 bg-grid-pattern opacity-40" />
 
                 <div className="relative z-10 flex flex-col items-center text-center p-6 rounded-2xl bg-white/80 backdrop-blur-xs border border-white/80 max-w-xs shadow-xs">
-                  <div className="w-16 h-16 rounded-2xl bg-slate-100 text-[#0B2369] flex items-center justify-center mb-3 shadow-inner">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-100 text-[#0038A8] flex items-center justify-center mb-3 shadow-inner">
                     <ImageIcon className="w-8 h-8 stroke-[1.8]" />
                   </div>
-                  <span className="text-xs font-bold tracking-wider text-[#0B2369] uppercase mb-1">
+                  <span className="text-xs font-bold tracking-wider text-[#0038A8] uppercase mb-1">
                     Singular Photo Container
                   </span>
                   <p className="text-[11px] text-slate-500 font-medium leading-normal">
@@ -151,15 +151,15 @@ export default function Hero() {
               {/* FLOATING CARD 1: Top Floating Badge */}
               <div className="absolute -top-4 left-6 sm:left-10 z-20 animate-float">
                 <div className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-lg text-slate-800">
-                  <div className="w-7 h-7 rounded-full bg-[#0B2369] text-white flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-full bg-[#0038A8] text-white flex items-center justify-center">
                     <Building2 className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-[#0B2369]">Bai means friend</span>
+                  <span className="text-xs font-bold text-[#0038A8]">Bai means friend</span>
                 </div>
               </div>
 
               {/* FLOATING CARD 2: Overlay Dark Navy Blue Card */}
-              <div className="absolute top-12 -right-3 sm:-right-6 z-20 w-[240px] sm:w-[270px] bg-[#071644]/95 backdrop-blur-md rounded-2xl p-4 text-white shadow-2xl border border-[#0B2369]/60 animate-float-delayed">
+              <div className="absolute top-12 -right-3 sm:-right-6 z-20 w-[240px] sm:w-[270px] bg-[#002266]/95 backdrop-blur-md rounded-2xl p-4 text-white shadow-2xl border border-[#0038A8]/60 animate-float-delayed">
                 <div className="flex items-center justify-between mb-3 border-b border-slate-700/80 pb-2">
                   <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-200">
                     WE HANDLE. YOU FOCUS.
@@ -193,26 +193,26 @@ export default function Hero() {
               {/* FLOATING CARD 3: Portal Status Card */}
               <div className="absolute -bottom-6 left-2 sm:-left-6 z-20 bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xl w-[250px] sm:w-[280px]">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#0B2369] text-white flex items-center justify-center shrink-0 shadow-md">
+                  <div className="w-10 h-10 rounded-xl bg-[#0038A8] text-white flex items-center justify-center shrink-0 shadow-md">
                     <Building2 className="w-5 h-5" />
                   </div>
                   <div>
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                       HOME LOAN · SUBMITTED
                     </span>
-                    <span className="text-xl font-extrabold text-[#0B2369] tracking-tight">
+                    <span className="text-xl font-extrabold text-[#0038A8] tracking-tight">
                       $640,000
                     </span>
                   </div>
                 </div>
 
                 <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-semibold">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-[#0B2369] text-[11px] font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#0B2369] animate-pulse" />
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-[#0038A8] text-[11px] font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#0038A8] animate-pulse" />
                     Approved
                   </span>
                   <span className="text-slate-600 flex items-center gap-1 text-[11px]">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#0B2369]" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#0038A8]" />
                     Tracked live
                   </span>
                 </div>
@@ -220,8 +220,8 @@ export default function Hero() {
 
               {/* FLOATING CARD 4: Bottom Floating Badge */}
               <div className="absolute -bottom-4 right-4 sm:right-8 z-20">
-                <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-amber-400 text-[#0B2369] font-bold text-xs shadow-md border border-amber-300">
-                  <Award className="w-4 h-4 text-[#0B2369]" />
+                <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-amber-400 text-[#0038A8] font-bold text-xs shadow-md border border-amber-300">
+                  <Award className="w-4 h-4 text-[#0038A8]" />
                   <span>Australian & PH Expertise</span>
                 </div>
               </div>
