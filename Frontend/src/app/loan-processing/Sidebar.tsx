@@ -13,7 +13,7 @@ import React from "react";
 import Link from "next/link";
 import { LayoutDashboard, CheckSquare, ClipboardList, ShieldAlert, Percent, Bell, LogOut } from "lucide-react";
 
-export type LoanProcessingTabType = "Dashboard" | "Review" | "Application" | "AuditLog" | "Calculator" | "Notifications";
+export type LoanProcessingTabType = "Dashboard"  | "Application" | "AuditLog" | "Calculator" | "Notifications";
 
 interface SidebarProps {
   activeTab: LoanProcessingTabType;
@@ -23,7 +23,6 @@ export default function Sidebar({ activeTab }: SidebarProps) {
   // Menu items for Loan Processing portal
   const menuItems = [
     { id: "Dashboard" as LoanProcessingTabType, label: "Dashboard", icon: LayoutDashboard, href: "/loan-processing/dashboard" },
-    { id: "Review" as LoanProcessingTabType, label: "Review Tab", icon: CheckSquare, href: "/loan-processing/review" },
     { id: "Application" as LoanProcessingTabType, label: "Application", icon: ClipboardList, href: "/loan-processing/application" },
     { id: "AuditLog" as LoanProcessingTabType, label: "Audit Log", icon: ShieldAlert, href: "/loan-processing/audit-log" },
     { id: "Calculator" as LoanProcessingTabType, label: "Calculator", icon: Percent, href: "/loan-processing/calculator" },
