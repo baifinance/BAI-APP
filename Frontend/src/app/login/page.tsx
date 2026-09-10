@@ -43,7 +43,9 @@ export default function ClientLoginPage() {
     try {
       const data = await authApi.login(email, password);
       const role = data.user.role;
-      document.cookie = `user-role=${role}; path=/; SameSite=Lax`;
+      // UX-only hint cookie; real RBAC is server-side (JWT). Secure flag when on HTTPS.
+      const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
+      document.cookie = `user-role=${role}; path=/; SameSite=Lax${isHttps ? "; Secure" : ""}`;
       router.push(getRoleRedirect(role));
     } catch (err: any) {
       setErrorMsg(err?.message || "Invalid email or password. Please try again.");

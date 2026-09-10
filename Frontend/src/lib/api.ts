@@ -1,4 +1,5 @@
-const API_BASE = "http://localhost:8000";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 interface RequestOptions extends RequestInit {
   json?: unknown;
@@ -24,7 +25,32 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`API ${res.status}: ${body}`);
+    let msg = `Request failed (${res.status})`;
+    try {
+      const j = JSON.parse(body);
+      // dj-rest-auth login returns {non_field_errors: [...]} on bad creds
+      if (Array.isArray(j.non_field_errors) && j.non_field_errors.length) {
+        msg = j.non_field_errors[0];
+      } else if (j.detail) {
+        msg = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+      } else if (j.error) {
+        msg = typeof j.error === "string" ? j.error : JSON.stringify(j.error);
+      } else if (j.message) {
+        msg = j.message;
+      } else if (j.email) {
+        msg = Array.isArray(j.email) ? j.email[0] : String(j.email);
+      } else if (j.password) {
+        msg = Array.isArray(j.password) ? j.password[0] : String(j.password);
+      } else {
+        // fallback: first string value
+        const first = Object.values(j).find((v) => typeof v === "string" || Array.isArray(v));
+        if (Array.isArray(first) && typeof first[0] === "string") msg = first[0];
+        else if (typeof first === "string") msg = first;
+      }
+    } catch {
+      if (body.length < 500) msg = body;
+    }
+    throw new Error(msg);
   }
 
   if (res.status === 204) return undefined as T;

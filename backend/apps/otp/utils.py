@@ -15,8 +15,8 @@ def generate_otp(size=6):
     return "".join(secrets.choice(string.digits) for _ in range(size))
 
 def store_otp(email, code, purpose="login", ttl=180):
-    """Store OTP in Redis with TTL in seconds"""
-    key = f"otp:{email.lower()}"
+    """Store OTP in Redis with TTL in seconds — key is namespaced by purpose to prevent cross-purpose collisions."""
+    key = f"otp:{purpose}:{email.lower()}"
     payload = {
         "code": code,
         "created_at": timezone.now().isoformat(),
@@ -32,7 +32,7 @@ def store_otp(email, code, purpose="login", ttl=180):
 
 def verify_otp(email, code, purpose="login"):
     """Verify OTP against Redis. Returns (success, error_message)"""
-    key = f"otp:{email.lower()}"
+    key = f"otp:{purpose}:{email.lower()}"
     stored = redis_client.get(key)
     if not stored:
         return False, "OTP expired or not found"

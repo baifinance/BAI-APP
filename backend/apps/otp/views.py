@@ -1,9 +1,18 @@
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
+
+
+class OtpSendThrottle(AnonRateThrottle):
+    scope = "otp"
+
+
+class OtpVerifyThrottle(AnonRateThrottle):
+    scope = "otp_verify"
 
 from .utils import generate_otp, store_otp, verify_otp
 from .serializers import OtpSendSerializer, OtpVerifySerializer
@@ -33,6 +42,7 @@ DEFAULT_THEME = {
 class OtpSendView(generics.CreateAPIView):
     serializer_class = OtpSendSerializer
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [OtpSendThrottle]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -83,6 +93,7 @@ class OtpSendView(generics.CreateAPIView):
 class OtpVerifyView(generics.GenericAPIView):
     serializer_class = OtpVerifySerializer
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [OtpVerifyThrottle]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

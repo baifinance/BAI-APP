@@ -5,6 +5,7 @@ class RAGChatRequestSerializer(serializers.Serializer):
     question = serializers.CharField(
         required=True,
         allow_blank=False,
+        max_length=2000,
         help_text="User query for the Bai Finance AI assistant."
     )
     domain_filter = serializers.CharField(

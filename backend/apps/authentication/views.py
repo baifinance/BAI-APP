@@ -162,8 +162,14 @@ class SendInviteView(generics.CreateAPIView):
     to a broker or client.
     POST /api/auth/invitations/send/
     """
+    from rest_framework.throttling import UserRateThrottle
+
+    class InviteThrottle(UserRateThrottle):
+        scope = "user"
+
     serializer_class = SendInviteSerializer
     permission_classes = [IsLoanProcessingTeam]
+    throttle_classes = [InviteThrottle]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -238,16 +244,16 @@ class InvitationAcceptView(generics.GenericAPIView):
             status=status.HTTP_200_OK,
         )
 
-class InvitationResendView(generics.RetrieveAPIView):
+class InvitationResendView(generics.GenericAPIView):
     """
     Resend invitation email.
-    GET /api/auth/invitations/<id>/resend/
-    Only Compliance users should be allowed.
+    POST /api/auth/invitations/<id>/resend/
+    Loan Processing only — state-changing, must be POST with CSRF.
     """
-    # permission_classes = [IsComplianceTeam]
+    permission_classes = [IsLoanProcessingTeam]
     queryset = Invitation.objects.select_related("user")
 
-    def retrieve(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         invitation = self.get_object()
 
         if invitation.status != InviteStatus.PENDING:
@@ -259,20 +265,36 @@ class InvitationResendView(generics.RetrieveAPIView):
         invitation.expires_at = timezone.now() + timedelta(days=7)
         invitation.save()
 
+        AuditLog.objects.create(
+            actor=request.user,
+            action="INVITATION_RESENT",
+            entity_type="Invitation",
+            entity_id=invitation.id,
+            ip_address=request.META.get("REMOTE_ADDR"),
+        )
+
         send_invite_email(invitation.user, invitation, request)
 
         return Response({"message": "Invitation email resent."})
 
-class InvitationRevokeView(generics.RetrieveAPIView):
+    # Backward compat: GET returns 405 with guidance
+    def get(self, request, *args, **kwargs):
+        return Response(
+            {"error": "Use POST for this endpoint."},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+
+class InvitationRevokeView(generics.GenericAPIView):
     """
     Revoke an invitation.
-    GET /api/auth/invitations/<id>/revoke/
-    Only Compliance users should be allowed.
+    POST /api/auth/invitations/<id>/revoke/
+    Loan Processing only — state-changing, must be POST with CSRF.
     """
-    # permission_classes = [IsComplianceTeam]
+    permission_classes = [IsLoanProcessingTeam]
     queryset = Invitation.objects.select_related("user")
 
-    def retrieve(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         invitation = self.get_object()
 
         if invitation.status == InviteStatus.ACCEPTED:
@@ -284,6 +306,14 @@ class InvitationRevokeView(generics.RetrieveAPIView):
         invitation.status = InviteStatus.REVOKED
         invitation.save()
 
+        AuditLog.objects.create(
+            actor=request.user,
+            action="INVITATION_REVOKED",
+            entity_type="Invitation",
+            entity_id=invitation.id,
+            ip_address=request.META.get("REMOTE_ADDR"),
+        )
+
         user = invitation.user
         if not user.is_active:
             user.is_active = False
@@ -291,3 +321,9 @@ class InvitationRevokeView(generics.RetrieveAPIView):
             user.save()
 
         return Response({"message": "Invitation revoked."})
+
+    def get(self, request, *args, **kwargs):
+        return Response(
+            {"error": "Use POST for this endpoint."},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
