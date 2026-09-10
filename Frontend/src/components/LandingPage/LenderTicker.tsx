@@ -29,7 +29,7 @@ export default function LenderTicker() {
         <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10">
           
           <div className="shrink-0 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-[#0B2369]" />
+            <span className="w-2 h-2 rounded-full bg-[#0038A8]" />
             <span>WE WORK WITH LEADING LENDERS</span>
           </div>
 
@@ -40,12 +40,12 @@ export default function LenderTicker() {
                   key={index}
                   className="flex items-center gap-2 group cursor-default"
                 >
-                  <span className="text-base sm:text-lg font-extrabold text-slate-400 group-hover:text-[#0B2369] transition-colors tracking-tight">
+                  <span className="text-base sm:text-lg font-extrabold text-slate-400 group-hover:text-[#0038A8] transition-colors tracking-tight">
                     {lender.name}
                   </span>
                 </div>
               ))}
-              <span className="text-xs font-semibold text-[#0B2369] bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+              <span className="text-xs font-semibold text-[#0038A8] bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
                 and 30+ more lenders
               </span>
             </div>

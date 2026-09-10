@@ -39,7 +39,7 @@ export default function Header() {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? "bg-[#0B2369] text-white shadow-lg py-3.5 border-b border-[#081B52]"
+          ? "bg-[#0038A8] text-white shadow-lg py-3.5 border-b border-[#002B82]"
           : "bg-white/90 backdrop-blur-md text-slate-800 py-4 border-b border-slate-100/80 shadow-xs"
       }`}
     >
@@ -51,8 +51,8 @@ export default function Header() {
             <div
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 shadow-md ${
                 isScrolled
-                  ? "bg-white text-[#0B2369]"
-                  : "bg-[#0B2369] text-white"
+                  ? "bg-white text-[#0038A8]"
+                  : "bg-[#0038A8] text-white"
               }`}
             >
               <Building2 className="w-5 h-5 stroke-[2.2]" />
@@ -61,10 +61,10 @@ export default function Header() {
             <div className="flex flex-col">
               <span
                 className={`text-xl font-bold tracking-tight transition-colors duration-300 ${
-                  isScrolled ? "text-white" : "text-[#0B2369]"
+                  isScrolled ? "text-white" : "text-[#0038A8]"
                 }`}
               >
-                BAI<span className={isScrolled ? "text-amber-400" : "text-[#0B2369]"}>Finance</span>
+                BAI<span className={isScrolled ? "text-amber-400" : "text-[#0038A8]"}>Finance</span>
               </span>
               <span
                 className={`text-[9px] font-semibold uppercase tracking-widest -mt-1 ${
@@ -83,7 +83,7 @@ export default function Header() {
               className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
                 isScrolled
                   ? "bg-white/15 text-white font-semibold"
-                  : "bg-slate-100 text-[#0B2369] font-semibold"
+                  : "bg-slate-100 text-[#0038A8] font-semibold"
               }`}
             >
               Home
@@ -94,7 +94,7 @@ export default function Header() {
               className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
                 isScrolled
                   ? "text-white/80 hover:text-white hover:bg-white/10"
-                  : "text-slate-600 hover:text-[#0B2369] hover:bg-slate-50"
+                  : "text-slate-600 hover:text-[#0038A8] hover:bg-slate-50"
               }`}
             >
               Services
@@ -105,7 +105,7 @@ export default function Header() {
               className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
                 isScrolled
                   ? "text-white/80 hover:text-white hover:bg-white/10"
-                  : "text-slate-600 hover:text-[#0B2369] hover:bg-slate-50"
+                  : "text-slate-600 hover:text-[#0038A8] hover:bg-slate-50"
               }`}
             >
               How It Works
@@ -116,7 +116,7 @@ export default function Header() {
               className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
                 isScrolled
                   ? "text-white/80 hover:text-white hover:bg-white/10"
-                  : "text-slate-600 hover:text-[#0B2369] hover:bg-slate-50"
+                  : "text-slate-600 hover:text-[#0038A8] hover:bg-slate-50"
               }`}
             >
               Client Portal
@@ -127,7 +127,7 @@ export default function Header() {
               className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
                 isScrolled
                   ? "text-white/80 hover:text-white hover:bg-white/10"
-                  : "text-slate-600 hover:text-[#0B2369] hover:bg-slate-50"
+                  : "text-slate-600 hover:text-[#0038A8] hover:bg-slate-50"
               }`}
             >
               Calculator
@@ -141,7 +141,7 @@ export default function Header() {
               className={`text-sm font-medium transition-colors px-3 py-2 rounded-lg ${
                 isScrolled
                   ? "text-white/90 hover:text-white hover:bg-white/10"
-                  : "text-slate-700 hover:text-[#0B2369] hover:bg-slate-100/60"
+                  : "text-slate-700 hover:text-[#0038A8] hover:bg-slate-100/60"
               }`}
             >
               Client Login
@@ -151,8 +151,8 @@ export default function Header() {
               href="#book"
               className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 shadow-md ${
                 isScrolled
-                  ? "bg-white text-[#0B2369] hover:bg-slate-100 shadow-black/10"
-                  : "bg-[#0B2369] text-white hover:bg-[#071644] shadow-slate-900/10"
+                  ? "bg-white text-[#0038A8] hover:bg-slate-100 shadow-black/10"
+                  : "bg-[#0038A8] text-white hover:bg-[#002B82] shadow-slate-900/10"
               }`}
             >
               <Calendar className="w-4 h-4" />
@@ -188,14 +188,14 @@ export default function Header() {
           <div
             className={`md:hidden mt-3 pt-3 pb-4 px-2 border-t rounded-2xl flex flex-col gap-2 ${
               isScrolled
-                ? "border-[#081B52] bg-[#0B2369] text-white"
+                ? "border-[#002B82] bg-[#0038A8] text-white"
                 : "border-slate-100 bg-white shadow-xl text-slate-800"
             }`}
           >
             <Link
               href="#home"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-4 py-2.5 rounded-xl font-medium bg-slate-100 text-[#0B2369]"
+              className="px-4 py-2.5 rounded-xl font-medium bg-slate-100 text-[#0038A8]"
             >
               Home
             </Link>
@@ -238,7 +238,7 @@ export default function Header() {
               <Link
                 href="#book"
                 onClick={() => setMobileMenuOpen(false)}
-                className="px-4 py-2.5 rounded-xl text-center font-semibold bg-[#0B2369] text-white flex items-center justify-center gap-2"
+                className="px-4 py-2.5 rounded-xl text-center font-semibold bg-[#0038A8] text-white flex items-center justify-center gap-2"
               >
                 <Calendar className="w-4 h-4" />
                 Book a consultation

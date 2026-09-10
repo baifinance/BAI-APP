@@ -21,9 +21,9 @@ export default function Footer() {
     <footer className="w-full">
       
       {/* ==================================================================== */}
-      {/* PART 1: TOP CALLOUT BANNER (Navy Blue #0B2369)                      */}
+      {/* PART 1: TOP CALLOUT BANNER (Navy Blue #0038A8)                      */}
       {/* ==================================================================== */}
-      <div className="bg-[#0B2369] text-white py-16 px-4 sm:px-6 lg:px-8">
+      <div className="bg-[#0038A8] text-white py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
           
           {/* Banner Heading with Underlined "friend" */}
@@ -40,7 +40,7 @@ export default function Footer() {
             {/* White CTA Button */}
             <Link
               href="#book"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-sm font-bold text-[#0B2369] bg-white hover:bg-slate-100 shadow-lg transition-all duration-200"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-sm font-bold text-[#0038A8] bg-white hover:bg-slate-100 shadow-lg transition-all duration-200"
             >
               <Calendar className="w-4 h-4" />
               <span>Book a consultation</span>
@@ -60,18 +60,18 @@ export default function Footer() {
       </div>
 
       {/* ==================================================================== */}
-      {/* PART 2: MAIN FOOTER CONTENT BAR (Deep Navy Blue #071644)            */}
+      {/* PART 2: MAIN FOOTER CONTENT BAR (Deep Blue #002266)                  */}
       {/* ==================================================================== */}
-      <div className="bg-[#071644] text-white pt-16 pb-10 px-4 sm:px-6 lg:px-8 border-t border-[#0B2369]">
+      <div className="bg-[#002266] text-white pt-16 pb-10 px-4 sm:px-6 lg:px-8 border-t border-[#0038A8]">
         <div className="max-w-7xl mx-auto">
           
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 pb-14 border-b border-[#0B2369]">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 pb-14 border-b border-[#0038A8]">
             
             {/* Column 1: Brand Info & Contact Lines */}
             <div className="md:col-span-6 space-y-5">
               {/* Logo Emblem */}
               <Link href="/" className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-white text-[#0B2369] flex items-center justify-center font-bold shadow-md">
+                <div className="w-9 h-9 rounded-xl bg-white text-[#0038A8] flex items-center justify-center font-bold shadow-md">
                   <Building2 className="w-5 h-5 stroke-[2.2]" />
                 </div>
                 <span className="text-xl font-bold tracking-tight text-white">
