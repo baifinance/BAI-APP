@@ -2,54 +2,51 @@
  * ==============================================================================
  * COMPONENT: ProgressStatus.tsx
  * Path: src/app/client/loan-status/components/ProgressStatus.tsx
- * Description: Header status component displaying "In Progress" with a large,
- *              centered font styled with a theme blue gradient.
+ * Description: Top header for Client Loan Status page.
+ *              - Bold centered current progress title
+ *              - Centered container under title: "You are currently on Step X out of 13"
  * ==============================================================================
  */
 
 "use client";
 
 import React from "react";
-import { Sparkles } from "lucide-react";
 
 interface ProgressStatusProps {
   statusText?: string;
-  applicationNumber?: string;
-  targetSettlement?: string;
+  stepNumber?: number;
+  totalSteps?: number;
 }
 
 export default function ProgressStatus({
-  statusText = "In Progress",
-  applicationNumber = "LN-2026-8821",
-  targetSettlement = "Sep 30, 2026"
+  statusText = "Collection of Documents",
+  stepNumber = 6,
+  totalSteps = 13,
 }: ProgressStatusProps) {
   return (
-    /* ------------------------------------------------------------------------ */
-    /* 1. MAIN CONTAINER: Centered alignment with clean spacing                */
-    /* ------------------------------------------------------------------------ */
-    <div className="flex flex-col items-center justify-center text-center space-y-2.5 animate-fadeIn">
+    <div className="flex flex-col items-center justify-center text-center space-y-3.5 py-2 animate-fadeIn">
       
-      {/* Top pill badge */}
-      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200/80 text-[#0024A8] text-[11px] font-extrabold uppercase tracking-wider shadow-2xs">
-        <Sparkles className="w-3.5 h-3.5 text-[#0024A8]" />
-        <span>Application Status</span>
+      {/* ---------------------------------------------------------------------- */}
+      {/* 1. CURRENT PROGRESS TITLE: Bold text, centered                         */}
+      {/* ---------------------------------------------------------------------- */}
+      <div className="space-y-1">
+        <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#0024A8] block">
+          Current Progress
+        </span>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight max-w-4xl leading-tight">
+          {statusText}
+        </h1>
       </div>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* 2. STATUS TITLE: Big font, centered, blue gradient close to theme      */}
+      {/* 2. STEP CONTAINER: "You are currently on Step X out of 13"             */}
       {/* ---------------------------------------------------------------------- */}
-      <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight bg-gradient-to-r from-[#001B79] via-[#0024A8] to-[#1E40AF] bg-clip-text text-transparent">
-        {statusText}
-      </h1>
-
-      {/* ---------------------------------------------------------------------- */}
-      {/* 3. METADATA SUBTEXT: Application reference and target settlement date  */}
-      {/* ---------------------------------------------------------------------- */}
-      <div className="flex items-center gap-3 text-xs sm:text-sm font-semibold text-slate-500">
-        <span>Application Ref: <strong className="text-slate-700">#{applicationNumber}</strong></span>
-        <span className="text-slate-300">•</span>
-        <span>Target Settlement: <strong className="text-slate-700">{targetSettlement}</strong></span>
+      <div className="inline-flex items-center justify-center px-6 py-2.5 rounded-2xl bg-blue-50/90 border border-blue-200/90 text-[#0024A8] shadow-2xs">
+        <span className="text-xs sm:text-sm font-extrabold tracking-wide">
+          You are currently on Step {stepNumber} out of {totalSteps}
+        </span>
       </div>
+
     </div>
   );
 }
