@@ -69,11 +69,24 @@ export interface AuthUser {
   updated_at: string;
 }
 
+export interface AsanaProfile {
+  fullname?: string;
+  dob?: string;
+  email?: string;
+  address?: string;
+  mobile?: string;
+  visa_subclass?: string;
+  visa_expiry?: string;
+  loan_amount?: string;
+  goal?: string;
+}
+
 export interface LoginResponse {
   user: AuthUser;
   access?: string;
   access_expiration?: string;
   refresh_expiration?: string;
+  asana_profile?: AsanaProfile | null;
 }
 
 export const authApi = {

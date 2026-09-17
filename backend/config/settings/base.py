@@ -82,6 +82,7 @@ INSTALLED_APPS = [
     "audit",
     "otp",
     "ai_assistant",
+    "asana_integration"
 ]
 
 REST_AUTH = {
@@ -189,6 +190,21 @@ SIMPLE_JWT = {
 
 # Redis configuration
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+ASANA_PROFILE_LOOKUP_ENABLED = env.bool(
+    "ASANA_PROFILE_LOOKUP_ENABLED",
+    default=False
+)
+
+ASANA_ACCESS_TOKEN = os.getenv(
+    "ASANA_ACCESS_TOKEN",
+    ""
+).strip()
+
+ASANA_PROJECT_GID = os.getenv(
+    "ASANA_PROJECT_GID",
+    ""
+).strip()
 
 # OTP configuration
 OTP_SIZE = int(os.getenv("OTP_SIZE", 6))

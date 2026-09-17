@@ -42,6 +42,15 @@ export default function ClientLoginPage() {
     setErrorMsg("");
     try {
       const data = await authApi.login(email, password);
+      if (data.asana_profile) {
+        sessionStorage.setItem(
+          "asana_profile",
+          JSON.stringify(data.asana_profile)
+        );
+      } else {
+        sessionStorage.removeItem("asana_profile");
+      }
+
       const role = data.user.role;
       // UX-only hint cookie; real RBAC is server-side (JWT). Secure flag when on HTTPS.
       const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";

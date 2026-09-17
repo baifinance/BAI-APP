@@ -12,7 +12,7 @@
 # Use DRF generics or viewsets:
 #   from rest_framework import generics, viewsets
 # -----------------------------------------------------------------------
-
+import logging
 from django.conf import settings
 from rest_framework import generics, status, serializers, permissions
 from rest_framework.response import Response
@@ -35,6 +35,12 @@ from authentication.models import Invitation
 from authentication.choices import InviteStatus
 from authentication.serializers import SendInviteSerializer, InvitationAcceptSerializer
 
+from asana_integration.services.asana import (
+    AsanaProfileError,
+    get_client_asana_profile
+)
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -86,6 +92,21 @@ class LoginView(DjRestAuthLoginView):
         # Keep access visible only in local development for Postman debugging.
         if not settings.DEBUG:
             response.data.pop("access", None)
+
+        user = getattr(self, "user", None)
+
+        if user and user.role == UserRole.CLIENT:
+            try:
+                response.data["asana_profile"] = (
+                    get_client_asana_profile(user.email)
+                )
+            except AsanaProfileError as error:
+                logger.warning(
+                    "Asana lookup failed for user %s %s",
+                    user.pk,
+                    error
+                )
+                response.data["asana_profile"] = None
 
         return response
 

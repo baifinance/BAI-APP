@@ -99,6 +99,51 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const storedAsanaProfile = sessionStorage.getItem("asana_profile");
+
+    if (storedAsanaProfile) {
+      try {
+        const asanaProfile = JSON.parse(storedAsanaProfile) as {
+          fullname?: string;
+          dob?: string;
+          email?: string;
+          address?: string;
+          mobile?: string;
+          visa_subclass?: string;
+          visa_expiry?: string;
+          loan_amount?: string;
+          goal?: string;
+        };
+
+        setClient((prev) => ({
+          ...prev,
+          name: asanaProfile.fullname || prev.name,
+          email: asanaProfile.email || prev.email,
+          phone: asanaProfile.mobile || prev.phone,
+          profile: {
+            ...prev.profile,
+            fullLegalName: asanaProfile.fullname || prev.profile.fullLegalName,
+            dob: asanaProfile.dob || prev.profile.dob,
+            email: asanaProfile.email || prev.profile.email,
+            mobile: asanaProfile.mobile || prev.profile.mobile,
+            address: asanaProfile.address || prev.profile.address,
+            residentialAddress: asanaProfile.address || prev.profile.residentialAddress,
+            visaSubclass: asanaProfile.visa_subclass || prev.profile.visaSubclass,
+            visaExpiry: asanaProfile.visa_expiry || prev.profile.visaExpiry,
+          },
+          loan: {
+            ...prev.loan,
+            requestedAmount: asanaProfile.loan_amount
+              ? Number(asanaProfile.loan_amount)
+              : prev.loan.requestedAmount,
+            purpose: asanaProfile.goal || prev.loan.purpose,
+          },
+        }));
+      } catch {
+        sessionStorage.removeItem("asana_profile");
+      }
+    }
+
     // --------------------------------------------------------------------------
     // 1. Fetch live user profile from backend (/api/users/profile/)
     // --------------------------------------------------------------------------
