@@ -24,24 +24,24 @@ export default function ProgressStatus({
   totalSteps = 13,
 }: ProgressStatusProps) {
   return (
-    <div className="flex flex-col items-center justify-center text-center space-y-3.5 py-2 animate-fadeIn">
+    <div className="w-full bg-[#0A2881] py-10 sm:py-12 px-6 sm:px-8 text-center text-white shadow-md flex flex-col items-center justify-center space-y-4 animate-fadeIn">
       
       {/* ---------------------------------------------------------------------- */}
-      {/* 1. CURRENT PROGRESS TITLE: Bold text, centered                         */}
+      {/* 1. CURRENT PROGRESS TITLE                                              */}
       {/* ---------------------------------------------------------------------- */}
       <div className="space-y-1">
-        <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#0024A8] block">
+        <span className="text-[11px] font-extrabold uppercase tracking-widest text-white/80 block">
           Current Progress
         </span>
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight max-w-4xl leading-tight">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight max-w-4xl leading-tight">
           {statusText}
         </h1>
       </div>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* 2. STEP CONTAINER: "You are currently on Step X out of 13"             */}
+      {/* 2. STEP CONTAINER: #E4BA37 background, #0A2881 text                    */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="inline-flex items-center justify-center px-6 py-2.5 rounded-2xl bg-blue-50/90 border border-blue-200/90 text-[#0024A8] shadow-2xs">
+      <div className="inline-flex items-center justify-center px-6 py-2.5 rounded-2xl bg-[#E4BA37] text-[#0A2881] shadow-xs">
         <span className="text-xs sm:text-sm font-extrabold tracking-wide">
           You are currently on Step {stepNumber} out of {totalSteps}
         </span>

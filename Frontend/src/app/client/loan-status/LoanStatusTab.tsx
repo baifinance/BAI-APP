@@ -138,12 +138,12 @@ export default function LoanStatusTab({
   const activeStep = stepperSteps.find((s) => s.status === "in_process" || s.status === "action_needed") || stepperSteps[0];
 
   return (
-    <div className="bg-white space-y-8 animate-fadeIn pb-12">
+    <div className="min-h-full bg-white space-y-8 animate-fadeIn pb-12">
 
       {/* ---------------------------------------------------------------------- */}
-      {/* PART 1: PROGRESS STATUS COMPONENT (Active stage with blue gradient)    */}
+      {/* PART 1: PROGRESS STATUS COMPONENT (Active stage with blue header)      */}
       {/* ---------------------------------------------------------------------- */}
-      <section aria-label="Progress Status Header">
+      <section aria-label="Progress Status Header" className="w-full">
         <ProgressStatus
           statusText={activeStep.title}
           stepNumber={activeStep.id}
@@ -154,7 +154,7 @@ export default function LoanStatusTab({
       {/* ---------------------------------------------------------------------- */}
       {/* PART 2: 13-STAGE VERTICAL LOAN PROGRESS STEPPER COMPONENT              */}
       {/* ---------------------------------------------------------------------- */}
-      <section aria-label="Loan Progress Stepper" className="pt-2 border-t border-slate-100">
+      <section aria-label="Loan Progress Stepper" className="max-w-5xl mx-auto px-6 sm:px-8 pt-2">
         <LoanProgressStepper steps={stepperSteps} />
       </section>
 
