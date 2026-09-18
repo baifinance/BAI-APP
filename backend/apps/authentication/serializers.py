@@ -150,11 +150,20 @@ class InvitationAcceptSerializer(serializers.Serializer):
       - license_no (only if broker; enforced by validation)
     """
     token = serializers.CharField()
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, min_length=12)
     password_confirm = serializers.CharField(write_only=True)
     first_name = serializers.CharField()
     last_name = serializers.CharField()
     license_no = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_password(self, value):
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            validate_password(value)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+        return value
 
     def validate(self, attrs):
         if attrs["password"] != attrs["password_confirm"]:

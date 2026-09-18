@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Sparkles, X, Send, Bot, User, RefreshCw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import rehypeRaw from "rehype-raw"; // <-- ADDED THIS
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { aiApi } from "@/lib/api";
 
 interface ChatMessage {
@@ -86,9 +86,9 @@ function ActiveTypewriterMessage({
   return (
     // 'prose' activates the typography plugin styles
     <div className="prose prose-sm prose-slate max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0">
-      <ReactMarkdown 
-        remarkPlugins={[remarkGfm]} 
-        rehypePlugins={[rehypeRaw]} // <-- ADDED THIS
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[[rehypeSanitize, defaultSchema]]}
       >
         {displayedText}
       </ReactMarkdown>
@@ -97,7 +97,7 @@ function ActiveTypewriterMessage({
 }
 
 /**
- * Typewriter message wrapper: renders static Markdown/HTML for past replies, 
+ * Typewriter message wrapper: renders static Markdown/HTML for past replies,
  * or typewriter Markdown/HTML for the latest reply
  */
 function TypewriterMessage({
@@ -114,9 +114,9 @@ function TypewriterMessage({
   if (!isAnimated) {
     return (
       <div className="prose prose-sm prose-slate max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0">
-        <ReactMarkdown 
-          remarkPlugins={[remarkGfm]} 
-          rehypePlugins={[rehypeRaw]} // <-- ADDED THIS
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[[rehypeSanitize, defaultSchema]]}
         >
           {content}
         </ReactMarkdown>

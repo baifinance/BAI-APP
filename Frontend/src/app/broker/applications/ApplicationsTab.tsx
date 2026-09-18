@@ -93,11 +93,11 @@ export default function ApplicationsTab({
   useEffect(() => {
     async function fetchBrokers() {
       try {
-        let res = await fetch("http://localhost:8000/api/brokers/", {
+        let res = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") + "/api/brokers/", {
           credentials: "include",
         });
         if (!res.ok) {
-          res = await fetch("http://localhost:8000/api/bookings/brokers/", {
+          res = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") + "/api/bookings/brokers/", {
             credentials: "include",
           });
         }
@@ -156,7 +156,7 @@ export default function ApplicationsTab({
 
     try {
       const res = await fetch(
-        "http://localhost:8000/api/auth/invitations/send/",
+        (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") + "/api/auth/invitations/send/",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

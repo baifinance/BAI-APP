@@ -1,4 +1,5 @@
-const API_BASE = "http://localhost:8000";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 interface RequestOptions extends RequestInit {
   json?: unknown;
@@ -24,7 +25,39 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`API ${res.status}: ${body}`);
+    let msg = `Request failed (${res.status})`;
+    try {
+      const j = JSON.parse(body);
+      // dj-rest-auth login returns {non_field_errors: [...]} on bad creds
+      if (Array.isArray(j.non_field_errors) && j.non_field_errors.length) {
+        msg = j.non_field_errors[0];
+      } else if (j.detail) {
+        msg = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+      } else if (j.error) {
+        msg = typeof j.error === "string" ? j.error : JSON.stringify(j.error);
+      } else if (j.message) {
+        msg = j.message;
+      } else if (j.email) {
+        msg = Array.isArray(j.email) ? j.email[0] : String(j.email);
+      } else if (j.password) {
+        msg = Array.isArray(j.password) ? j.password[0] : String(j.password);
+      } else {
+        // fallback: first string value
+        const first = Object.values(j).find((v) => typeof v === "string" || Array.isArray(v));
+        if (Array.isArray(first) && typeof first[0] === "string") msg = first[0];
+        else if (typeof first === "string") msg = first;
+      }
+
+      // Unverified 2FA session: the user holds a JWT but hasn't passed the login OTP.
+      // Bounce to the login page so they can re-authenticate and complete the step.
+      if (res.status === 403 && j.detail === OTP_REQUIRED_DETAIL) {
+        document.cookie = "user-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        window.location.replace("/login");
+      }
+    } catch {
+      if (body.length < 500) msg = body;
+    }
+    throw new Error(msg);
   }
 
   if (res.status === 204) return undefined as T;
@@ -43,11 +76,26 @@ export interface AuthUser {
   updated_at: string;
 }
 
+export interface AsanaProfile {
+  fullname?: string;
+  dob?: string;
+  email?: string;
+  address?: string;
+  mobile?: string;
+  visa_subclass?: string;
+  visa_expiry?: string;
+  loan_amount?: string;
+  goal?: string;
+}
+
 export interface LoginResponse {
   user: AuthUser;
   access?: string;
   access_expiration?: string;
   refresh_expiration?: string;
+  asana_profile?: AsanaProfile | null;
+  otp_required?: boolean;
+  otp_expires_in?: number;
 }
 
 export const authApi = {
@@ -55,6 +103,31 @@ export const authApi = {
     request<LoginResponse>("/api/auth/login/", { method: "POST", json: { email, password } }),
 
   me: () => request<AuthUser>("/api/auth/user/"),
+};
+
+/** Instant OTP lives for 2 minutes (backend: OTP_LOGIN_EXPIRY). */
+export const OTP_LOGIN_TTL = 120;
+
+/** Backend 403 detail emitted by IsOtpVerified for unverified sessions. */
+export const OTP_REQUIRED_DETAIL = "OTP verification required.";
+
+export interface OtpVerifyResponse {
+  message: string;
+  verified: boolean;
+}
+
+export const otpApi = {
+  send: (email: string, purpose = "login_2fa") =>
+    request<{ detail: string }>("/api/otp/send/", {
+      method: "POST",
+      json: { email, purpose },
+    }),
+
+  verify: (email: string, code: string, purpose = "login_2fa") =>
+    request<OtpVerifyResponse>("/api/otp/verify/", {
+      method: "POST",
+      json: { email, code, purpose },
+    }),
 };
 
 export interface UserProfileResponse {

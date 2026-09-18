@@ -1,0 +1,12 @@
+# Root ignores — secrets & build
+.env
+.env.local
+*.log
+.DS_Store
+
+# Artifacts
+sbom.json
+**/sbom.json
+*.cyclonedx.json
+Frontend/sbom.json
+backend/sbom.json

@@ -256,6 +256,14 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
                 <span className="text-slate-400 block mb-0.5">Email Address</span>
                 <span className="text-slate-800 truncate block">{client.profile?.email || client.email}</span>
               </div>
+              <div>
+                <span className="text-slate-400 block mb-0.5">Visa Subclass</span>
+                <span className="text-slate-800">{client.profile?.visaSubclass || "N/A"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block mb-0.5">Visa Expiry</span>
+                <span className="text-slate-800">{client.profile?.visaExpiry || "N/A"}</span>
+              </div>
               <div className="sm:col-span-2">
                 <span className="text-slate-400 block mb-0.5">Residential Address</span>
                 <span className="text-slate-800 block">{client.profile?.residentialAddress || client.profile?.address || "N/A"}</span>
@@ -263,6 +271,14 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
               <div className="sm:col-span-2">
                 <span className="text-slate-400 block mb-0.5">Current / Previous Address</span>
                 <span className="text-slate-800 block">{client.profile?.previousAddress || "N/A"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block mb-0.5">Requested Loan Amount</span>
+                <span className="text-slate-800">{client.loan?.requestedAmount ? `$${client.loan.requestedAmount}` : "N/A"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block mb-0.5">Loan Purpose</span>
+                <span className="text-slate-800">{client.loan?.purpose || "N/A"}</span>
               </div>
             </div>
           </div>

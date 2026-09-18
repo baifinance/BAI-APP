@@ -18,6 +18,8 @@ export interface ClientProfile {
   previousAddress: string;
   mobile: string;
   email: string;
+  visaSubclass?: string;
+  visaExpiry?: string;
   idType: string;
   idNumber: string;
 }

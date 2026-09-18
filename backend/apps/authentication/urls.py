@@ -38,7 +38,7 @@ urlpatterns = [
         InvitationAcceptView.as_view(), name="invitation-accept"
     ),
 
-    # Invitation management (Compliance-only - will work on later)
+    # Invitation management (Loan Processing only, POST)
     path("invitations/<uuid:pk>/resend/",
           InvitationResendView.as_view(),
           name="invitation-resend"

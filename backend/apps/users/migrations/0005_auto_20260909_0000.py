@@ -4,17 +4,16 @@ from django.db import migrations
 
 
 def update_broker_roles(apps, schema_editor):
-    # Adjust 'auth' or 'users' depending on where your User model lives
-    # If using default User: apps.get_model('auth', 'User')
-    # If using custom User: apps.get_model('users', 'User')
-    User = apps.get_model('users', 'User')
-    
-    User.objects.filter(role='broker').update(role='loan_processing')
+    # Phase 1 legacy: this migration previously collapsed broker->loan_processing.
+    # Fixed 2026-09-10: now a no-op to preserve broker role. Existing brokers already migrated
+    # are kept; use shell to re-create broker@bai.finance if needed. See rotation-note.
+    # Kept as RunPython.noop for backwards compatibility on fresh DBs where 0001 already has loan_processing choice.
+    pass
 
 
 def reverse_broker_roles(apps, schema_editor):
-    User = apps.get_model('users', 'User')
-    User.objects.filter(role='loan_processing').update(role='broker')
+    # Safe reverse: do nothing (previously corrupted loan_processing -> broker)
+    pass
 
 
 class Migration(migrations.Migration):

@@ -33,10 +33,11 @@ from bookings.serializers import (
     AvailableSlotSerializer,
     AvailableSlotClaimSerializer,
 )
+from authentication.permissions import IsOtpVerified
 
 class AvailableSlotsView(APIView):
     """Returns the logged-in user's designated broker's published available slots for a given date."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOtpVerified]
 
     def get(self, request):
         date_str = "".join(request.query_params.get("date", "").split()) # YYYY-MM-DD
@@ -92,7 +93,7 @@ class AvailableSlotsView(APIView):
 
 class BookingListCreateView(generics.ListCreateAPIView):
     """List bookings for the logged-in user or allow client to book a consultation."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOtpVerified]
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -112,7 +113,7 @@ class BookingListCreateView(generics.ListCreateAPIView):
 
 class BookingDetailView(generics.RetrieveUpdateAPIView):
     """Retrieve or update (cancel/reschedule/confirm) a booking."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOtpVerified]
 
     def get_serializer_class(self):
         if self.request.method in ["PUT", "PATCH"]:
@@ -131,14 +132,14 @@ class BookingDetailView(generics.RetrieveUpdateAPIView):
 
 class BrokerListView(generics.ListAPIView):
     """Returns a list of active brokers for dropdown selection."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOtpVerified]
     serializer_class = BrokerOptionSerializer
     queryset = BrokerProfile.objects.filter(user__is_active=True)
 
 
 class SlotListCreateView(generics.ListCreateAPIView):
     """List an authenticated broker's published available slots, or publish a new one."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOtpVerified]
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -173,7 +174,7 @@ class SlotListCreateView(generics.ListCreateAPIView):
 
 class SlotDeleteView(generics.DestroyAPIView):
     """Allow a broker to delete one of their own published available slots."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOtpVerified]
     serializer_class = AvailableSlotSerializer
 
     def get_queryset(self):

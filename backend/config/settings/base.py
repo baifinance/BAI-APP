@@ -82,6 +82,7 @@ INSTALLED_APPS = [
     "audit",
     "otp",
     "ai_assistant",
+    "asana_integration"
 ]
 
 REST_AUTH = {
@@ -162,7 +163,10 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/hour",
         "user": "1000/hour",
-        "login": "20/hour"
+        "login": "20/hour",
+        "otp": "5/hour",
+        "otp_verify": "10/hour",
+        "ai": "30/hour",
     },
 }
 
@@ -187,15 +191,56 @@ SIMPLE_JWT = {
 # Redis configuration
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
+ASANA_PROFILE_LOOKUP_ENABLED = env.bool(
+    "ASANA_PROFILE_LOOKUP_ENABLED",
+    default=False
+)
+
+ASANA_ACCESS_TOKEN = os.getenv(
+    "ASANA_ACCESS_TOKEN",
+    ""
+).strip()
+
+ASANA_PROJECT_GID = os.getenv(
+    "ASANA_PROJECT_GID",
+    ""
+).strip()
+
 # OTP configuration
 OTP_SIZE = int(os.getenv("OTP_SIZE", 6))
 OTP_TTL = int(os.getenv("OTP_TTL", 180))  # 3 minutes
+OTP_LOGIN_EXPIRY = int(os.getenv("OTP_LOGIN_EXPIRY", 120)) # 2-min login OTP
+OTP_VERIFIED_FLAG_TTL = int(os.getenv("OTP_VERIFIED_FLAG_TTL", 14400)) # 4h flag
 
 
 AUTH_USER_MODEL = "users.User"
 
+# Password validation — OWASP A07 / ASVS 2.1.7
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 12}},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = "DENY"
+SECURE_CONTENT_TYPE_NOSNIFF = True
+# CSP nonce-based is set via middleware/headers in production; deny framing and sniffing by default
+X_CONTENT_TYPE_OPTIONS = "nosniff"
+REFERRER_POLICY = "strict-origin-when-cross-origin"
+# HSTS is enforced in production.py; base keeps preload-ready defaults
+SECURE_HSTS_SECONDS = 63072000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# Throttle rates — tighten expensive endpoints (OWASP A06)
+# NOTE: keep 'login' and add 'otp'/'ai' scopes consumed via @throttle_classes
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].update({
+    "otp": "5/hour",
+    "otp_verify": "10/hour",
+    "ai": "30/hour",
+})
 
 TIME_ZONE= "UTC"
 USE_TZ = True

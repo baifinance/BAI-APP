@@ -15,6 +15,7 @@
 
 from rest_framework import generics, permissions
 from rest_framework.response import Response
+from authentication.permissions import IsOtpVerified
 
 from users.serializers import ProfileSerializer
 
@@ -24,7 +25,7 @@ class ProfileView(generics.RetrieveUpdateAPIView):
     PATCH /api/users/profile/ → update first_name / last_name
     """
     serializer_class = ProfileSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsOtpVerified]
 
     def get_object(self):
         return self.request.user
