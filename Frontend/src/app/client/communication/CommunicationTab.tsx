@@ -4,6 +4,7 @@
  * Path: src/app/client/components/CommunicationTab.tsx
  * Description: Reworked Client Communication tab listing emails sent by broker.
  *              Clicking an email card opens a detailed overlay reader modal.
+ *              Reply button opens the user's OS-default mail app via mailto:.
  * ==============================================================================
  */
 
@@ -20,7 +21,7 @@ export default function CommunicationTab() {
   // ------------------------------------------------------------------------------
   // STATE DEFINITIONS
   // ------------------------------------------------------------------------------
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedEmail, setSelectedEmail] = useState<BrokerEmail | null>(null);
 
   // Filter emails based on search query
@@ -29,6 +30,21 @@ export default function CommunicationTab() {
     email.body.toLowerCase().includes(searchQuery.toLowerCase()) ||
     email.date.includes(searchQuery)
   );
+
+  const closeModal = () => {
+    setSelectedEmail(null);
+  };
+
+  // Builds a mailto: link, which the browser/OS resolves to whatever the
+  // user has set as their default mail app (Apple Mail, Outlook desktop, etc.)
+  const getMailtoLink = (email: BrokerEmail) => {
+    const to = encodeURIComponent(email.senderEmail);
+    const subject = encodeURIComponent(`Re: ${email.subject}`);
+    const body = encodeURIComponent(
+      `\n\n---- Original Message ----\nFrom: ${email.sender}\nDate: ${email.date}\n\n${email.body}`
+    );
+    return `mailto:${to}?subject=${subject}&body=${body}`;
+  };
 
   return (
     <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto">
@@ -119,7 +135,7 @@ export default function CommunicationTab() {
                 </h3>
               </div>
               <button 
-                onClick={() => setSelectedEmail(null)}
+                onClick={closeModal}
                 className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors border border-slate-200/50 shrink-0 ml-4"
               >
                 <X className="w-4 h-4" />
@@ -152,23 +168,20 @@ export default function CommunicationTab() {
             <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 shrink-0 text-[10px] font-extrabold uppercase">
               <button
                 type="button"
-                onClick={() => setSelectedEmail(null)}
+                onClick={closeModal}
                 className="py-2.5 px-5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 transition-all cursor-pointer"
               >
                 Exit Reader
               </button>
 
-              {/* Blue Reply button with white text (Placeholder action: does nothing for now) */}
-              <button
-                type="button"
-                onClick={() => {
-                  // Intentional placeholder: does nothing for now per instructions
-                }}
+              {/* Reply: launches the OS-default mail app via mailto: */}
+              <a
+                href={getMailtoLink(selectedEmail)}
                 className="py-2.5 px-6 rounded-xl bg-[#0024A8] hover:bg-[#001D85] text-white font-extrabold shadow-md shadow-[#0024A8]/15 transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <Reply className="w-3.5 h-3.5" />
                 <span>Reply</span>
-              </button>
+              </a>
             </div>
 
           </div>

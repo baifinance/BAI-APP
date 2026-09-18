@@ -47,6 +47,13 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
         if (Array.isArray(first) && typeof first[0] === "string") msg = first[0];
         else if (typeof first === "string") msg = first;
       }
+
+      // Unverified 2FA session: the user holds a JWT but hasn't passed the login OTP.
+      // Bounce to the login page so they can re-authenticate and complete the step.
+      if (res.status === 403 && j.detail === OTP_REQUIRED_DETAIL) {
+        document.cookie = "user-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        window.location.replace("/login");
+      }
     } catch {
       if (body.length < 500) msg = body;
     }
@@ -87,6 +94,8 @@ export interface LoginResponse {
   access_expiration?: string;
   refresh_expiration?: string;
   asana_profile?: AsanaProfile | null;
+  otp_required?: boolean;
+  otp_expires_in?: number;
 }
 
 export const authApi = {
@@ -94,6 +103,31 @@ export const authApi = {
     request<LoginResponse>("/api/auth/login/", { method: "POST", json: { email, password } }),
 
   me: () => request<AuthUser>("/api/auth/user/"),
+};
+
+/** Instant OTP lives for 2 minutes (backend: OTP_LOGIN_EXPIRY). */
+export const OTP_LOGIN_TTL = 120;
+
+/** Backend 403 detail emitted by IsOtpVerified for unverified sessions. */
+export const OTP_REQUIRED_DETAIL = "OTP verification required.";
+
+export interface OtpVerifyResponse {
+  message: string;
+  verified: boolean;
+}
+
+export const otpApi = {
+  send: (email: string, purpose = "login_2fa") =>
+    request<{ detail: string }>("/api/otp/send/", {
+      method: "POST",
+      json: { email, purpose },
+    }),
+
+  verify: (email: string, code: string, purpose = "login_2fa") =>
+    request<OtpVerifyResponse>("/api/otp/verify/", {
+      method: "POST",
+      json: { email, code, purpose },
+    }),
 };
 
 export interface UserProfileResponse {

@@ -35,10 +35,14 @@ from authentication.models import Invitation
 from authentication.choices import InviteStatus
 from authentication.serializers import SendInviteSerializer, InvitationAcceptSerializer
 
+from otp.services import send_otp_email
+from otp.utils import create_login_challenge
+
 from asana_integration.services.asana import (
     AsanaProfileError,
     get_client_asana_profile
 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +98,16 @@ class LoginView(DjRestAuthLoginView):
             response.data.pop("access", None)
 
         user = getattr(self, "user", None)
+
+        if user and user.mfa_enabled:
+            try:
+                code = create_login_challenge(user.email)
+                send_otp_email(user.email, code, purpose="login_2fa")
+            except Exception:
+                logger.exception("Failed to send login OTP for user %s", user.pk)
+            response.data["otp_required"] = True
+            response.data["otp_expires_in"] = settings.OTP_LOGIN_EXPIRY
+                
 
         if user and user.role == UserRole.CLIENT:
             try:

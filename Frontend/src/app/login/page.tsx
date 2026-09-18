@@ -8,7 +8,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -22,8 +22,18 @@ import {
   CheckCircle2,
   FileText,
   UserCheck,
+  KeyRound,
+  Timer,
+  RotateCcw,
+  Inbox,
 } from "lucide-react";
-import { authApi, getRoleRedirect } from "@/lib/api";
+import {
+  authApi,
+  getRoleRedirect,
+  otpApi,
+  OTP_LOGIN_TTL,
+  LoginResponse,
+} from "@/lib/api";
 
 export default function ClientLoginPage() {
   const router = useRouter();
@@ -31,17 +41,39 @@ export default function ClientLoginPage() {
   // ------------------------------------------------------------------------------
   // FORM STATES
   // ------------------------------------------------------------------------------
+  const [step, setStep] = useState<"credentials" | "otp">("credentials");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setErrorMsg("");
-    try {
-      const data = await authApi.login(email, password);
+  // OTP step state
+  const [loginData, setLoginData] = useState<LoginResponse | null>(null);
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpCountdown, setOtpCountdown] = useState(0);
+  const [otpError, setOtpError] = useState("");
+  const [otpSending, setOtpSending] = useState(false);
+
+  // ------------------------------------------------------------------------------
+  // COUNTDOWN (runs only while on the OTP step)
+  // ------------------------------------------------------------------------------
+  useEffect(() => {
+    if (step !== "otp" || otpCountdown <= 0) return;
+    const id = setInterval(() => {
+      setOtpCountdown((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [step, otpCountdown]);
+
+  // ------------------------------------------------------------------------------
+  // POST-LOGIN ROUTING (shared by both flows)
+  // ------------------------------------------------------------------------------
+  const errMessage = (err: unknown, fallback: string) =>
+    err instanceof Error && err.message ? err.message : fallback;
+
+  const finalizeLogin = useCallback(
+    (data: LoginResponse) => {
       if (data.asana_profile) {
         sessionStorage.setItem(
           "asana_profile",
@@ -56,11 +88,75 @@ export default function ClientLoginPage() {
       const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
       document.cookie = `user-role=${role}; path=/; SameSite=Lax${isHttps ? "; Secure" : ""}`;
       router.push(getRoleRedirect(role));
-    } catch (err: any) {
-      setErrorMsg(err?.message || "Invalid email or password. Please try again.");
+    },
+    [router]
+  );
+
+  // ------------------------------------------------------------------------------
+  // STEP 1: CREDENTIALS SUBMIT
+  // ------------------------------------------------------------------------------
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrorMsg("");
+    try {
+      const data = await authApi.login(email, password);
+      if (data.otp_required) {
+        // Hold the response; redirect only after OTP verification.
+        setLoginData(data);
+        setOtpEmail(data.user.email);
+        setOtpCode("");
+        setOtpError("");
+        setOtpCountdown(data.otp_expires_in ?? OTP_LOGIN_TTL);
+        setStep("otp");
+        return;
+      }
+      finalizeLogin(data);
+    } catch (err: unknown) {
+      setErrorMsg(errMessage(err, "Invalid email or password. Please try again."));
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // ------------------------------------------------------------------------------
+  // STEP 2: OTP VERIFY / RESEND / BACK
+  // ------------------------------------------------------------------------------
+  const handleVerify = async (code?: string) => {
+    const target = code ?? otpCode;
+    if (!target || otpSending) return;
+    setOtpSending(true);
+    setOtpError("");
+    try {
+      await otpApi.verify(otpEmail, target, "login_2fa");
+      if (loginData) finalizeLogin(loginData);
+    } catch (err: unknown) {
+      setOtpError(errMessage(err, "Invalid code. Please try again."));
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (otpCountdown > 0 || otpSending) return;
+    setOtpSending(true);
+    setOtpError("");
+    try {
+      await otpApi.send(otpEmail, "login_2fa");
+      setOtpCode("");
+      setOtpCountdown(OTP_LOGIN_TTL);
+    } catch (err: unknown) {
+      setOtpError(errMessage(err, "Failed to resend the code. Please try again."));
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleBackToCredentials = () => {
+    setStep("credentials");
+    setOtpCode("");
+    setOtpError("");
+    setOtpCountdown(0);
   };
 
   return (
@@ -181,15 +277,15 @@ export default function ClientLoginPage() {
             {/* Header Title */}
             <div>
               <h3 className="text-xl font-black text-slate-900 tracking-tight leading-none">
-                Welcome Back
+                {step === "otp" ? "Two-Step Verification" : "Welcome Back"}
               </h3>
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mt-2">
-                Client Hub Gateway
+                {step === "otp" ? "Enter the code we emailed you" : "Client Hub Gateway"}
               </span>
             </div>
 
-            {/* Error Alert */}
-            {errorMsg && (
+            {/* Error Alert (step 1: credentials) */}
+            {step === "credentials" && errorMsg && (
               <div
                 className="p-3.5 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-2.5 text-xs font-semibold text-rose-600"
               >
@@ -198,7 +294,17 @@ export default function ClientLoginPage() {
               </div>
             )}
 
-            {/* FORM */}
+            {/* Error Alert (step 2: OTP) */}
+            {step === "otp" && otpError && (
+              <div
+                className="p-3.5 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-2.5 text-xs font-semibold text-rose-600"
+              >
+                <ShieldAlert className="w-4 h-4 shrink-0 text-rose-500" />
+                <span>{otpError}</span>
+              </div>
+            )}
+
+            {step === "credentials" ? (
             <form
               onSubmit={handleSubmit}
               className="space-y-4 text-xs font-semibold"
@@ -266,6 +372,102 @@ export default function ClientLoginPage() {
                 )}
               </button>
             </form>
+) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleVerify();
+              }}
+              className="space-y-4 text-xs font-semibold"
+            >
+              {/* Info: email + expiry hint */}
+              <div className="bg-slate-50 border border-slate-200/50 p-4 rounded-2xl space-y-2 text-slate-600">
+                <span className="text-[10px] font-extrabold text-[#0024A8] uppercase tracking-wider flex items-center gap-1.5">
+                  <Inbox className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>Security Code Sent</span>
+                </span>
+                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                  We emailed a <b>6-digit code</b> to{" "}
+                  <span className="font-bold text-slate-700">{otpEmail}</span>. It expires in{" "}
+                  <span className="font-bold text-slate-700">
+                    {Math.floor(otpCountdown / 60)}:
+                    {String(otpCountdown % 60).padStart(2, "0")}
+                  </span>
+                  .
+                </p>
+              </div>
+
+              {/* OTP Input */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                  One-Time Code
+                </label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    required
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    disabled={otpSending}
+                    placeholder="Enter 6-digit code"
+                    value={otpCode}
+                    onChange={(e) => {
+                      const cleaned = e.target.value.replace(/\D/g, "").slice(0, 6);
+                      setOtpCode(cleaned);
+                      if (cleaned.length === 6) handleVerify(cleaned);
+                    }}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:outline-none focus:border-[#0024A8]/30 rounded-xl text-slate-700 font-medium tracking-[0.35em] text-center disabled:opacity-50 block"
+                  />
+                </div>
+                {otpCountdown > 0 && (
+                  <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-400">
+                    <Timer className="w-3 h-3" />
+                    Code expires in {otpCountdown}s
+                  </span>
+                )}
+              </div>
+
+              {/* Resend */}
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={otpCountdown > 0 || otpSending}
+                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-600 rounded-xl
+      text-[10px] font-bold transition-all uppercase tracking-wider flex items-center justify-center gap-2"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                {otpCountdown > 0
+                  ? `Resend available in ${otpCountdown}s`
+                  : "Resend Code"}
+              </button>
+
+              {/* Verify */}
+              <button
+                type="submit"
+                disabled={otpSending || otpCode.length !== 6}
+                className="w-full py-3 bg-[#0024A8] hover:bg-[#001D85] disabled:opacity-50 text-white rounded-xl
+      text-xs font-bold shadow-md shadow-[#0024A8]/10 transition-all uppercase tracking-wider mt-2 flex items-center justify-center gap-2"
+              >
+                {otpSending ? (
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  "Verify & Continue"
+                )}
+              </button>
+
+              {/* Back */}
+              <button
+                type="button"
+                onClick={handleBackToCredentials}
+                className="w-full text-center text-[10px] font-bold text-slate-400 hover:text-[#0024A8] transition-colors uppercase tracking-wider"
+              >
+                ← Back to Login
+              </button>
+            </form>
+            )}
           </div>
 
           <div className="text-[10px] text-slate-400 font-medium text-center mt-6">

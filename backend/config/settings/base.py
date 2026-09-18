@@ -209,6 +209,8 @@ ASANA_PROJECT_GID = os.getenv(
 # OTP configuration
 OTP_SIZE = int(os.getenv("OTP_SIZE", 6))
 OTP_TTL = int(os.getenv("OTP_TTL", 180))  # 3 minutes
+OTP_LOGIN_EXPIRY = int(os.getenv("OTP_LOGIN_EXPIRY", 120)) # 2-min login OTP
+OTP_VERIFIED_FLAG_TTL = int(os.getenv("OTP_VERIFIED_FLAG_TTL", 14400)) # 4h flag
 
 
 AUTH_USER_MODEL = "users.User"

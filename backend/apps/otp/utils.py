@@ -14,11 +14,12 @@ def generate_otp(size=6):
     """Generate numeriec OTP code"""
     return "".join(secrets.choice(string.digits) for _ in range(size))
 
-def store_otp(email, code, purpose="login", ttl=180):
+def store_otp(email, code, purpose="login", ttl=settings.OTP_TTL):
     """Store OTP in Redis with TTL in seconds — key is namespaced by purpose to prevent cross-purpose collisions."""
     key = f"otp:{purpose}:{email.lower()}"
     payload = {
         "code": code,
+        "ttl": ttl,
         "created_at": timezone.now().isoformat(),
         "purpose": purpose,
         "attempts": 0
@@ -44,7 +45,7 @@ def verify_otp(email, code, purpose="login"):
 
     if payload["code"] != code:
         payload["attempts"] += 1
-        redis_client.setex(key, 180, json.dumps(payload))
+        redis_client.setex(key, payload["ttl"], json.dumps(payload))
         if payload["attempts"] >= 3:
             redis_client.delete(key)
             return False, "Account locked. Too many failed attempts."
@@ -53,3 +54,14 @@ def verify_otp(email, code, purpose="login"):
     # Success - consume OTP
     redis_client.delete(key)
     return True, "OTP Verified"
+
+def create_login_challenge(email):
+    code = generate_otp(size=getattr(settings, "OTP_SIZE", 6))
+    store_otp(email, code, purpose="login_2fa", ttl=settings.OTP_LOGIN_EXPIRY)
+    return code
+
+def mark_otp_verified(user_id, ttl=None):
+    redis_client.setex(f"otp_verified:{user_id}", ttl or settings.OTP_VERIFIED_FLAG_TTL, "1")
+
+def is_otp_verified(user_id):
+    return bool(redis_client.get(f"otp_verified:{user_id}"))
