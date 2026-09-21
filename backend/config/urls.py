@@ -23,6 +23,9 @@ urlpatterns = [
     path("api/brokers/", BrokerListView.as_view(), name="broker-list"),
     path("api/auth/accounts/", include("authentication.urls")),
 
+    # Loans
+    path("api/loans/", include("loans.urls")),
+    
     # Add OTP Urls
     path("api/otp/", include("otp.urls")),
     

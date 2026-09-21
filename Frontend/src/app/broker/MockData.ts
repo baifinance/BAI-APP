@@ -127,7 +127,25 @@ export interface Application {
   type: string;
   amount: number;
   progress: number;
-  status: "Submitted" | "In review" | "Action needed" | "Approved" | "Settled" | "Declined";
+  status:
+    | "Submitted"
+    | "In review"
+    | "Action needed"
+    | "Approved"
+    | "Settled"
+    | "Declined"
+    | "Pending"
+    | "Appointment Booked"
+    | "Under Review"
+    | "Revisit"
+    | "Proceeding"
+    | "Collection of Documents"
+    | "Assessment"
+    | "Docs for Sign"
+    | "For Lodgement"
+    | "Conditional Approval"
+    | "Settlement"
+    | "Withdraw";
   dateCreated: string;
   lender: string;
   details: string;

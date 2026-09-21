@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Application, Client } from "../MockData";
 import ClientApplicationDashboard from "./ClientApplicationDashboard";
+import { loansApi } from "@/lib/api";
 
 interface ApplicationsTabProps {
   clients: Client[];
@@ -46,6 +47,23 @@ const STATUS_OPTIONS: Application["status"][] = [
   "Approved",
   "Settled",
   "Declined",
+];
+
+const ASANA_STATUS_OPTIONS: Application["status"][] = [
+  "Pending",
+  "Appointment Booked",
+  "Under Review",
+  "Revisit",
+  "Proceeding",
+  "Collection of Documents",
+  "Assessment",
+  "Docs for Sign",
+  "For Lodgement",
+  "Submitted",
+  "Conditional Approval",
+  "Settlement",
+  "Settled",
+  "Withdraw",
 ];
 
 const DOCUMENT_OPTIONS = [
@@ -246,10 +264,46 @@ export default function ApplicationsTab({
   >(null);
   const [progressInputValue, setProgressInputValue] = useState<number>(0);
 
-  const handleUpdateStatus = (
+  const handleUpdateStatus = async (
     appId: string,
     newStatus: Application["status"],
   ) => {
+    const application = applications.find((app) => app.id === appId);
+
+    if (!application) {
+      return;
+    }
+
+    if (isLoanProcessing) {
+      const client = clients.find(
+        (candidate) => candidate.id === application.clientId,
+      );
+
+      if (!client?.email) {
+        console.error(
+          `Unable to update loan status: no email found for client ${application.clientId}.`,
+        );
+        return;
+      }
+
+      loansApi
+        .updateStatus(client.email, newStatus)
+        .then(() => {
+          setApplications((prev) =>
+            prev.map((app) =>
+              app.id === appId
+                ? { ...app, status: newStatus }
+                : app,
+            ),
+          );
+          setActiveStatusEditId(null);
+        })
+        .catch((error: unknown) => {
+          console.error("Failed to update loan status in Asana:", error);
+        });
+      return;
+    }
+
     setApplications((prev) =>
       prev.map((app) =>
         app.id === appId ? { ...app, status: newStatus } : app,
@@ -565,7 +619,6 @@ export default function ApplicationsTab({
                     <td
                       className="py-4 px-6 relative"
                       onClick={(e) => {
-                        if (isLoanProcessing) return;
                         e.stopPropagation();
                         setActiveStatusEditId(
                           activeStatusEditId === app.id ? null : app.id,
@@ -591,7 +644,7 @@ export default function ApplicationsTab({
                           : app.status}
                       </span>
 
-                      {!isLoanProcessing && activeStatusEditId === app.id && (
+                      {activeStatusEditId === app.id && (
                         <>
                           <div
                             className="fixed inset-0 z-20 cursor-default"
@@ -604,7 +657,10 @@ export default function ApplicationsTab({
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block px-2 mb-1">
                               Select Status
                             </span>
-                            {STATUS_OPTIONS.map((status) => (
+                            {(isLoanProcessing
+                              ? ASANA_STATUS_OPTIONS
+                              : STATUS_OPTIONS
+                            ).map((status) => (
                               <button
                                 key={status}
                                 onClick={(e) => {

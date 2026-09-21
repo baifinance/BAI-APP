@@ -18,6 +18,7 @@ import {
   bookingsApi,
   slotsApi,
   usersApi,
+  loansApi,
   BookingApiResponse,
   PublishedSlot,
   parseSlotTime,
@@ -186,6 +187,48 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       .then(setPublishedSlots)
       .catch((err) => console.error("Failed to load published slots:", err))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const refreshLoanStatus = async () => {
+      try {
+        const result = await loansApi.getCurrentStatus();
+
+        if (cancelled || !result.loan_status) {
+          return;
+        }
+
+        const loanStatus = result.loan_status;
+
+        setClient((previousClient) => {
+          if (previousClient.loan?.currentStatus === loanStatus) {
+            return previousClient;
+          }
+
+          return {
+            ...previousClient,
+            loan: {
+              ...previousClient.loan,
+              currentStatus: loanStatus,
+            },
+          };
+        });
+      } catch (error) {
+        // A temporary Asana/API failure should not log the client out.
+        console.error("Failed to refresh loan status:", error);
+      }
+    };
+
+    refreshLoanStatus();
+
+    const intervalId = window.setInterval(refreshLoanStatus, 30_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   const fetchAvailableSlots = useCallback(async (date: string, brokerId?: string) => {

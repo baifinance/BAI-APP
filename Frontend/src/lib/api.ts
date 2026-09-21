@@ -227,6 +227,31 @@ export const slotsApi = {
     request<void>(`/api/bookings/slots/${id}/`, { method: "DELETE" }),
 };
 
+export interface CurrentLoanStatusResponse {
+  loan_status: string | null;
+}
+
+export interface LoanStatusUpdateResponse {
+  message: string;
+  task_gid: string;
+  loan_status: string;
+  section_gid: string;
+}
+
+export const loansApi = {
+  getCurrentStatus: () =>
+    request<CurrentLoanStatusResponse>("/api/loans/current-status/"),
+
+  updateStatus: (email: string, loanStatus: string) =>
+    request<LoanStatusUpdateResponse>("/api/loans/status/", {
+      method: "PATCH",
+      json: {
+        email,
+        loan_status: loanStatus,
+      },
+    }),
+};
+
 export interface AIChatResponse {
   answer: string;
   sources: string[];
