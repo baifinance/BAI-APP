@@ -12,7 +12,9 @@
 "use client";
 
 import React from "react";
+import { Ban, FileSearch } from "lucide-react";
 import { Client } from "../../broker/MockData";
+import { resolveLoanStatus } from "../loanStatus";
 import ProgressStatus from "./components/ProgressStatus";
 import LoanProgressStepper, { StepperStep } from "./components/LoanProgressStepper";
 
@@ -28,13 +30,12 @@ export default function LoanStatusTab({
   // ----------------------------------------------------------------------------
   // 1. 13-STAGE LOAN STATUS STEPS WORKFLOW
   // ----------------------------------------------------------------------------
-  const stepperSteps: StepperStep[] = [
+  const baseSteps: Omit<StepperStep, "status">[] = [
     {
       id: 1,
       title: "Pending",
       subtitle: "Application initiated",
       date: "Aug 10, 2026",
-      status: "completed",
       description: "Initial application received and registered in BAI Finance system.",
     },
     {
@@ -42,7 +43,6 @@ export default function LoanStatusTab({
       title: "Appointment Booked",
       subtitle: "Consultation scheduled",
       date: "Aug 12, 2026",
-      status: "completed",
       description: "Mortgage discovery session completed with your designated broker.",
     },
     {
@@ -50,7 +50,6 @@ export default function LoanStatusTab({
       title: "Under Review",
       subtitle: "Preliminary file check",
       date: "Aug 15, 2026",
-      status: "completed",
       description: "Broker performed initial qualification and credit capacity assessment.",
     },
     {
@@ -58,7 +57,6 @@ export default function LoanStatusTab({
       title: "Revisit",
       subtitle: "Strategy refinement",
       date: "Aug 18, 2026",
-      status: "completed",
       description: "Refinancing structure options reviewed and client details clarified.",
     },
     {
@@ -66,7 +64,6 @@ export default function LoanStatusTab({
       title: "Proceeding",
       subtitle: "Engagement confirmed",
       date: "Aug 20, 2026",
-      status: "completed",
       description: "Formal agreement to proceed with selected lender and product package.",
     },
     {
@@ -74,7 +71,6 @@ export default function LoanStatusTab({
       title: "Collection of Documents",
       subtitle: "Supporting doc uploads",
       date: "Aug 24, 2026",
-      status: "in_process", // Currently active step
       description: "Gathering income proofs, bank statements, identity documents, and property deeds.",
     },
     {
@@ -82,7 +78,6 @@ export default function LoanStatusTab({
       title: "Assessment",
       subtitle: "Credit & serviceability",
       date: "Pending",
-      status: "upcoming",
       description: "Comprehensive financial modeling and preliminary lender underwriting check.",
     },
     {
@@ -90,7 +85,6 @@ export default function LoanStatusTab({
       title: "Docs for Sign",
       subtitle: "Sign disclosures & forms",
       date: "Pending",
-      status: "upcoming",
       description: "Formal lender application forms and compliance disclosures prepared for e-signing.",
     },
     {
@@ -98,7 +92,6 @@ export default function LoanStatusTab({
       title: "For Lodgment",
       subtitle: "Packaging submission",
       date: "Pending",
-      status: "upcoming",
       description: "Quality assurance check and packaging for lender portal lodgment.",
     },
     {
@@ -106,7 +99,6 @@ export default function LoanStatusTab({
       title: "Submitted",
       subtitle: "Lodged with bank",
       date: "Pending",
-      status: "upcoming",
       description: "Application successfully submitted into lender credit queue.",
     },
     {
@@ -114,7 +106,6 @@ export default function LoanStatusTab({
       title: "Conditional Approval",
       subtitle: "Lender credit approval",
       date: "Pending",
-      status: "upcoming",
       description: "Lender satisfies condition requirements and issues formal unconditional loan offer.",
     },
     {
@@ -122,7 +113,6 @@ export default function LoanStatusTab({
       title: "Settlement",
       subtitle: "Legal & booking phase",
       date: "Pending",
-      status: "upcoming",
       description: "Lender, solicitors, and incoming/outgoing banks coordinate settlement booking.",
     },
     {
@@ -130,12 +120,18 @@ export default function LoanStatusTab({
       title: "Settled",
       subtitle: "Disbursement / Closed",
       date: "Pending",
-      status: "upcoming",
       description: "Loan funds disbursed and facility active, or application file concluded.",
     },
   ];
 
-  const activeStep = stepperSteps.find((s) => s.status === "in_process" || s.status === "action_needed") || stepperSteps[0];
+  const resolution = resolveLoanStatus(client.loan?.currentStatus);
+
+  // stepperSteps: the 13 pipeline steps colored by the real loan status.
+  // Withdrawn applications skip the stepper entirely and get a dedicated card.
+  const stepperSteps: StepperStep[] = baseSteps.map((step, i) => ({
+    ...step,
+    status: resolution.states[i] ?? ("upcoming" as const),
+  }));
 
   return (
     <div className="min-h-full bg-white space-y-8 animate-fadeIn pb-12">
@@ -145,17 +141,47 @@ export default function LoanStatusTab({
       {/* ---------------------------------------------------------------------- */}
       <section aria-label="Progress Status Header" className="w-full">
         <ProgressStatus
-          statusText={activeStep.title}
-          stepNumber={activeStep.id}
-          totalSteps={stepperSteps.length}
+          statusText={resolution.header}
+          stepNumber={resolution.activeStepIndex ?? 0}
+          totalSteps={resolution.totalSteps}
+          tone={resolution.withdrawn ? "neutral" : "blue"}
         />
       </section>
 
       {/* ---------------------------------------------------------------------- */}
       {/* PART 2: 13-STAGE VERTICAL LOAN PROGRESS STEPPER COMPONENT              */}
+      {/* OR a Withdrawn / empty-state screen for terminal and no-app cases.     */}
       {/* ---------------------------------------------------------------------- */}
       <section aria-label="Loan Progress Stepper" className="max-w-5xl mx-auto px-6 sm:px-8 pt-2">
-        <LoanProgressStepper steps={stepperSteps} />
+        {resolution.withdrawn ? (
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-10 sm:p-14 text-center shadow-sm">
+            <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-4">
+              <Ban className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight mb-1.5">
+              Application Withdrawn
+            </h3>
+            <p className="text-sm font-medium text-slate-500 max-w-md mx-auto">
+              This application has been withdrawn and the file is now closed.
+              Contact your broker if you&apos;d like to discuss a new application.
+            </p>
+          </div>
+        ) : resolution.hasApplication ? (
+          <LoanProgressStepper steps={stepperSteps} />
+        ) : (
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-10 sm:p-14 text-center shadow-sm">
+            <div className="w-14 h-14 rounded-2xl bg-blue-50 text-[#0024A8] flex items-center justify-center mx-auto mb-4">
+              <FileSearch className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight mb-1.5">
+              No Current Application
+            </h3>
+            <p className="text-sm font-medium text-slate-500 max-w-md mx-auto">
+              You don&apos;t have an active loan application yet. Once the loan processing team
+              creates one, your progress will appear here.
+            </p>
+          </div>
+        )}
       </section>
 
     </div>

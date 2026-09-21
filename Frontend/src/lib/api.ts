@@ -86,6 +86,7 @@ export interface AsanaProfile {
   visa_expiry?: string;
   loan_amount?: string;
   goal?: string;
+  loan_status?: string;
 }
 
 export interface LoginResponse {

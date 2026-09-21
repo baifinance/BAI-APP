@@ -12,9 +12,10 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Check, Clock, ArrowRight, Pen, Mail, Phone, User } from "lucide-react";
+import { Check, Clock, ArrowRight, Pen, Mail, Phone, User, FileSearch, Ban } from "lucide-react";
 import { Client } from "../../broker/MockData";
 import { usersApi } from "@/lib/api";
+import { resolveLoanStatus } from "../loanStatus";
 
 interface ProfileTabProps {
   client: Client;
@@ -70,33 +71,41 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
   const [bannerTheme, setBannerTheme] = useState<"blue" | "gold">("blue");
 
   // ------------------------------------------------------------------------------
-  // 2. COMPLETE 13-STAGE WORKFLOW STEPS
+  // 2. COMPLETE 13-STAGE WORKFLOW STEPS (statuses driven by the real loan status)
   // ------------------------------------------------------------------------------
-  const allLoanWorkflowSteps = [
-    { id: 1, title: "Pending", status: "completed", date: "Aug 10, 2026" },
-    { id: 2, title: "Appointment Booked", status: "completed", date: "Aug 12, 2026" },
-    { id: 3, title: "Under Review", status: "completed", date: "Aug 15, 2026" },
-    { id: 4, title: "Revisit", status: "completed", date: "Aug 18, 2026" },
-    { id: 5, title: "Proceeding", status: "completed", date: "Aug 20, 2026" },
-    { id: 6, title: "Collection of Documents", status: "in_process", date: "Aug 24, 2026" }, // Current active step
-    { id: 7, title: "Assessment", status: "upcoming", date: "Pending" },
-    { id: 8, title: "Docs for Sign", status: "upcoming", date: "Pending" },
-    { id: 9, title: "For Lodgment", status: "upcoming", date: "Pending" },
-    { id: 10, title: "Submitted", status: "upcoming", date: "Pending" },
-    { id: 11, title: "Conditional Approval", status: "upcoming", date: "Pending" },
-    { id: 12, title: "Settlement", status: "upcoming", date: "Pending" },
-    { id: 13, title: "Settled", status: "upcoming", date: "Pending" },
+  const baseLoanWorkflowSteps = [
+    { id: 1, title: "Pending", date: "Aug 10, 2026" },
+    { id: 2, title: "Appointment Booked", date: "Aug 12, 2026" },
+    { id: 3, title: "Under Review", date: "Aug 15, 2026" },
+    { id: 4, title: "Revisit", date: "Aug 18, 2026" },
+    { id: 5, title: "Proceeding", date: "Aug 20, 2026" },
+    { id: 6, title: "Collection of Documents", date: "Aug 24, 2026" },
+    { id: 7, title: "Assessment", date: "Pending" },
+    { id: 8, title: "Docs for Sign", date: "Pending" },
+    { id: 9, title: "For Lodgment", date: "Pending" },
+    { id: 10, title: "Submitted", date: "Pending" },
+    { id: 11, title: "Conditional Approval", date: "Pending" },
+    { id: 12, title: "Settlement", date: "Pending" },
+    { id: 13, title: "Settled", date: "Pending" },
   ];
 
+  const resolution = resolveLoanStatus(client.loan?.currentStatus);
+  const allLoanWorkflowSteps = baseLoanWorkflowSteps.map((step, i) => ({
+    ...step,
+    status: resolution.states[i] ?? ("upcoming" as const),
+  }));
+
   // ------------------------------------------------------------------------------
-  // 3. 6-STEP PREVIEW: Top is always current step, followed by next 5 steps
+  // 3. PREVIEW WINDOW: The 4 completed steps preceding the in-progress step
+  //    (Settled has no in-progress step, so show the last 4 completed steps)
   // ------------------------------------------------------------------------------
-  const currentStepIndex = allLoanWorkflowSteps.findIndex(
-    (s) => s.status === "in_process" || s.status === "action_needed"
-  );
-  const activeIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
-  const activeStep = allLoanWorkflowSteps[activeIndex] || allLoanWorkflowSteps[0];
-  const displayed6Steps = allLoanWorkflowSteps.slice(activeIndex, activeIndex + 6);
+  const activeIndex = resolution.activeStepIndex !== null
+    ? resolution.activeStepIndex - 1
+    : -1;
+  const activeStep = activeIndex >= 0 ? allLoanWorkflowSteps[activeIndex] : null;
+  const previewEnd = activeIndex >= 0 ? activeIndex - 1 : allLoanWorkflowSteps.length - 1;
+  const previewStart = Math.max(0, previewEnd - 3);
+  const displayedSteps = allLoanWorkflowSteps.slice(previewStart, previewEnd + 1);
 
   // ------------------------------------------------------------------------------
   // 4. FETCH BACKEND PROFILE ENDPOINT (/api/users/profile/)
@@ -295,7 +304,13 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
                   Loan Status Progress
                 </h3>
                 <span className="text-[11px] font-bold text-slate-400 block">
-                  Current Step: {activeStep.id} of {allLoanWorkflowSteps.length}
+                  {resolution.withdrawn
+                    ? "Status: Withdrawn"
+                    : activeStep
+                    ? `Current Step: ${activeStep.id} of ${allLoanWorkflowSteps.length}`
+                    : resolution.hasApplication
+                    ? "Current Step: Settled (13 of 13)"
+                    : "Current Step: No Current Application"}
                 </span>
               </div>
               <Link
@@ -307,11 +322,25 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
               </Link>
             </div>
 
-            {/* Stepper Vertical Progress List (Showing Current Step + Next 5 Steps = 6 total) */}
-            <div className="space-y-3.5 relative pl-3 before:absolute before:left-6.5 before:top-3.5 before:bottom-3.5 before:w-0.5 before:bg-slate-200">
-              {displayed6Steps.map((step) => {
-                const isCurrent = step.id === activeStep.id;
-                const isCompleted = step.status === "completed";
+            {/* Stepper Vertical Progress List (Showing the 4 completed steps preceding the current step) */}
+            {resolution.withdrawn ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-8 text-center">
+                <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-3">
+                  <Ban className="w-5 h-5" />
+                </div>
+                <p className="text-sm font-black text-slate-700">
+                  Application Withdrawn
+                </p>
+                <p className="text-xs font-medium text-slate-500 mt-1 max-w-xs mx-auto">
+                  This application has been withdrawn and the file is closed.
+                  Contact your broker to start a new application.
+                </p>
+              </div>
+            ) : resolution.hasApplication ? (
+              <div className="space-y-3.5 relative pl-3 before:absolute before:left-6.5 before:top-3.5 before:bottom-3.5 before:w-0.5 before:bg-slate-200">
+                {displayedSteps.map((step) => {
+                  const isCurrent = step.id === activeStep?.id;
+                  const isCompleted = step.status === "completed";
 
                 return (
                   <div key={step.id} className="relative flex items-center gap-3.5 z-10">
@@ -366,7 +395,21 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
                   </div>
                 );
               })}
-            </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-8 text-center">
+                <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0024A8] flex items-center justify-center mx-auto mb-3">
+                  <FileSearch className="w-5 h-5" />
+                </div>
+                <p className="text-sm font-black text-slate-700">
+                  No Current Application
+                </p>
+                <p className="text-xs font-medium text-slate-500 mt-1 max-w-xs mx-auto">
+                  No active loan application yet. Once a broker creates one,
+                  your progress will appear here.
+                </p>
+              </div>
+            )}
 
           </div>
         </div>

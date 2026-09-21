@@ -113,6 +113,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
           visa_expiry?: string;
           loan_amount?: string;
           goal?: string;
+          loan_status?: string;
         };
 
         setClient((prev) => ({
@@ -137,6 +138,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
               ? Number(asanaProfile.loan_amount)
               : prev.loan.requestedAmount,
             purpose: asanaProfile.goal || prev.loan.purpose,
+            currentStatus: asanaProfile.loan_status || prev.loan.currentStatus,
           },
         }));
       } catch {

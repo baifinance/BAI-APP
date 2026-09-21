@@ -31,6 +31,7 @@ export interface ClientLoan {
   preferredTerm: number; // in years
   preferredMonthlyPayment: number;
   urgency: "Low" | "Medium" | "High" | "Critical";
+  currentStatus?: string;
 }
 
 export interface ClientEmployment {

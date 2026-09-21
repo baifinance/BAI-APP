@@ -12,6 +12,24 @@ logger = logging.getLogger(__name__)
 class AsanaProfileError(RuntimeError):
     """ Raised when the Asana profile lookup failes"""
 
+LOAN_STATUSES = {
+    "Pending",
+    "Appointment Booked",
+    "Under Review",
+    "Revisit",
+    "Proceeding",
+    "Collection of Documents",
+    "Assessment",
+    "Docs for Sign",
+    "For Lodgement",
+    "Submitted",
+    "Conditional Approval",
+    "Settlement",
+    "Settled",
+    "Withdraw"
+}
+
+
 class AsanaProfileService:
     """
     Read-only Asana integration using the official Asana Python SDK.
@@ -113,7 +131,12 @@ class AsanaProfileService:
 
         if memberships:
             section = memberships[0].get("section") or {}
-            profile["asana_section"] = section.get("name")
+            section_name = section.get("name")
+            if section_name:
+                profile["asana_section"] = section_name
+                profile["loan_status"] = (
+                    section_name if section_name in LOAN_STATUSES else None
+                )
 
         return profile
 
@@ -209,6 +232,7 @@ class AsanaProfileService:
             "goal",
             "source",
             "inquiry",
+            "loan_status"
         )
 
         return {

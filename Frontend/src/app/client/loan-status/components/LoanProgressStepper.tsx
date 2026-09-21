@@ -229,7 +229,7 @@ export default function LoanProgressStepper({
                     {isCompleted && (
                       <span className="inline-flex items-center gap-1.5 text-xs font-extrabold bg-white/20 text-white px-3 py-1 rounded-lg backdrop-blur-xs">
                         <Check className="w-3.5 h-3.5 stroke-[3]" />
-                        Completed At {step.date || "Aug 2026"}
+                        Completed {step.date && step.date !== "Pending" ? `At ${step.date}` : ""}
                       </span>
                     )}
 
