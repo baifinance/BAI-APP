@@ -13,7 +13,7 @@ import React from "react";
 import Link from "next/link";
 import { LayoutDashboard, CheckSquare, ClipboardList, ShieldAlert, Percent, Bell, LogOut } from "lucide-react";
 
-export type LoanProcessingTabType = "Dashboard"  | "Application" | "AuditLog" | "Calculator" | "Notifications";
+export type LoanProcessingTabType = "Dashboard" | "Application" | "AuditLog" | "Calculator" | "Notifications" | "Review";
 
 interface SidebarProps {
   activeTab: LoanProcessingTabType;
@@ -42,14 +42,14 @@ export default function Sidebar({ activeTab }: SidebarProps) {
     document.cookie = "jwt-access-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     document.cookie = "jwt-refresh-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     document.cookie = "user-role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    
+
     // Redirect to landing page
     window.location.href = "/";
   };
 
   return (
     <aside className="w-64 bg-[#1429A9] text-white border-r border-black/10 min-h-screen flex flex-col shrink-0">
-      
+
       {/* Brand Header (Contrast logo on blue background) */}
       <div className="p-6 border-b border-white/10 flex items-center gap-3">
         <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-[#1429A9] font-black text-sm tracking-tighter">
@@ -75,21 +75,19 @@ export default function Sidebar({ activeTab }: SidebarProps) {
             <Link
               key={item.id}
               href={item.href}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-left text-sm font-extrabold transition-all relative ${
-                isActive
+              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-left text-sm font-extrabold transition-all relative ${isActive
                   ? "bg-white/15 text-white shadow-xs"
                   : "text-slate-100/75 hover:text-white hover:bg-white/10"
-              }`}
+                }`}
             >
               {/* Golden active indicator on the left */}
               {isActive && (
                 <div className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-amber-400 rounded-r-md" />
               )}
-              
+
               <Icon
-                className={`w-4 h-4 shrink-0 transition-colors ${
-                  isActive ? "text-white" : "text-slate-100/60"
-                }`}
+                className={`w-4 h-4 shrink-0 transition-colors ${isActive ? "text-white" : "text-slate-100/60"
+                  }`}
               />
               <span>{item.label}</span>
             </Link>
