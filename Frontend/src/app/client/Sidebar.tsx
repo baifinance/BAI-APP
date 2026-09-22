@@ -45,11 +45,11 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
   const { client } = useClient();
 
   const menuItems = [
-    { id: "Profile"        as ClientTabType, label: "Profile",         icon: User,          href: "/client/profile"         },
-    { id: "LoanStatus"     as ClientTabType, label: "Loan Status",     icon: Landmark,      href: "/client/loan-status"     },
-    { id: "Communication"  as ClientTabType, label: "Communication",   icon: MessageSquare, href: "/client/communication"   },
-    { id: "Calculator"     as ClientTabType, label: "Calculator",      icon: Percent,       href: "/client/calculator"      },
-    { id: "Notifications"  as ClientTabType, label: "Notifications",   icon: Bell,          href: "/client/notifications"   },
+    { id: "Profile" as ClientTabType, label: "Profile", icon: User, href: "/client/profile" },
+    { id: "LoanStatus" as ClientTabType, label: "Loan Status", icon: Landmark, href: "/client/loan-status" },
+    { id: "Communication" as ClientTabType, label: "Communication", icon: MessageSquare, href: "/client/communication" },
+    { id: "Calculator" as ClientTabType, label: "Calculator", icon: Percent, href: "/client/calculator" },
+    { id: "Notifications" as ClientTabType, label: "Notifications", icon: Bell, href: "/client/notifications" },
   ];
 
   const handleLogout = async () => {
@@ -76,17 +76,15 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
 
   return (
     <aside
-      className={`sticky top-0 h-screen bg-[#0A2881] text-white border-r border-[#001D85] flex flex-col shrink-0 transition-all duration-300 ease-in-out z-40 select-none shadow-xl ${
-        isCollapsed ? "w-16" : "w-64"
-      }`}
+      className={`sticky top-0 h-screen bg-[#0A2881] text-white border-r border-[#001D85] flex flex-col shrink-0 transition-all duration-300 ease-in-out z-40 select-none shadow-xl ${isCollapsed ? "w-16" : "w-64"
+        }`}
     >
       {/* ------------------------------------------------------------------ */}
       {/* Brand Header                                                       */}
       {/* ------------------------------------------------------------------ */}
       <div
-        className={`p-4 border-b border-white/10 flex items-center gap-3 overflow-hidden ${
-          isCollapsed ? "justify-center" : ""
-        }`}
+        className={`p-4 border-b border-white/10 flex items-center gap-3 overflow-hidden ${isCollapsed ? "justify-center" : ""
+          }`}
       >
         <div className="w-8 h-8 rounded-lg bg-[#E4BA37] flex items-center justify-center text-[#0A2881] font-black text-sm tracking-tighter shrink-0 shadow-md">
           BAI
@@ -115,18 +113,15 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
             <div key={item.id} className="relative group">
               <Link
                 href={item.href}
-                className={`w-full flex items-center gap-3.5 px-3 py-3 rounded-xl text-left text-sm font-extrabold transition-all relative ${
-                  isCollapsed ? "justify-center" : ""
-                } ${
-                  isActive
+                className={`w-full flex items-center gap-3.5 px-3 py-3 rounded-xl text-left text-sm font-extrabold transition-all relative ${isCollapsed ? "justify-center" : ""
+                  } ${isActive
                     ? "bg-[#E4BA37] text-[#0A2881] shadow-lg shadow-[#E4BA37]/20"
                     : "text-white/85 hover:text-white hover:bg-white/10"
-                }`}
+                  }`}
               >
                 <Icon
-                  className={`w-4.5 h-4.5 shrink-0 transition-colors ${
-                    isActive ? "text-[#0A2881]" : "text-white/80 group-hover:text-white"
-                  }`}
+                  className={`w-4.5 h-4.5 shrink-0 transition-colors ${isActive ? "text-[#0A2881]" : "text-white/80 group-hover:text-white"
+                    }`}
                 />
 
                 {!isCollapsed && <span>{item.label}</span>}

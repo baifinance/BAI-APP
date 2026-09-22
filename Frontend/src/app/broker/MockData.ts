@@ -109,7 +109,7 @@ export interface Client {
   dateStarted: string; // YYYY-MM-DD
   progress: number; // Client progress percentage 0-100
   notes?: string;
-  
+
   // Expanded Deep-Dive Details
   profile: ClientProfile;
   loan: ClientLoan;
@@ -128,24 +128,24 @@ export interface Application {
   amount: number;
   progress: number;
   status:
-    | "Submitted"
-    | "In review"
-    | "Action needed"
-    | "Approved"
-    | "Settled"
-    | "Declined"
-    | "Pending"
-    | "Appointment Booked"
-    | "Under Review"
-    | "Revisit"
-    | "Proceeding"
-    | "Collection of Documents"
-    | "Assessment"
-    | "Docs for Sign"
-    | "For Lodgement"
-    | "Conditional Approval"
-    | "Settlement"
-    | "Withdraw";
+  | "Submitted"
+  | "In review"
+  | "Action needed"
+  | "Approved"
+  | "Settled"
+  | "Declined"
+  | "Pending"
+  | "Appointment Booked"
+  | "Under Review"
+  | "Revisit"
+  | "Proceeding"
+  | "Collection of Documents"
+  | "Assessment"
+  | "Docs for Sign"
+  | "For Lodgement"
+  | "Conditional Approval"
+  | "Settlement"
+  | "Withdraw";
   dateCreated: string;
   lender: string;
   details: string;

@@ -120,6 +120,7 @@ export interface BrokerEmail {
   senderEmail: string;
   subject: string;
   date: string;
+  time: string;
   body: string;
   snippet: string;
 }
@@ -131,6 +132,7 @@ export const initialBrokerEmails: BrokerEmail[] = [
     senderEmail: "sarah.jenkins@baifinance.com.au",
     subject: "Westpac Statement Page 3 Missing",
     date: "2026-08-23",
+    time: "10:30 AM",
     snippet: "Hi Emma, thanks for sending your documents. Upon reviewing your Westpac statement...",
     body: "Hi Emma,\n\nThanks for sending over your mortgage documents. Upon reviewing your Westpac savings statement, it appears that page 3 is missing from the scanned copy. Could you please scan and upload the complete PDF through your client hub under the Bank Statement checklist category?\n\nOnce received, I will attach it to the file and submit it straight to the Macquarie Bank assessors. Let me know if you have any trouble uploading it.\n\nRegards,\nSarah Jenkins\nSenior Mortgage Broker\nBAI Finance"
   },
@@ -140,6 +142,7 @@ export const initialBrokerEmails: BrokerEmail[] = [
     senderEmail: "sarah.jenkins@baifinance.com.au",
     subject: "Initial Assessment Completed - Conditional LVR Approved",
     date: "2026-08-21",
+    time: "02:15 PM",
     snippet: "Dear Emma, I have completed the initial assessment of your construction mortgage...",
     body: "Dear Emma,\n\nI have completed the initial assessment of your construction mortgage application. Based on your deposit contribution of A$500,000 and strong salary stream, you qualify for a conditional LVR of 60.00% at an assumed interest rate of 5.85% p.a.\n\nPlease review the checklist in your client hub and upload your primary Government ID and Tax Documents so we can proceed with the formal valuation check.\n\nBest regards,\nSarah Jenkins\nSenior Mortgage Broker\nBAI Finance"
   },
@@ -149,7 +152,28 @@ export const initialBrokerEmails: BrokerEmail[] = [
     senderEmail: "sarah.jenkins@baifinance.com.au",
     subject: "Welcome to BAI Finance - Client Portal Activated",
     date: "2026-08-19",
+    time: "09:00 AM",
     snippet: "Hi Emma, welcome to BAI Finance! My name is Sarah Jenkins, and I will be...",
     body: "Hi Emma,\n\nWelcome to BAI Finance! My name is Sarah Jenkins, and I will be your designated mortgage broker. I will guide you step-by-step through your construction loan pre-approval process.\n\nYour secure client portal has now been activated. Please log in to complete your profile checklist and upload the requested initial files. Let me know if you have any questions.\n\nRegards,\nSarah Jenkins\nSenior Mortgage Broker\nBAI Finance"
+  },
+  {
+    id: "email-4",
+    sender: "Sarah Jenkins",
+    senderEmail: "sarah.jenkins@baifinance.com.au",
+    subject: "Property Valuation Booking Confirmation",
+    date: "2026-08-18",
+    time: "04:45 PM",
+    snippet: "Hi Emma, the bank valuer has been scheduled to inspect the property site this Thursday...",
+    body: "Hi Emma,\n\nThe bank valuer has been scheduled to inspect the property site this Thursday morning. We anticipate the completed valuation report will be returned within 48 to 72 business hours after the site visit.\n\nI will keep you posted the moment the report lands in our inbox.\n\nBest regards,\nSarah Jenkins\nSenior Mortgage Broker\nBAI Finance"
+  },
+  {
+    id: "email-5",
+    sender: "Sarah Jenkins",
+    senderEmail: "sarah.jenkins@baifinance.com.au",
+    subject: "Notice of Interest Rate Buffer Assessment",
+    date: "2026-08-15",
+    time: "11:20 AM",
+    snippet: "Dear Emma, regarding our recent discussion on borrowing capacity buffers...",
+    body: "Dear Emma,\n\nFollowing up on our borrowing capacity discussion: Macquarie Bank applies a 3.00% serviceability buffer over the standard variable rate. With your current financial structure and offset balance, your buffer coverage is exceptional.\n\nFeel free to check the Calculator tab in your portal if you wish to model additional voluntary repayments.\n\nWarm regards,\nSarah Jenkins\nSenior Mortgage Broker\nBAI Finance"
   }
 ];

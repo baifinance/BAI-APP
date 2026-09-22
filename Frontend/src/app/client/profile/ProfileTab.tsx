@@ -12,9 +12,9 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Check, Clock, ArrowRight, Pen, Mail, Phone, User, FileSearch, Ban } from "lucide-react";
+import { Check, Clock, ArrowRight, Pen, Mail, Phone, User, FileSearch, Ban, Settings } from "lucide-react";
 import { Client } from "../../broker/MockData";
-import { usersApi } from "@/lib/api";
+import { usersApi, loansApi } from "@/lib/api";
 import { resolveLoanStatus } from "../loanStatus";
 
 interface ProfileTabProps {
@@ -96,22 +96,29 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
   }));
 
   // ------------------------------------------------------------------------------
-  // 3. PREVIEW WINDOW: The 4 completed steps preceding the in-progress step
-  //    (Settled has no in-progress step, so show the last 4 completed steps)
+  // 3. PREVIEW WINDOW (6-STEP SLIDING WINDOW):
+  //    Displays 6 steps at a time.
+  //    When steps are completed, completed steps are hidden from the top and
+  //    replaced with the next steps after the 6th.
+  //    (e.g., 0 completed -> Steps 1-6; 1 completed -> Steps 2-7; 2 completed -> Steps 3-8).
   // ------------------------------------------------------------------------------
   const activeIndex = resolution.activeStepIndex !== null
     ? resolution.activeStepIndex - 1
     : -1;
   const activeStep = activeIndex >= 0 ? allLoanWorkflowSteps[activeIndex] : null;
-  const previewEnd = activeIndex >= 0 ? activeIndex - 1 : allLoanWorkflowSteps.length - 1;
-  const previewStart = Math.max(0, previewEnd - 3);
-  const displayedSteps = allLoanWorkflowSteps.slice(previewStart, previewEnd + 1);
+
+  const completedCount = allLoanWorkflowSteps.filter((s) => s.status === "completed").length;
+  const maxStartIndex = Math.max(0, allLoanWorkflowSteps.length - 6);
+  const startIndex = Math.min(completedCount, maxStartIndex);
+  const displayedSteps = allLoanWorkflowSteps.slice(startIndex, startIndex + 6);
 
   // ------------------------------------------------------------------------------
-  // 4. FETCH BACKEND PROFILE ENDPOINT (/api/users/profile/)
+  // 4. FETCH BACKEND PROFILE & LIVE LOAN STATUS ENDPOINTS
   // ------------------------------------------------------------------------------
   useEffect(() => {
     if (!setClient) return;
+
+    // Fetch user profile from backend
     usersApi.getProfile()
       .then((profile) => {
         if (profile && (profile.full_name || profile.first_name || profile.last_name)) {
@@ -130,6 +137,26 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
       })
       .catch((err) => {
         console.debug("Note: Could not reach /api/users/profile/ or unauthorized, using current client context:", err);
+      });
+
+    // Fetch live loan status from backend / Asana
+    loansApi.getCurrentStatus()
+      .then((res) => {
+        if (res?.loan_status) {
+          setClient(prev => {
+            if (prev.loan?.currentStatus === res.loan_status) return prev;
+            return {
+              ...prev,
+              loan: {
+                ...prev.loan,
+                currentStatus: res.loan_status || undefined,
+              },
+            };
+          });
+        }
+      })
+      .catch((err) => {
+        console.debug("Note: Could not reach /api/loans/current-status/ or unauthorized:", err);
       });
   }, [setClient]);
 
@@ -222,72 +249,75 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
 
         {/* LEFT COLUMN: PERSONAL INFORMATION DETAILS */}
         <div className="lg:col-span-7 space-y-5">
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-5 shadow-sm">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#0024A8] flex items-center justify-center">
-                <User className="w-4 h-4" />
+          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+            {/* Header with blue background and white text */}
+            <div className="bg-[#0A2881] px-6 py-4 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-white/10 text-white flex items-center justify-center">
+                <User className="w-4 h-4 text-white" />
               </div>
-              <h3 className="text-base font-extrabold text-slate-900">
+              <h3 className="text-base font-extrabold text-white">
                 Personal Information
               </h3>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold">
-              <div>
-                <span className="text-slate-400 block mb-0.5">Full Legal Name</span>
-                <span className="text-slate-800 font-bold">{client.profile?.fullLegalName || client.name}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Date of Birth</span>
-                <span className="text-slate-800">{client.profile?.dob || "N/A"}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Place of Birth</span>
-                <span className="text-slate-800">{client.profile?.placeOfBirth || "N/A"}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Nationality</span>
-                <span className="text-slate-800">{client.profile?.nationality || "N/A"}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Civil Status</span>
-                <span className="text-slate-800">{client.profile?.civilStatus || "Single"}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Number of Dependents</span>
-                <span className="text-slate-800">{client.profile?.numberOfDependents ?? 0}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Mobile Number</span>
-                <span className="text-slate-800">{client.profile?.mobile || client.phone}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Email Address</span>
-                <span className="text-slate-800 truncate block">{client.profile?.email || client.email}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Visa Subclass</span>
-                <span className="text-slate-800">{client.profile?.visaSubclass || "N/A"}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Visa Expiry</span>
-                <span className="text-slate-800">{client.profile?.visaExpiry || "N/A"}</span>
-              </div>
-              <div className="sm:col-span-2">
-                <span className="text-slate-400 block mb-0.5">Residential Address</span>
-                <span className="text-slate-800 block">{client.profile?.residentialAddress || client.profile?.address || "N/A"}</span>
-              </div>
-              <div className="sm:col-span-2">
-                <span className="text-slate-400 block mb-0.5">Current / Previous Address</span>
-                <span className="text-slate-800 block">{client.profile?.previousAddress || "N/A"}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Requested Loan Amount</span>
-                <span className="text-slate-800">{client.loan?.requestedAmount ? `$${client.loan.requestedAmount}` : "N/A"}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Loan Purpose</span>
-                <span className="text-slate-800">{client.loan?.purpose || "N/A"}</span>
+            <div className="p-6 sm:p-7 space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold">
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Full Legal Name</span>
+                  <span className="text-slate-800 font-bold">{client.profile?.fullLegalName || client.name}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Date of Birth</span>
+                  <span className="text-slate-800">{client.profile?.dob || "N/A"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Place of Birth</span>
+                  <span className="text-slate-800">{client.profile?.placeOfBirth || "N/A"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Nationality</span>
+                  <span className="text-slate-800">{client.profile?.nationality || "N/A"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Civil Status</span>
+                  <span className="text-slate-800">{client.profile?.civilStatus || "Single"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Number of Dependents</span>
+                  <span className="text-slate-800">{client.profile?.numberOfDependents ?? 0}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Mobile Number</span>
+                  <span className="text-slate-800">{client.profile?.mobile || client.phone}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Email Address</span>
+                  <span className="text-slate-800 truncate block">{client.profile?.email || client.email}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Visa Subclass</span>
+                  <span className="text-slate-800">{client.profile?.visaSubclass || "N/A"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Visa Expiry</span>
+                  <span className="text-slate-800">{client.profile?.visaExpiry || "N/A"}</span>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-slate-400 block mb-0.5">Residential Address</span>
+                  <span className="text-slate-800 block">{client.profile?.residentialAddress || client.profile?.address || "N/A"}</span>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-slate-400 block mb-0.5">Current / Previous Address</span>
+                  <span className="text-slate-800 block">{client.profile?.previousAddress || "N/A"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Requested Loan Amount</span>
+                  <span className="text-slate-800">{client.loan?.requestedAmount ? `$${client.loan.requestedAmount}` : "N/A"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Loan Purpose</span>
+                  <span className="text-slate-800">{client.loan?.purpose || "N/A"}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -295,34 +325,34 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
 
         {/* RIGHT COLUMN: 6-STEP LOAN STATUS PROGRESS PREVIEW */}
         <div className="lg:col-span-5 space-y-5">
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-5 shadow-sm">
-            
-            {/* Header with link to full Loan Status page */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+            {/* Header with blue background, gold subtitle, and gold button */}
+            <div className="bg-[#0A2881] px-6 py-4 flex items-center justify-between">
               <div>
-                <h3 className="text-base font-extrabold text-slate-900">
+                <h3 className="text-base font-extrabold text-white">
                   Loan Status Progress
                 </h3>
-                <span className="text-[11px] font-bold text-slate-400 block">
+                <span className="text-[11px] font-bold text-[#E4BA37] block mt-0.5">
                   {resolution.withdrawn
                     ? "Status: Withdrawn"
                     : activeStep
-                    ? `Current Step: ${activeStep.id} of ${allLoanWorkflowSteps.length}`
-                    : resolution.hasApplication
-                    ? "Current Step: Settled (13 of 13)"
-                    : "Current Step: No Current Application"}
+                      ? `Current Step: ${activeStep.id} of ${allLoanWorkflowSteps.length}`
+                      : resolution.hasApplication
+                        ? "Current Step: Settled (13 of 13)"
+                        : "Current Step: No Current Application"}
                 </span>
               </div>
               <Link
                 href="/client/loan-status"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[11px] font-extrabold text-[#0024A8] transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E4BA37] hover:bg-[#d4ac30] text-[11px] font-black text-[#0A2881] shadow-xs transition-colors cursor-pointer"
               >
                 <span>View Full Stepper</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ArrowRight className="w-3.5 h-3.5 text-[#0A2881]" />
               </Link>
             </div>
 
-            {/* Stepper Vertical Progress List (Showing the 4 completed steps preceding the current step) */}
+            <div className="p-6 sm:p-7 space-y-5">
+              {/* Stepper Vertical Progress List (6-Step sliding window) */}
             {resolution.withdrawn ? (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-8 text-center">
                 <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-3">
@@ -336,81 +366,67 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
                   Contact your broker to start a new application.
                 </p>
               </div>
-            ) : resolution.hasApplication ? (
+            ) : (
               <div className="space-y-3.5 relative pl-3 before:absolute before:left-6.5 before:top-3.5 before:bottom-3.5 before:w-0.5 before:bg-slate-200">
                 {displayedSteps.map((step) => {
-                  const isCurrent = step.id === activeStep?.id;
+                  const isCurrent = step.status === "in_process" || (activeStep ? step.id === activeStep.id : step.id === 1);
                   const isCompleted = step.status === "completed";
 
-                return (
-                  <div key={step.id} className="relative flex items-center gap-3.5 z-10">
-                    
-                    {/* Stepper Node Circle */}
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0 border-2 transition-all ${
-                        isCurrent
-                          ? "bg-[#0024A8] text-white border-[#0024A8] shadow-md ring-4 ring-blue-100 animate-pulse"
-                          : isCompleted
-                          ? "bg-[#0024A8] text-white border-[#0024A8] shadow-xs"
-                          : "bg-white text-slate-400 border-slate-300"
-                      }`}
-                    >
-                      {isCompleted ? (
-                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      ) : (
-                        <span>{step.id}</span>
-                      )}
+                  return (
+                    <div key={step.id} className="relative flex items-center gap-3.5 z-10">
+
+                      {/* Stepper Node Circle */}
+                      <div
+                        className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0 border-2 transition-all ${isCurrent
+                            ? "bg-[#0024A8] text-white border-[#0024A8] shadow-md ring-4 ring-blue-100 animate-pulse"
+                            : isCompleted
+                              ? "bg-[#0024A8] text-white border-[#0024A8] shadow-xs"
+                              : "bg-white text-slate-400 border-slate-300"
+                          }`}
+                      >
+                        {isCompleted ? (
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        ) : (
+                          <span>{step.id}</span>
+                        )}
+                      </div>
+
+                      {/* Step Box / Card */}
+                      <div
+                        className={`flex-1 flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all ${isCurrent
+                            ? "bg-blue-50/90 text-[#0024A8] border-[#0024A8] ring-1 ring-[#0024A8]/20 shadow-xs"
+                            : isCompleted
+                              ? "bg-[#0024A8] text-white border-[#0024A8]"
+                              : "bg-slate-50/60 text-slate-600 border-slate-200/80"
+                          }`}
+                      >
+                        <span className="truncate">
+                          {step.id}. {step.title}
+                        </span>
+
+                        {isCurrent ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md shrink-0">
+                            <Clock className="w-2.5 h-2.5 animate-spin" />
+                            In Progress
+                          </span>
+                        ) : isCompleted ? (
+                          <span className="text-[10px] font-extrabold bg-white/20 text-white px-2 py-0.5 rounded-md shrink-0">
+                            Completed
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400 shrink-0">
+                            Upcoming
+                          </span>
+                        )}
+                      </div>
+
                     </div>
-
-                    {/* Step Box / Card */}
-                    <div
-                      className={`flex-1 flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all ${
-                        isCurrent
-                          ? "bg-blue-50/90 text-[#0024A8] border-[#0024A8] ring-1 ring-[#0024A8]/20 shadow-xs"
-                          : isCompleted
-                          ? "bg-[#0024A8] text-white border-[#0024A8]"
-                          : "bg-slate-50/60 text-slate-600 border-slate-200/80"
-                      }`}
-                    >
-                      <span className="truncate">
-                        {step.id}. {step.title}
-                      </span>
-
-                      {isCurrent ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md shrink-0">
-                          <Clock className="w-2.5 h-2.5 animate-spin" />
-                          In Progress
-                        </span>
-                      ) : isCompleted ? (
-                        <span className="text-[10px] font-extrabold bg-white/20 text-white px-2 py-0.5 rounded-md shrink-0">
-                          Completed
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-bold text-slate-400 shrink-0">
-                          Upcoming
-                        </span>
-                      )}
-                    </div>
-
-                  </div>
-                );
-              })}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-8 text-center">
-                <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0024A8] flex items-center justify-center mx-auto mb-3">
-                  <FileSearch className="w-5 h-5" />
-                </div>
-                <p className="text-sm font-black text-slate-700">
-                  No Current Application
-                </p>
-                <p className="text-xs font-medium text-slate-500 mt-1 max-w-xs mx-auto">
-                  No active loan application yet. Once a broker creates one,
-                  your progress will appear here.
-                </p>
+                  );
+                })}
               </div>
             )}
 
+            </div>
           </div>
         </div>
 
