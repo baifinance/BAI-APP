@@ -184,3 +184,4 @@ class SlotDeleteView(generics.DestroyAPIView):
         elif user.role == UserRole.LOAN_PROCESSING:
             return AvailableSlot.objects.all()
         return AvailableSlot.objects.none()
+

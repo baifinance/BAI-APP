@@ -17,6 +17,8 @@ import {
   BookingApiResponse,
   PublishedSlot,
   parseSlotTime,
+  notificationsApi,
+  NotificationApiResponse,
 } from "@/lib/api";
 
 interface BrokerContextType {
@@ -51,6 +53,20 @@ interface BrokerContextType {
 
 const BrokerContext = createContext<BrokerContextType | undefined>(undefined);
 
+type PortalNotification = {
+  type: string;
+  message: string;
+  time: string;
+};
+
+function mapNotification(notification: NotificationApiResponse): PortalNotification {
+  return {
+    type: notification.notification_type,
+    message: notification.message,
+    time: new Date(notification.created_at).toLocaleString(),
+  };
+}
+
 function apiBookingToBooking(b: BookingApiResponse): Booking {
   const { date, time } = parseSlotTime(b.slot_time);
   return {
@@ -74,11 +90,34 @@ export function BrokerProvider({ children }: { children: React.ReactNode }) {
   const [autoCompose, setAutoCompose] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [notifications, setNotifications] = useState([
+  const [notifications, setNotifications] = useState<PortalNotification[]>([
     { type: "Dossier Update", message: "Alice Smith uploaded corporate bank logs and income statement.", time: "10 mins ago" },
     { type: "Outstanding File", message: "Emma Wilson's construction file is missing certified builder insurance.", time: "1 hour ago" },
-    { type: "Valuation Scheduled", message: "John Doe's property appraisal booking is locked for tomorrow.", time: "3 hours ago" }
+    { type: "Valuation Scheduled", message: "John Doe's property appraisal booking is locked for tomorrow." , time: "3 hours ago" },
   ]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadNotifications = async () => {
+      try {
+        const data = await notificationsApi.list();
+        if (!cancelled) {
+          setNotifications(data.map(mapNotification));
+        }
+      } catch (error) {
+        console.error("Failed to load notifications:", error);
+      }
+    };
+
+    loadNotifications();
+    const intervalId = window.setInterval(loadNotifications, 30_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   useEffect(() => {
     bookingsApi.list()

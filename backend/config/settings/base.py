@@ -82,7 +82,8 @@ INSTALLED_APPS = [
     "audit",
     "otp",
     "ai_assistant",
-    "asana_integration"
+    "asana_integration",
+    "notifications"
 ]
 
 REST_AUTH = {
@@ -167,6 +168,7 @@ REST_FRAMEWORK = {
         "otp": "5/hour",
         "otp_verify": "10/hour",
         "ai": "30/hour",
+        "mfa_send": "10/hour",
     },
 }
 

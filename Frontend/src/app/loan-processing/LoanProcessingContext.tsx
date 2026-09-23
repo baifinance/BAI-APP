@@ -14,6 +14,7 @@ import {
   Client, 
   Application 
 } from "../broker/MockData";
+import { notificationsApi, NotificationApiResponse } from "@/lib/api";
 
 interface LoanProcessingContextType {
   submittedDocs: SubmittedDocument[];
@@ -30,6 +31,20 @@ interface LoanProcessingContextType {
 }
 
 const LoanProcessingContext = createContext<LoanProcessingContextType | undefined>(undefined);
+
+type PortalNotification = {
+  type: string;
+  message: string;
+  time: string;
+};
+
+function mapNotification(notification: NotificationApiResponse): PortalNotification {
+  return {
+    type: notification.notification_type,
+    message: notification.message,
+    time: new Date(notification.created_at).toLocaleString(),
+  };
+}
 
 export function LoanProcessingProvider({ children }: { children: React.ReactNode }) {
   const [submittedDocs, setSubmittedDocs] = useState<SubmittedDocument[]>(() => {
@@ -56,11 +71,34 @@ export function LoanProcessingProvider({ children }: { children: React.ReactNode
     localStorage.setItem("new_registrations", JSON.stringify(newRegs));
   }, [submittedDocs]);
 
-  const [notifications, setNotifications] = useState([
+  const [notifications, setNotifications] = useState<PortalNotification[]>([
     { type: "Audit Alert", message: "System audit complete for Alice Smith's folder.", time: "1 hour ago" },
     { type: "Flagged File", message: "Flagged document: Bank statement missing page 3.", time: "2 hours ago" },
-    { type: "New Submission", message: "New application submitted by Emma Wilson.", time: "1 day ago" }
+    { type: "New Submission", message: "New application submitted by Emma Wilson.", time: "1 day ago" },
   ]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadNotifications = async () => {
+      try {
+        const data = await notificationsApi.list();
+        if (!cancelled) {
+          setNotifications(data.map(mapNotification));
+        }
+      } catch (error) {
+        console.error("Failed to load notifications:", error);
+      }
+    };
+
+    loadNotifications();
+    const intervalId = window.setInterval(loadNotifications, 30_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   const handleLogAction = (actionText: string) => {
     const now = new Date();

@@ -10,11 +10,11 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Check, Clock, ArrowRight, Pen, Mail, Phone, User, FileSearch, Ban, Settings } from "lucide-react";
+import { Check, Clock, ArrowRight, Pen, Mail, Phone, User, FileSearch, Ban, Settings, ShieldCheck, ShieldAlert, KeyRound, Timer, RotateCcw, X } from "lucide-react";
 import { Client } from "../../broker/MockData";
-import { usersApi, loansApi } from "@/lib/api";
+import { usersApi, loansApi, authApi } from "@/lib/api";
 import { resolveLoanStatus } from "../loanStatus";
 
 interface ProfileTabProps {
@@ -69,6 +69,20 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
 
   // Profile cover banner theme switcher ("blue" or "gold")
   const [bannerTheme, setBannerTheme] = useState<"blue" | "gold">("blue");
+
+  // MFA state
+  const [mfaEnabled, setMfaEnabled] = useState<boolean | null>(null);
+  const [mfaSending, setMfaSending] = useState(false);
+  const [mfaVerifying, setMfaVerifying] = useState(false);
+  const [mfaOtpCode, setMfaOtpCode] = useState("");
+  const [mfaCountdown, setMfaCountdown] = useState(0);
+  const [mfaError, setMfaError] = useState("");
+  const [showMfaEnable, setShowMfaEnable] = useState(false);
+  const [showDisableModal, setShowDisableModal] = useState(false);
+  const [disablePassword, setDisablePassword] = useState("");
+  const [showPostEnable, setShowPostEnable] = useState(false);
+  const [mfaActionLoading, setMfaActionLoading] = useState(false);
+  const mfaInputRef = useRef<HTMLInputElement>(null);
 
   // ------------------------------------------------------------------------------
   // 2. COMPLETE 13-STAGE WORKFLOW STEPS (statuses driven by the real loan status)
@@ -139,6 +153,16 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
         console.debug("Note: Could not reach /api/users/profile/ or unauthorized, using current client context:", err);
       });
 
+    // Fetch MFA status
+    authApi.me()
+      .then((user) => {
+        setMfaEnabled(!!user?.mfa_enabled);
+      })
+      .catch((err) => {
+        console.debug("Note: Could not fetch MFA status:", err);
+        setMfaEnabled(false);
+      });
+
     // Fetch live loan status from backend / Asana
     loansApi.getCurrentStatus()
       .then((res) => {
@@ -159,6 +183,72 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
         console.debug("Note: Could not reach /api/loans/current-status/ or unauthorized:", err);
       });
   }, [setClient]);
+
+  // MFA countdown
+  useEffect(() => {
+    if (!showMfaEnable || mfaCountdown <= 0) return;
+    const id = setInterval(() => {
+      setMfaCountdown(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [showMfaEnable, mfaCountdown]);
+
+  // Focus OTP input when enable panel opens
+  useEffect(() => {
+    if (showMfaEnable && mfaInputRef.current) {
+      setTimeout(() => mfaInputRef.current?.focus(), 100);
+    }
+  }, [showMfaEnable]);
+
+  const handleMfaEnableSend = async () => {
+    setMfaError("");
+    setMfaActionLoading(true);
+    try {
+      await usersApi.mfaEnableSend();
+      setShowMfaEnable(true);
+      setMfaCountdown(180);
+      setMfaOtpCode("");
+    } catch (err: any) {
+      setMfaError(err?.message || "Failed to send verification code");
+    } finally {
+      setMfaActionLoading(false);
+    }
+  };
+
+  const handleMfaEnableVerify = async (code?: string) => {
+    const target = code ?? mfaOtpCode;
+    if (!target || target.length !== 6) return;
+    setMfaVerifying(true);
+    setMfaError("");
+    try {
+      const res = await usersApi.mfaEnableVerify(target);
+      setMfaEnabled(res.mfa_enabled);
+      setShowMfaEnable(false);
+      setShowPostEnable(true);
+      setMfaOtpCode("");
+      setMfaCountdown(0);
+    } catch (err: any) {
+      setMfaError(err?.message || "Invalid or expired code");
+    } finally {
+      setMfaVerifying(false);
+    }
+  };
+
+  const handleMfaDisable = async () => {
+    if (!disablePassword) return;
+    setMfaActionLoading(true);
+    setMfaError("");
+    try {
+      const res = await usersApi.mfaDisable(disablePassword);
+      setMfaEnabled(!res.mfa_enabled);
+      setShowDisableModal(false);
+      setDisablePassword("");
+    } catch (err: any) {
+      setMfaError(err?.message || "Failed to disable MFA");
+    } finally {
+      setMfaActionLoading(false);
+    }
+  };
 
   const toggleBannerTheme = () => {
     setBannerTheme(prev => (prev === "blue" ? "gold" : "blue"));
@@ -431,6 +521,186 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
         </div>
 
       </div>
+
+      {/* ==================================================================== */}
+      {/* SECTION 3: SECURITY - MFA MANAGEMENT */}
+      {/* ==================================================================== */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-[#0A2881] px-6 py-4 flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-white/10 text-white flex items-center justify-center">
+            {mfaEnabled ? <ShieldCheck className="w-4 h-4 text-white" /> : <ShieldAlert className="w-4 h-4 text-white" />}
+          </div>
+          <h3 className="text-base font-extrabold text-white">Security</h3>
+          <span className={`ml-auto text-[11px] font-bold px-2.5 py-1 rounded-full ${mfaEnabled ? "bg-emerald-500/20 text-emerald-100" : "bg-amber-500/20 text-amber-100"}`}>
+            {mfaEnabled ? "MFA Active" : "MFA Off"}
+          </span>
+        </div>
+
+        <div className="p-6 sm:p-7 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h4 className="text-sm font-black text-slate-900">Multi-Factor Authentication</h4>
+              <p className="text-xs text-slate-500 mt-1">
+                {mfaEnabled
+                  ? "Your account is protected with 2-step verification. You'll receive a code by email on every login."
+                  : "Add an extra layer of security. When enabled, you'll need a code sent to your email to sign in."}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {!mfaEnabled ? (
+                <button
+                  onClick={handleMfaEnableSend}
+                  disabled={mfaActionLoading}
+                  className="px-4 py-2 bg-[#0024A8] hover:bg-[#001D85] text-white text-xs font-bold rounded-xl shadow-sm disabled:opacity-50"
+                >
+                  {mfaActionLoading ? "Sending..." : "Enable MFA"}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowDisableModal(true)}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-sm"
+                >
+                  Disable MFA
+                </button>
+              )}
+            </div>
+          </div>
+
+          {mfaError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700">
+              {mfaError}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Enable MFA modal */}
+      {showMfaEnable && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 text-[#0024A8] flex items-center justify-center">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Enable Multi-Factor Authentication</h3>
+                  <p className="text-xs text-slate-500">Verify with email code</p>
+                </div>
+              </div>
+              <button onClick={() => { setShowMfaEnable(false); setMfaOtpCode(""); setMfaError(""); }} className="p-1 rounded-lg hover:bg-slate-100">
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+            {mfaError && (
+              <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700">
+                {mfaError}
+              </div>
+            )}
+            <p className="text-sm text-slate-600 mb-4">
+              We sent a 6-digit code to your email. Enter it below to enable MFA.
+            </p>
+            <input
+              ref={mfaInputRef}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              value={mfaOtpCode}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, "").slice(0,6);
+                setMfaOtpCode(v);
+                if (v.length === 6) handleMfaEnableVerify(v);
+              }}
+              placeholder="••••••"
+              className="w-full py-3 px-4 bg-slate-50 border border-slate-200 rounded-xl text-center font-mono font-bold tracking-[0.5em] text-xl"
+              disabled={mfaVerifying}
+            />
+            <div className="flex items-center justify-between mt-3">
+              <span className="text-xs text-slate-500 flex items-center gap-1">
+                <Timer className="w-3 h-3" />
+                Expires in {Math.floor(mfaCountdown/60)}:{String(mfaCountdown%60).padStart(2,'0')}
+              </span>
+              <button
+                onClick={handleMfaEnableSend}
+                disabled={mfaCountdown>0 || mfaActionLoading}
+                className="text-xs font-bold text-[#0024A8] hover:underline disabled:opacity-40 flex items-center gap-1"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Resend
+              </button>
+            </div>
+            {mfaVerifying && <p className="text-xs text-slate-500 mt-3 text-center">Verifying...</p>}
+            <button
+              onClick={() => { setShowMfaEnable(false); setMfaOtpCode(""); setMfaError(""); }}
+              className="mt-6 w-full py-2.5 bg-slate-100 rounded-xl text-sm font-bold"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Post-enable guidance modal */}
+      {showPostEnable && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-slate-200">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto mb-4">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-black text-slate-900 text-center">MFA Enabled</h3>
+            <p className="text-sm text-slate-600 text-center mt-2">
+              Your account is now protected with Multi-Factor Authentication. From now on, you’ll receive a 6-digit code by email each time you sign in. Keep your email accessible and do not share your codes.
+            </p>
+            <button
+              onClick={() => setShowPostEnable(false)}
+              className="mt-6 w-full py-3 bg-[#0024A8] hover:bg-[#001D85] text-white rounded-xl font-bold text-sm"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Disable MFA password modal */}
+      {showDisableModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-black text-slate-900">Disable MFA</h3>
+              <button onClick={() => setShowDisableModal(false)} className="p-1 rounded-lg hover:bg-slate-100">
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+            <p className="text-sm text-slate-600 mb-4">
+              Enter your current password to confirm you want to disable Multi-Factor Authentication.
+            </p>
+            <input
+              type="password"
+              value={disablePassword}
+              onChange={(e)=>setDisablePassword(e.target.value)}
+              placeholder="Current password"
+              className="w-full py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm"
+            />
+            {mfaError && <div className="mt-2 text-xs text-rose-600">{mfaError}</div>}
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={()=>{ setShowDisableModal(false); setDisablePassword(""); setMfaError(""); }}
+                className="flex-1 py-2.5 bg-slate-100 rounded-xl text-sm font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMfaDisable}
+                disabled={mfaActionLoading || !disablePassword}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-bold disabled:opacity-50"
+              >
+                {mfaActionLoading ? "Disabling..." : "Disable MFA"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

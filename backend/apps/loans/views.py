@@ -24,6 +24,10 @@ from asana_integration.services.asana import (
     get_client_asana_profile,
 )
 
+from django.contrib.auth import get_user_model
+
+from notifications.choices import NotificationType
+from notifications.services import create_notification
 
 class LoanStatusUpdateSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -107,6 +111,25 @@ class LoanStatusUpdateView(APIView):
             return Response(
                 {"error": str(error)},
                 status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        User = get_user_model()
+
+        client_user = User.objects.filter(
+            email__iexact=email,
+            role="client",
+            is_active=True
+        ).first()
+
+        if client_user:
+            create_notification(
+                recipient=client_user,
+                notification_type=NotificationType.LOAN_STATUS,
+                title="Loan status updated",
+                message=(
+                    f"Your loan status has been updated to "
+                    f"{loan_status.replace('_', ' ').title()}."
+                ),
             )
 
         return Response(

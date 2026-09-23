@@ -53,4 +53,11 @@ class ProfileSerializer(serializers.ModelSerializer):
         name = f"{obj.first_name} {obj.last_name}".strip()
         return name if name else obj.email
 
-    
+class MfaEnableSerializer(serializers.Serializer):
+    """Verify the emailed code before turning MFA on"""
+    code = serializers.CharField(max_length=6, min_length=6)
+
+class MfaDisableSerializer(serializers.Serializer):
+    """Confirm identity with the current password before turning MFA off"""
+    password = serializers.CharField(write_only=True)
+

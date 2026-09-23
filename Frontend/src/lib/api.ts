@@ -1,6 +1,13 @@
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
+/**
+ * Global event fired when the access token is rejected (401) while an active
+ * session exists. The SessionExpiryModal listens for it to surface the
+ * "Your session has been expired" notice, then logs the user out.
+ */
+export const SESSION_EXPIRED_EVENT = "bai:session-expired";
+
 interface RequestOptions extends RequestInit {
   json?: unknown;
 }
@@ -57,6 +64,14 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     } catch {
       if (body.length < 500) msg = body;
     }
+
+    // Access token rejected (401) with an active session → session is dead.
+    // Guard on user-role (set after login) so failed logins/OTP on the login
+    // page never trigger the SessionExpiryModal.
+    if (res.status === 401 && document.cookie.includes("user-role=")) {
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    }
+
     throw new Error(msg);
   }
 
@@ -153,6 +168,62 @@ export const usersApi = {
    */
   updateProfile: (data: { first_name?: string; last_name?: string }) =>
     request<UserProfileResponse>("/api/users/profile/", { method: "PATCH", json: data }),
+
+  /**
+   * POST /api/users/profile/mfa/enable/send/
+   * Sends OTP to email for MFA enable
+   */
+  mfaEnableSend: () =>
+    request<{ detail: string }>("/api/users/profile/mfa/enable/send/", { method: "POST" }),
+
+  /**
+   * POST /api/users/profile/mfa/enable/verify/
+   * Verifies OTP and enables MFA
+   */
+  mfaEnableVerify: (code: string) =>
+    request<{ message: string; mfa_enabled: boolean }>("/api/users/profile/mfa/enable/verify/", {
+      method: "POST",
+      json: { code },
+    }),
+
+  /**
+   * POST /api/users/profile/mfa/disable/
+   * Disables MFA with password confirmation
+   */
+  mfaDisable: (password: string) =>
+    request<{ message: string; mfa_enabled: boolean }>("/api/users/profile/mfa/disable/", {
+      method: "POST",
+      json: { password },
+    }),
+};
+
+export interface NotificationApiResponse {
+    id: string;
+    notification_type: string;
+    title: string;
+    message: string;
+    related_object_type: string;
+    related_object_id: string;
+    is_read: boolean;
+    created_at: string;
+    read_at: string | null;
+}
+
+export const notificationsApi = {
+    list: (unreadOnly = false) =>
+      request<NotificationApiResponse[]>(
+        `/api/notifications/${unreadOnly ? "?unread=true" : ""}`,
+      ),
+
+    markRead: (id: string) =>
+      request<NotificationApiResponse>(`/api/notifications/${id}/read/`, {
+        method: "PATCH",
+      }),
+
+    markAllRead: () =>
+      request<{ updated_count: number }>("/api/notifications/mark-all-read/", {
+        method: "POST",
+      }),
 };
 
 export function getRoleRedirect(role: AuthUser["role"]): string {

@@ -150,7 +150,7 @@ class BookingDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at", "email", "username", "role", "status", "is_active", "mfa_enable"]
 
     def get_broker_name(self, obj):
         if obj.broker and obj.broker.user:

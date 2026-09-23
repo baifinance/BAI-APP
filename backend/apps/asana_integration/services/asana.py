@@ -32,9 +32,10 @@ LOAN_STATUSES = {
 
 class AsanaProfileService:
     """
-    Read-only Asana integration using the official Asana Python SDK.
+    Asana integration using the official Asana Python SDK.
     
-    It searches tasks in one configured project and matches the email parsed from each task description
+    It searches tasks in one configured project, matches the email parsed from
+    each task description, and can move a task between project sections.
     """
 
     def __init__(self):
@@ -65,6 +66,7 @@ class AsanaProfileService:
 
         self.api_client = asana.ApiClient(configuration)
         self.tasks_api = asana.TasksApi(self.api_client)
+        self.sections_api = asana.SectionsApi(self.api_client)
         self.project_gid = project_gid
 
     def find_profile_by_email(self, email):
@@ -113,6 +115,97 @@ class AsanaProfileService:
             ) from error
 
         return None
+
+    def move_task_to_status(self, email, loan_status):
+        """
+        Move the client's task to the Asana section matching ``loan_status``.
+
+        The task is located by the email in its description, and the target
+        section is located by its exact name in the configured project.
+        """
+        if loan_status not in LOAN_STATUSES:
+            raise ValueError(f"Unsupported loan status: {loan_status}")
+
+        normalized_email = self.normalize_email(email)
+        task_options = {
+            "limit": 100,
+            "opt_fields": "gid,name,notes,memberships.section.gid,memberships.section.name",
+        }
+        section_options = {
+            "limit": 100,
+            "opt_fields": "gid,name",
+        }
+
+        try:
+            matching_task = None
+            tasks = self.tasks_api.get_tasks_for_project(
+                self.project_gid,
+                task_options,
+            )
+
+            for task in tasks:
+                profile = self.parse_task(task)
+                if self.normalize_email(profile.get("email", "")) == normalized_email:
+                    matching_task = task
+                    break
+
+            if matching_task is None:
+                raise ValueError(
+                    f"No Asana task found for client email: {email}"
+                )
+
+            target_section = None
+            sections = self.sections_api.get_sections_for_project(
+                self.project_gid,
+                section_options,
+            )
+
+            for section in sections:
+                if section.get("name") == loan_status:
+                    target_section = section
+                    break
+
+            if target_section is None:
+                raise ValueError(
+                    f"No Asana section found for loan status: {loan_status}"
+                )
+
+            current_section = next(
+                (
+                    membership.get("section") or {}
+                    for membership in (matching_task.get("memberships") or [])
+                    if (membership.get("section") or {}).get("gid")
+                ),
+                {},
+            )
+
+            if current_section.get("gid") == target_section["gid"]:
+                return {
+                    "task_gid": matching_task["gid"],
+                    "loan_status": loan_status,
+                    "section_gid": target_section["gid"],
+                }
+
+            self.sections_api.add_task_for_section(
+                target_section["gid"],
+                {"body": {"task": matching_task["gid"]}},
+            )
+
+            return {
+                "task_gid": matching_task["gid"],
+                "loan_status": loan_status,
+                "section_gid": target_section["gid"],
+            }
+
+        except ApiException as error:
+            logger.warning(
+                "ASANA status update failed: status=%s reason=%s",
+                getattr(error, "status", None),
+                getattr(error, "reason", str(error)),
+            )
+            raise AsanaProfileError(
+                "Unable to update the client loan status in Asana."
+            ) from error
 
     @classmethod
     def parse_task(cls, task):

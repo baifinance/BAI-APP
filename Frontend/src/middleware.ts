@@ -8,6 +8,25 @@ const ROUTE_ROLE_MAP: Record<string, string> = {
   "/loan-processing": "loan_processing",
 };
 
+/**
+ * UX-only check: decodes the JWT payload's `exp` claim (no signature
+ * verification — the backend enforces real auth). Returns true when the access
+ * token has expired, covering sessions that die while the tab sits idle.
+ */
+function isAccessTokenExpired(token: string | undefined): boolean {
+  if (!token) return false;
+  const parts = token.split(".");
+  if (parts.length < 2) return false;
+  try {
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    const exp = Number(payload?.exp);
+    if (!Number.isFinite(exp)) return false;
+    return exp * 1000 < Date.now();
+  } catch {
+    return false;
+  }
+}
+
 export async function middleware(request: NextRequest) {
   // CSP nonce for this request — used by Server Components via x-nonce header
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
@@ -48,8 +67,19 @@ export async function middleware(request: NextRequest) {
   // ==========================================
   // LOGIN ROUTE
   // ==========================================
-  // If already logged in, don't allow access to /login
   if (pathname === "/login") {
+    // Expired token → do NOT bounce back into a protected portal. Allow the
+    // login page and mark it so the SessionExpiryModal is shown.
+    if (accessToken && isAccessTokenExpired(accessToken)) {
+      const loginUrl = new URL(request.url);
+      if (!loginUrl.searchParams.has("expired")) {
+        loginUrl.searchParams.set("expired", "1");
+        return withCSP(NextResponse.redirect(loginUrl));
+      }
+      return withCSP(NextResponse.next({ request: { headers: requestHeaders } }));
+    }
+
+    // If already logged in, don't allow access to /login
     if (accessToken) {
       const userRole = request.cookies.get("user-role")?.value;
 
@@ -88,6 +118,14 @@ export async function middleware(request: NextRequest) {
   // Check for JWT access token — if missing, not logged in
   if (!accessToken) {
     return withCSP(NextResponse.redirect(new URL("/login", request.url)));
+  }
+
+  // Token present but expired → session is dead. Route to the login page with
+  // the expired notice so the SessionExpiryModal is shown.
+  if (isAccessTokenExpired(accessToken)) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("expired", "1");
+    return withCSP(NextResponse.redirect(loginUrl));
   }
 
   // WARNING: user-role cookie is client-controlled and NOT authoritative.

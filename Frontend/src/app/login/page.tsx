@@ -37,6 +37,7 @@ import {
   otpApi,
   OTP_LOGIN_TTL,
   LoginResponse,
+  SESSION_EXPIRED_EVENT,
 } from "@/lib/api";
 
 export default function ClientLoginPage() {
@@ -61,6 +62,16 @@ export default function ClientLoginPage() {
   const [otpError, setOtpError] = useState("");
   const [otpSending, setOtpSending] = useState(false);
   const otpInputRef = useRef<HTMLInputElement>(null);
+
+  // ==============================================================================
+  // 2b. SESSION-EXPIRED NOTICE (arrived via middleware ?expired=1 redirect)
+  // ==============================================================================
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("expired") === "1") {
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    }
+  }, []);
 
   // ==============================================================================
   // 3. OTP COUNTDOWN TIMER EFFECT

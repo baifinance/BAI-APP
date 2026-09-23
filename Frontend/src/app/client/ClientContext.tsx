@@ -23,6 +23,8 @@ import {
   PublishedSlot,
   parseSlotTime,
   toISOSlotTime,
+  notificationsApi,
+  NotificationApiResponse,
 } from "@/lib/api";
 
 interface ClientContextType {
@@ -47,6 +49,20 @@ interface ClientContextType {
 }
 
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
+
+type PortalNotification = {
+  type: string;
+  message: string;
+  time: string;
+};
+
+function mapNotification(notification: NotificationApiResponse): PortalNotification {
+  return {
+    type: notification.notification_type,
+    message: notification.message,
+    time: new Date(notification.created_at).toLocaleString(),
+  };
+}
 
 function apiBookingToBooking(b: BookingApiResponse): Booking {
   const { date, time } = parseSlotTime(b.slot_time);
@@ -87,10 +103,10 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
   const [messages, setMessages] = useState<ClientMessage[]>(initialMessages);
   
-  const [notifications, setNotifications] = useState([
+  const [notifications, setNotifications] = useState<PortalNotification[]>([
     { type: "upload", message: "Emma Wilson uploaded certified UMID ID document.", time: "2 hours ago" },
     { type: "alert", message: "System alert: Bank Statement document uploaded is missing page 3.", time: "1 day ago" },
-    { type: "system", message: "Welcome to BAI Finance Secure Client Hub! Your broker is Sarah Jenkins.", time: "3 days ago" }
+    { type: "system", message: "Welcome to BAI Finance Secure Client Hub! Your broker is Sarah Jenkins.", time: "3 days ago" },
   ]);
 
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -98,6 +114,29 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   const [publishedSlots, setPublishedSlots] = useState<PublishedSlot[]>([]);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadNotifications = async () => {
+      try {
+        const data = await notificationsApi.list();
+        if (!cancelled) {
+          setNotifications(data.map(mapNotification));
+        }
+      } catch (error) {
+        console.error("Failed to load notifications:", error);
+      }
+    };
+
+    loadNotifications();
+    const intervalId = window.setInterval(loadNotifications, 30_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   useEffect(() => {
     const storedAsanaProfile = sessionStorage.getItem("asana_profile");

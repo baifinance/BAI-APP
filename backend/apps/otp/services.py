@@ -10,7 +10,8 @@ PURPOSE_LABELS = {
     "signup": "verify your email",
     "reset_password": "reset your password",
     "invite_verify": "accept your invitation", 
-    "login_2fa": "verify your login"
+    "login_2fa": "verify your login",
+    "mfa_enable": "enable two-factor authentication"
 }
 
 

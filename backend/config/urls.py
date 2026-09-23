@@ -25,6 +25,9 @@ urlpatterns = [
 
     # Loans
     path("api/loans/", include("loans.urls")),
+
+    #Notifications
+    path( "api/notifications/", include("notifications.urls")),
     
     # Add OTP Urls
     path("api/otp/", include("otp.urls")),
