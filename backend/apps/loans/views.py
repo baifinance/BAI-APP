@@ -27,7 +27,7 @@ from asana_integration.services.asana import (
 from django.contrib.auth import get_user_model
 
 from notifications.choices import NotificationType
-from notifications.services import create_notification
+from notifications.services import create_notification, publish_stream_notification
 
 class LoanStatusUpdateSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -122,7 +122,7 @@ class LoanStatusUpdateView(APIView):
         ).first()
 
         if client_user:
-            create_notification(
+            notification = create_notification(
                 recipient=client_user,
                 notification_type=NotificationType.LOAN_STATUS,
                 title="Loan status updated",
@@ -130,6 +130,12 @@ class LoanStatusUpdateView(APIView):
                     f"Your loan status has been updated to "
                     f"{loan_status.replace('_', ' ').title()}."
                 ),
+            )
+
+            publish_stream_notification(
+                client_user.id,
+                notification,
+                loan_status=loan_status
             )
 
         return Response(

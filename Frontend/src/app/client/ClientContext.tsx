@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useRef } from "react";
 import { 
   initialClients, 
   Client, 
@@ -25,6 +26,7 @@ import {
   toISOSlotTime,
   notificationsApi,
   NotificationApiResponse,
+  subscribeToNotificationStream,
 } from "@/lib/api";
 
 interface ClientContextType {
@@ -34,8 +36,14 @@ interface ClientContextType {
   setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
   messages: ClientMessage[];
   setMessages: React.Dispatch<React.SetStateAction<ClientMessage[]>>;
-  notifications: Array<{ type: string; message: string; time: string }>;
-  setNotifications: React.Dispatch<React.SetStateAction<Array<{ type: string; message: string; time: string }>>>;
+  lastLoanStatusUpdate: string | null;
+  notifications: PortalNotification[];
+  setNotifications: React.Dispatch<React.SetStateAction<PortalNotification[]>>;
+  unreadCount: number;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+  toasts: PortalNotification[];
+  dismissToast: (id: string) => void;
   booking: Booking | null;
   setBooking: React.Dispatch<React.SetStateAction<Booking | null>>;
   bookings: Booking[];
@@ -51,16 +59,22 @@ interface ClientContextType {
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
 
 type PortalNotification = {
+  id: string;
   type: string;
+  title: string;
   message: string;
-  time: string;
+  created_at: string;
+  is_read: boolean;
 };
 
 function mapNotification(notification: NotificationApiResponse): PortalNotification {
   return {
+    id: notification.id,
     type: notification.notification_type,
+    title: notification.title,
     message: notification.message,
-    time: new Date(notification.created_at).toLocaleString(),
+    created_at: notification.created_at,
+    is_read: notification.is_read,
   };
 }
 
@@ -102,12 +116,15 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
   const [messages, setMessages] = useState<ClientMessage[]>(initialMessages);
+  const [lastLoanStatusUpdate, setLastLoanStatusUpdate] = useState<string | null>(null);
   
-  const [notifications, setNotifications] = useState<PortalNotification[]>([
-    { type: "upload", message: "Emma Wilson uploaded certified UMID ID document.", time: "2 hours ago" },
-    { type: "alert", message: "System alert: Bank Statement document uploaded is missing page 3.", time: "1 day ago" },
-    { type: "system", message: "Welcome to BAI Finance Secure Client Hub! Your broker is Sarah Jenkins.", time: "3 days ago" },
-  ]);
+  const [notifications, setNotifications] = useState<PortalNotification[]>([]);
+
+  const [toasts, setToasts] = useState<PortalNotification[]>([]);
+  const knownNotifIds = useRef<Set<string>>(new Set());
+  const firstLoadDone = useRef(false);
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -115,28 +132,33 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadNotifications = useCallback(async () => {
+    try {
+      const data = await notificationsApi.list();
+      setNotifications(data.map(mapNotification));
 
-    const loadNotifications = async () => {
-      try {
-        const data = await notificationsApi.list();
-        if (!cancelled) {
-          setNotifications(data.map(mapNotification));
-        }
-      } catch (error) {
-        console.error("Failed to load notifications:", error);
+      if (!firstLoadDone.current) {
+        firstLoadDone.current = true;
+        knownNotifIds.current = new Set(data.map((n) => n.id));
+        return;
       }
-    };
 
+      const fresh = data.filter((n) => !knownNotifIds.current.has(n.id));
+      if (fresh.length) {
+        fresh.forEach((n) => knownNotifIds.current.add(n.id));
+        const newOnes = fresh.slice(0, 3).map(mapNotification);
+        setToasts((prev) => [...newOnes, ...prev].slice(0, 4));
+      }
+    } catch (error) {
+      console.error("Failed to load notifications:", error);
+    }
+  }, []);
+
+  useEffect(() => {
     loadNotifications();
     const intervalId = window.setInterval(loadNotifications, 30_000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, []);
+    return () => window.clearInterval(intervalId);
+  }, [loadNotifications]);
 
   useEffect(() => {
     const storedAsanaProfile = sessionStorage.getItem("asana_profile");
@@ -228,47 +250,62 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const refreshLoanStatus = useCallback(async () => {
+    try {
+      const result = await loansApi.getCurrentStatus();
 
-    const refreshLoanStatus = async () => {
-      try {
-        const result = await loansApi.getCurrentStatus();
+      if (!result.loan_status) {
+        return;
+      }
 
-        if (cancelled || !result.loan_status) {
-          return;
+      const loanStatus = result.loan_status;
+
+      setClient((previousClient) => {
+        if (previousClient.loan?.currentStatus === loanStatus) {
+          return previousClient;
         }
 
-        const loanStatus = result.loan_status;
+        setLastLoanStatusUpdate(new Date().toISOString());
 
-        setClient((previousClient) => {
-          if (previousClient.loan?.currentStatus === loanStatus) {
-            return previousClient;
-          }
-
-          return {
-            ...previousClient,
-            loan: {
-              ...previousClient.loan,
-              currentStatus: loanStatus,
-            },
-          };
-        });
-      } catch (error) {
-        // A temporary Asana/API failure should not log the client out.
-        console.error("Failed to refresh loan status:", error);
-      }
-    };
-
-    refreshLoanStatus();
-
-    const intervalId = window.setInterval(refreshLoanStatus, 30_000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
+        return {
+          ...previousClient,
+          loan: {
+            ...previousClient.loan,
+            currentStatus: loanStatus,
+          },
+        };
+      });
+    } catch (error) {
+      // A temporary Asana/API failure should not log the client out.
+      console.error("Failed to refresh loan status:", error);
+    }
   }, []);
+
+  useEffect(() => {
+    refreshLoanStatus();
+    const intervalId = window.setInterval(refreshLoanStatus, 30_000);
+    return () => window.clearInterval(intervalId);
+  }, [refreshLoanStatus]);
+
+  useEffect(() => {
+    return subscribeToNotificationStream((push) => {
+      if (push.loan_status) {
+        setClient((previousClient) =>
+          previousClient.loan?.currentStatus === push.loan_status
+            ? previousClient
+            : {
+                ...previousClient,
+                loan: {
+                  ...previousClient.loan,
+                  currentStatus: push.loan_status,
+                },
+              }
+        );
+        setLastLoanStatusUpdate(new Date().toISOString());
+      }
+      loadNotifications();
+    });
+  }, [loadNotifications]);
 
   const fetchAvailableSlots = useCallback(async (date: string, brokerId?: string) => {
     try {
@@ -300,11 +337,44 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     setPublishedSlots((prev) => prev.filter((s) => s.id !== slotId));
   }, []);
 
+  const markNotificationRead = useCallback(async (id: string) => {
+    try {
+      await notificationsApi.markRead(id);
+    } catch (error) {
+      console.error("Failed to mark notification read:", error);
+      return;
+    }
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id && !n.is_read ? { ...n, is_read: true } : n))
+    );
+  }, []);
+
+  const markAllNotificationsRead = useCallback(async () => {
+    try {
+      await notificationsApi.markAllRead();
+    } catch (error) {
+      console.error("Failed to mark all notifications read:", error);
+      return;
+    }
+    setNotifications((prev) =>
+      prev.map((n) => (n.is_read ? n : { ...n, is_read: true }))
+    );
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
   const handleLogAction = (actionText: string) => {
-    const newNotif = {
+    const newNotif: PortalNotification = {
+      id: typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `local-${Date.now()}`,
       type: "user",
+      title: actionText,
       message: actionText,
-      time: "Just Now"
+      created_at: new Date().toISOString(),
+      is_read: true,
     };
     setNotifications((prev) => [newNotif, ...prev]);
   };
@@ -317,8 +387,14 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       setTransactions,
       messages,
       setMessages,
+      lastLoanStatusUpdate,
       notifications,
       setNotifications,
+      unreadCount,
+      markNotificationRead,
+      markAllNotificationsRead,
+      toasts,
+      dismissToast,
       booking,
       setBooking,
       bookings,

@@ -29,7 +29,7 @@ from users.serializers import (
     MfaDisableSerializer
 )
 from notifications.choices import NotificationType
-from notifications.services import create_notification
+from notifications.services import create_notification, publish_stream_notification
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
@@ -87,7 +87,7 @@ class MfaEnableView(generics.GenericAPIView):
 
         mark_otp_verified(user.id)
 
-        create_notification(
+        notification = create_notification(
             recipient=user,
             notification_type=NotificationType.MFA,
             title="Multi-factor authentication enabled",
@@ -96,6 +96,7 @@ class MfaEnableView(generics.GenericAPIView):
                 "You will be required to enter an OTP when logging in."
             ),
         )
+        publish_stream_notification(user.id, notification)
 
         return Response({"message": "MFA enabled.", "mfa_enabled": True})
 
@@ -119,7 +120,7 @@ class MfaDisableView(generics.GenericAPIView):
         user.mfa_enabled = False
         user.save(update_fields=["mfa_enabled", "updated_at"])
 
-        create_notification(
+        notification = create_notification(
             recipient=user,
             notification_type=NotificationType.MFA,
             title="Multi-factor authentication disabled",
@@ -128,5 +129,6 @@ class MfaDisableView(generics.GenericAPIView):
                 "Your account is now using password-only login."
             ),
         )
+        publish_stream_notification(user.id, notification)
 
         return Response({"message": "MFA disabled.", "mfa_enabled": False})

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Sidebar from "./Sidebar";
+import NotificationToasts from "@/components/NotificationToasts";
 import { ClientProvider } from "./ClientContext";
 import { usePathname } from "next/navigation";
 
@@ -41,6 +42,9 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+
+      {/* Facebook-style live notification toasts */}
+      <NotificationToasts />
     </div>
   );
 }

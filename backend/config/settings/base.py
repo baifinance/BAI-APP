@@ -208,6 +208,11 @@ ASANA_PROJECT_GID = os.getenv(
     ""
 ).strip()
 
+ASANA_WEBHOOK_ENABLED = env.bool(
+    "ASANA_WEBHOOK_ENABLED",
+    default=False
+)
+
 # OTP configuration
 OTP_SIZE = int(os.getenv("OTP_SIZE", 6))
 OTP_TTL = int(os.getenv("OTP_TTL", 180))  # 3 minutes

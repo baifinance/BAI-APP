@@ -1,3 +1,6 @@
+import json
+
+from otp.utils import redis_client
 from notifications.models import Notification
 
 def create_notification(
@@ -23,3 +26,11 @@ def create_notification(
         related_object_type=related_object_type,
         related_object_id=related_object_id,
     )
+
+def publish_stream_notification(user_id, notification=None, loan_status=None):
+    """Ping the user's live SSE channel; clients refetch on receipt."""
+    payload = {
+        "notification_id": str(getattr(notification, "pk", "") or ""),
+        "loan_status": loan_status,
+    }
+    redis_client.publish(f"notify:{user_id}", json.dumps(payload))

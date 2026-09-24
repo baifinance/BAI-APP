@@ -15,3 +15,25 @@ CORS_ALLOWED_ORIGINS = [
 
 # Allow JWT cookies over HTTP on localhost
 REST_AUTH["JWT_AUTH_SECURE"] = False
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "plain": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"},
+    },
+    "handlers": {
+        "asana_file": {
+            "class": "logging.FileHandler",
+            "filename": "/tmp/asana_events.log",
+            "formatter": "plain",
+        },
+    },
+    "loggers": {
+        "asana_integration": {
+            "level": "DEBUG",
+            "handlers": ["asana_file"],
+            "propagate": False,
+        },
+    },
+}

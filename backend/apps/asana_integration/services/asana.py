@@ -6,6 +6,10 @@ import re
 import asana
 from asana.rest import ApiException
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from notifications.choices import NotificationType
+from notifications.services import create_notification, publish_stream_notification
+from otp.utils import redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +25,7 @@ LOAN_STATUSES = {
     "Collection of Documents",
     "Assessment",
     "Docs for Sign",
+    "For Lodgment",
     "For Lodgement",
     "Submitted",
     "Conditional Approval",
@@ -350,3 +355,172 @@ def get_client_asana_profile(email):
 
     service = AsanaProfileService()
     return service.find_profile_by_email(email)
+
+
+_TASK_EMAIL_CACHE_TTL = 60 * 60 * 24
+_SECTION_NAME_CACHE_TTL = 60 * 60 * 24
+
+_section_name_cache = {}
+
+
+def _section_name(section_gid):
+    """Resolve an Asana section GID to its name, cached in Redis + process."""
+    if not section_gid:
+        return ""
+    cache_key = f"asana_section:{section_gid}"
+    cached = redis_client.get(cache_key)
+    if cached is not None:
+        return cached.decode()
+    if section_gid in _section_name_cache:
+        return _section_name_cache[section_gid]
+    try:
+        section = AsanaProfileService().sections_api.get_section(
+            section_gid,
+            {"opt_fields": "name"},
+        )
+    except ApiException as error:
+        logger.warning(
+            "Failed to resolve Asana section %s: status=%s reason=%s",
+            section_gid,
+            getattr(error, "status", None),
+            getattr(error, "reason", str(error)),
+        )
+        return ""
+    name = (section or {}).get("name") or ""
+    if name:
+        redis_client.setex(cache_key, _SECTION_NAME_CACHE_TTL, name)
+        _section_name_cache[section_gid] = name
+    return name
+
+
+def handle_task_moved_event(event):
+    """
+    Process one Asana webhook ``task.moved`` event.
+
+    A task section change maps to a loan-status notification for the
+    owning client. Never raises: the webhook receiver feeds every event
+    through here and must stay healthy.
+    """
+
+    action = event.get("action")
+    if action not in ("moved", "changed", "added"):
+        logger.info(
+            "Asana event skipped: action=%s resource=%s",
+            action,
+            (event.get("resource") or {}).get("gid"),
+        )
+        return
+
+    change = event.get("change") or {}
+    if change.get("field") == "memberships" or (
+        action == "added" and (event.get("parent") or {}).get("resource_type") == "section"
+    ):
+        section_name = (change.get("new_section") or {}).get("name") or ""
+        if not section_name:
+            # task.changed events nest the section under new_value.resource
+            new_value = change.get("new_value") or {}
+            section_name = (
+                new_value.get("name")
+                or (new_value.get("resource") or {}).get("name")
+                or ""
+            )
+        if not section_name:
+            # Real Asana drags carry no change block; the destination section
+            # arrives as a GID in parent.gid, so resolve it via the API.
+            parent = event.get("parent") or {}
+            section_name = _section_name(parent.get("gid"))
+    else:
+        logger.info(
+            "Asana event skipped: action=%s field=%s",
+            action,
+            change.get("field"),
+        )
+        return
+
+    if not section_name:
+        logger.info(
+            "Asana event skipped: no section name action=%s",
+            action,
+        )
+        return
+
+    if section_name not in LOAN_STATUSES:
+        logger.info(
+            "Asana event ignored: action=%s section_name=%r",
+            action,
+            section_name,
+        )
+        return
+
+    resource = event.get("resource") or {}
+    task_gid = resource.get("gid")
+    if not task_gid:
+        logger.info("Asana event skipped: no task gid")
+        return
+    
+    email = _task_email(task_gid)
+    if not email:
+        logger.warning("No email resolvable for Asana task %s", task_gid)
+        return
+
+    User = get_user_model()
+    client = User.objects.filter(
+        email__iexact=email,
+        role="client",
+        is_active=True
+    ).first()
+    if client is None:
+        logger.info("No active client account for Asana task %s", task_gid)
+        return
+
+    logger.info(
+        "Asana event processed: action=%s task=%s section=%s client=%s",
+        action,
+        task_gid,
+        section_name,
+        client.id,
+    )
+
+    notification = create_notification(
+        recipient=client,
+        notification_type=NotificationType.LOAN_STATUS,
+        title="Loan status updated",
+        message=(
+            f"Your loan status has been updated to "
+            f"{section_name.replace('_', '').title()}."
+        )
+    )
+
+    publish_stream_notification(
+        client.id,
+        notification,
+        loan_status=section_name,
+    )
+
+def _task_email(task_gid):
+    """Resolve the client email for an Asana task, cached per task GID"""
+    cache_key = f"asana_task:{task_gid}"
+    cached = redis_client.get(cache_key)
+    if cached is not None:
+        return cached.decode()
+    
+    try:
+        service = AsanaProfileService()
+        task = service.tasks_api.get_task(task_gid, {"opt_fields": "notes"})
+    except ApiException as error:
+        logger.warning(
+            "Failed to fetch Asana task %s: status=%s reason=%s",
+            task_gid,
+            getattr(error, "status", None),
+            getattr(error, "reason", str(error))
+        )
+        return None
+
+    profile = service.parse_task(task)
+    email = profile.get("email")
+    if not email:
+        return None
+
+    email = service.normalize_email(email)
+    redis_client.setex(cache_key, _TASK_EMAIL_CACHE_TTL, email)
+    return email

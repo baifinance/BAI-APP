@@ -35,6 +35,9 @@ urlpatterns = [
     # AI Assistant (RAG)
     path("api/ai/", include("ai_assistant.urls")),
 
+    # Asana webhook
+    path("api/asana/", include("asana_integration.urls")),
+
     # Health
     path("healthz", HealthView.as_view(), name="healthz"),
 ]

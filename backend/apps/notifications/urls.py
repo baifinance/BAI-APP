@@ -4,10 +4,12 @@ from notifications.views import (
     NotificationListView,
     NotificationMarkAllReadView,
     NotificationMarkReadView,
+    NotificationStreamView
 )
 
 urlpatterns = [
     path("", NotificationListView.as_view(), name="notification-list"),
+    path("stream/", NotificationStreamView.as_view(), name="notification-stream"),
     path(
         "mark-all-read/",
         NotificationMarkAllReadView.as_view(),

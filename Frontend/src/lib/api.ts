@@ -226,6 +226,84 @@ export const notificationsApi = {
       }),
 };
 
+/**
+ * Live notification stream via SSE.
+ *
+ * Uses fetch (not native EventSource) so credentials are sent exactly like
+ * every other API call — EventSource's `withCredentials` is unreliable
+ * cross-origin. Auto-reconnects with a short delay.
+ */
+export interface StreamPush {
+  notification_id?: string;
+  loan_status?: string;
+}
+
+export function subscribeToNotificationStream(
+  onPush: (push: StreamPush) => void
+): () => void {
+  let cancelled = false;
+  let controller: AbortController | null = null;
+  let retryTimer: number | undefined;
+  const RECONNECT_MS = 3000;
+
+  const connect = async () => {
+    if (cancelled) return;
+    controller = new AbortController();
+
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications/stream/`, {
+        credentials: "include",
+        headers: { Accept: "text/event-stream" },
+        signal: controller.signal,
+      });
+      if (!res.ok || !res.body) throw new Error(`notification stream ${res.status}`);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (!cancelled) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let separator: number;
+        while ((separator = buffer.indexOf("\n\n")) !== -1) {
+          const frame = buffer.slice(0, separator);
+          buffer = buffer.slice(separator + 2);
+
+          let data = "";
+          for (const line of frame.split("\n")) {
+            if (line.startsWith("data:")) data += line.slice(5).trimStart();
+          }
+          if (data) {
+            let payload: StreamPush = {};
+            try {
+              payload = JSON.parse(data);
+            } catch {
+              // Non-JSON frames are ignored; nothing to push.
+            }
+            onPush(payload);
+          }
+        }
+      }
+    } catch {
+      // Connection dropped — fall through to the reconnect timer.
+    } finally {
+      controller = null;
+      if (!cancelled) retryTimer = window.setTimeout(connect, RECONNECT_MS);
+    }
+  };
+
+  connect();
+
+  return () => {
+    cancelled = true;
+    controller?.abort();
+    if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+  };
+}
+
 export function getRoleRedirect(role: AuthUser["role"]): string {
   if (role === "client") return "/client";
   if (role === "broker") return "/broker";

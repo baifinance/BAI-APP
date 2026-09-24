@@ -15,6 +15,7 @@ import React from "react";
 import { Ban, FileSearch } from "lucide-react";
 import { Client } from "../../broker/MockData";
 import { resolveLoanStatus } from "../loanStatus";
+import { useClient } from "../ClientContext";
 import ProgressStatus from "./components/ProgressStatus";
 import LoanProgressStepper, { StepperStep } from "./components/LoanProgressStepper";
 
@@ -23,10 +24,21 @@ interface LoanStatusTabProps {
   onLogAction?: (msg: string) => void;
 }
 
+function formatLiveUpdate(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const seconds = Math.max(0, Math.floor(diffMs / 1000));
+  if (seconds < 10) return "just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  return new Date(iso).toLocaleString();
+}
+
 export default function LoanStatusTab({
   client,
   onLogAction
 }: LoanStatusTabProps) {
+  const { lastLoanStatusUpdate } = useClient();
   // ----------------------------------------------------------------------------
   // 1. 13-STAGE LOAN STATUS STEPS WORKFLOW
   // ----------------------------------------------------------------------------
@@ -140,6 +152,17 @@ export default function LoanStatusTab({
       {/* PART 1: PROGRESS STATUS COMPONENT (Active stage with blue header)      */}
       {/* ---------------------------------------------------------------------- */}
       <section aria-label="Progress Status Header" className="w-full">
+        {lastLoanStatusUpdate && (
+          <div className="max-w-5xl mx-auto px-6 sm:px-8 pt-6 flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            </span>
+            <span className="text-xs font-bold uppercase tracking-wide text-emerald-600">
+              Live · Updated {formatLiveUpdate(lastLoanStatusUpdate)}
+            </span>
+          </div>
+        )}
         <ProgressStatus
           statusText={resolution.header}
           stepNumber={resolution.activeStepIndex ?? 0}

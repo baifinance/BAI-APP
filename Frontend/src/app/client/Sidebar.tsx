@@ -42,7 +42,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }: SidebarProps) {
-  const { client } = useClient();
+  const { client, unreadCount } = useClient();
 
   const menuItems = [
     { id: "Profile" as ClientTabType, label: "Profile", icon: User, href: "/client/profile" },
@@ -125,6 +125,19 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
                 />
 
                 {!isCollapsed && <span>{item.label}</span>}
+
+                {item.id === "Notifications" && unreadCount > 0 && (
+                  <span
+                    className={`inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-black animate-pulse ${
+                      isCollapsed
+                        ? "absolute right-1.5 top-1.5 min-w-4 h-4 text-[9px]"
+                        : "ml-auto"
+                    }`}
+                    title={`${unreadCount} unread`}
+                  >
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
               </Link>
 
               {/* Tooltip — visible in collapsed mode on hover */}
