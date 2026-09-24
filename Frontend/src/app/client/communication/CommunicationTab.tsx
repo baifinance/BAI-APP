@@ -59,17 +59,17 @@ export default function CommunicationTab() {
       </div>
 
       {/* ==================================================================== */}
-      {/* MAIN TWO-CONTAINER WORKSPACE                                         */}
+      {/* MAIN UNIFIED WORKSPACE CONTAINER                                     */}
       {/* ==================================================================== */}
-      <div className="grid grid-cols-2 lg:grid-cols-16 gap-6 items-stretch min-h-[620px]">
+      <div className="bg-white border border-slate-200/80 rounded-3xl shadow-soft-xl overflow-hidden grid grid-cols-1 lg:grid-cols-16 min-h-[620px]">
 
         {/* ------------------------------------------------------------------ */}
-        {/* LEFT CONTAINER: LIST OF EMAILS SENT TO CLIENT                       */}
+        {/* LEFT SECTION: LIST OF EMAILS SENT TO CLIENT                         */}
         {/* Contains ONLY the email titles with date and time on bottom right  */}
         {/* ------------------------------------------------------------------ */}
-        <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-3xl shadow-soft-xl flex flex-col h-full overflow-hidden">
+        <div className="lg:col-span-5 flex flex-col h-full border-b lg:border-b-0 lg:border-r border-slate-200 overflow-hidden">
 
-          {/* Header of the left container with theme blue background and white text */}
+          {/* Header of the left section with theme blue background and white text */}
           <div className="bg-[#0A2881] px-5 py-4 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-white/10 text-white flex items-center justify-center">
@@ -146,9 +146,9 @@ export default function CommunicationTab() {
         </div>
 
         {/* ------------------------------------------------------------------ */}
-        {/* RIGHT CONTAINER: EMAIL PREVIEW OR NO EMAIL PLACEHOLDER             */}
+        {/* RIGHT SECTION: EMAIL PREVIEW OR NO EMAIL PLACEHOLDER                */}
         {/* ------------------------------------------------------------------ */}
-        <div className="lg:col-span-11 bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-soft-xl flex flex-col h-full min-h-[520px]">
+        <div className="lg:col-span-11 p-6 sm:p-8 flex flex-col h-full min-h-[520px]">
           {selectedEmail ? (
             /* Selected Email View */
             <div className="flex-1 flex flex-col animate-fadeIn">

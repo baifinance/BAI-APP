@@ -268,7 +268,7 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
         const isPhilippines = displayAddress.toLowerCase().includes("philippines") || client.profile?.nationality?.toLowerCase().includes("filipino");
 
         return (
-          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden animate-fadeIn">
+          <div className="bg-white rounded-[5px] border border-slate-200/80 shadow-sm overflow-hidden animate-fadeIn">
 
             {/* Banner with Theme Toggle */}
             <div
@@ -339,7 +339,7 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
 
         {/* LEFT COLUMN: PERSONAL INFORMATION DETAILS */}
         <div className="lg:col-span-7 space-y-5">
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white border border-slate-200/80 rounded-[5px] shadow-sm overflow-hidden">
             {/* Header with blue background and white text */}
             <div className="bg-[#0A2881] px-6 py-4 flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-white/10 text-white flex items-center justify-center">
@@ -415,7 +415,7 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
 
         {/* RIGHT COLUMN: 6-STEP LOAN STATUS PROGRESS PREVIEW */}
         <div className="lg:col-span-5 space-y-5">
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white border border-slate-200/80 rounded-[5px] shadow-sm overflow-hidden">
             {/* Header with blue background, gold subtitle, and gold button */}
             <div className="bg-[#0A2881] px-6 py-4 flex items-center justify-between">
               <div>
@@ -525,7 +525,7 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
       {/* ==================================================================== */}
       {/* SECTION 3: SECURITY - MFA MANAGEMENT */}
       {/* ==================================================================== */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200/80 rounded-[5px] shadow-sm overflow-hidden">
         <div className="bg-[#0A2881] px-6 py-4 flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-white/10 text-white flex items-center justify-center">
             {mfaEnabled ? <ShieldCheck className="w-4 h-4 text-white" /> : <ShieldAlert className="w-4 h-4 text-white" />}
