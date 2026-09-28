@@ -23,6 +23,8 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
 
   const isWhiteBg = activeTab === "LoanStatus";
   const isLoanStatus = activeTab === "LoanStatus";
+  const isCalculator = activeTab === "Calculator";
+  const isFullWidthPage = isLoanStatus || isCalculator;
 
   return (
     <div className={`min-h-screen ${isWhiteBg ? "bg-white" : "bg-[#F2F2F2]"} flex font-sans text-slate-900 selection:bg-[#0024A8] selection:text-white antialiased client-portal-wrap`}>
@@ -35,9 +37,9 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
       />
 
       {/* Content Wrapper */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ease-in-out">
         {/* Scrollable page body */}
-        <main className={`flex-1 overflow-y-auto ${isLoanStatus ? "p-0" : "p-8 max-w-[1600px] w-full mx-auto"}`}>
+        <main className={`flex-1 overflow-y-auto w-full transition-all duration-300 ease-in-out ${isFullWidthPage ? "p-0" : "p-8 max-w-[1600px] mx-auto"}`}>
           {children}
         </main>
       </div>
