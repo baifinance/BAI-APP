@@ -239,7 +239,7 @@ export default function ProfileSettingsTab({
         <button
           type="button"
           onClick={handleBack}
-          className="p-2 -ml-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-colors cursor-pointer flex items-center justify-center group"
+          className="p-2 -ml-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer flex items-center justify-center group"
           title="Go back to previous page"
           aria-label="Go back to previous page"
         >

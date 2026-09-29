@@ -34,7 +34,7 @@ export default function PaymentHistoryTab({ transactions }: PaymentHistoryTabPro
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-extrabold text-slate-800">Payment History</h2>
-          <p className="text-xs text-slate-400 font-medium mt-0.5">
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
             Audit offset account ledger statement logs and payments clearings.
           </p>
         </div>

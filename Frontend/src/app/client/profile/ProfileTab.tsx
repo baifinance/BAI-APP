@@ -178,7 +178,7 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
         const isPhilippines = displayAddress.toLowerCase().includes("philippines") || client.profile?.nationality?.toLowerCase().includes("filipino");
 
         return (
-          <div className="bg-white rounded-[5px] border border-slate-200/80 shadow-sm overflow-hidden animate-fadeIn">
+          <div className="bg-white rounded-[5px] border-0 shadow-sm overflow-hidden animate-fadeIn">
 
             {/* Banner with Theme Toggle */}
             <div
@@ -249,7 +249,7 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
 
         {/* LEFT COLUMN: PERSONAL INFORMATION DETAILS */}
         <div className="lg:col-span-7 space-y-5">
-          <div className="bg-white border border-slate-200/80 rounded-[5px] shadow-sm overflow-hidden">
+          <div className="bg-white rounded-[5px] border-0 shadow-sm overflow-hidden">
             {/* Header with blue background and white text */}
             <div className="bg-[#0A2881] px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -337,7 +337,7 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
 
         {/* RIGHT COLUMN: 6-STEP LOAN STATUS PROGRESS PREVIEW */}
         <div className="lg:col-span-5 space-y-5">
-          <div className="bg-white border border-slate-200/80 rounded-[5px] shadow-sm overflow-hidden">
+          <div className="bg-white rounded-[5px] border-0 shadow-sm overflow-hidden">
             {/* Header with blue background, gold subtitle, and gold button */}
             <div className="bg-[#0A2881] px-6 py-4 flex items-center justify-between">
               <div>
@@ -365,78 +365,78 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
 
             <div className="p-6 sm:p-7 space-y-5">
               {/* Stepper Vertical Progress List (6-Step sliding window) */}
-            {resolution.withdrawn ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-8 text-center">
-                <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-3">
-                  <Ban className="w-5 h-5" />
+              {resolution.withdrawn ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-8 text-center">
+                  <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-3">
+                    <Ban className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm font-black text-slate-700">
+                    Application Withdrawn
+                  </p>
+                  <p className="text-xs font-medium text-slate-500 mt-1 max-w-xs mx-auto">
+                    This application has been withdrawn and the file is closed.
+                    Contact your broker to start a new application.
+                  </p>
                 </div>
-                <p className="text-sm font-black text-slate-700">
-                  Application Withdrawn
-                </p>
-                <p className="text-xs font-medium text-slate-500 mt-1 max-w-xs mx-auto">
-                  This application has been withdrawn and the file is closed.
-                  Contact your broker to start a new application.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3.5 relative pl-3 before:absolute before:left-6.5 before:top-3.5 before:bottom-3.5 before:w-0.5 before:bg-slate-200">
-                {displayedSteps.map((step) => {
-                  const isCurrent = step.status === "in_process" || (activeStep ? step.id === activeStep.id : step.id === 1);
-                  const isCompleted = step.status === "completed";
+              ) : (
+                <div className="space-y-3.5 relative pl-3 before:absolute before:left-6.5 before:top-3.5 before:bottom-3.5 before:w-0.5 before:bg-slate-200">
+                  {displayedSteps.map((step) => {
+                    const isCurrent = step.status === "in_process" || (activeStep ? step.id === activeStep.id : step.id === 1);
+                    const isCompleted = step.status === "completed";
 
-                  return (
-                    <div key={step.id} className="relative flex items-center gap-3.5 z-10">
+                    return (
+                      <div key={step.id} className="relative flex items-center gap-3.5 z-10">
 
-                      {/* Stepper Node Circle */}
-                      <div
-                        className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0 border-2 transition-all ${isCurrent
+                        {/* Stepper Node Circle */}
+                        <div
+                          className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0 border-2 transition-all ${isCurrent
                             ? "bg-[#0024A8] text-white border-[#0024A8] shadow-md ring-4 ring-blue-100 animate-pulse"
                             : isCompleted
                               ? "bg-[#0024A8] text-white border-[#0024A8] shadow-xs"
                               : "bg-white text-slate-400 border-slate-300"
-                          }`}
-                      >
-                        {isCompleted ? (
-                          <Check className="w-3.5 h-3.5 stroke-[3]" />
-                        ) : (
-                          <span>{step.id}</span>
-                        )}
-                      </div>
+                            }`}
+                        >
+                          {isCompleted ? (
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          ) : (
+                            <span>{step.id}</span>
+                          )}
+                        </div>
 
-                      {/* Step Box / Card */}
-                      <div
-                        className={`flex-1 flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all ${isCurrent
+                        {/* Step Box / Card */}
+                        <div
+                          className={`flex-1 flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all ${isCurrent
                             ? "bg-blue-50/90 text-[#0024A8] border-[#0024A8] ring-1 ring-[#0024A8]/20 shadow-xs"
                             : isCompleted
                               ? "bg-[#0024A8] text-white border-[#0024A8]"
                               : "bg-slate-50/60 text-slate-600 border-slate-200/80"
-                          }`}
-                      >
-                        <span className="truncate">
-                          {step.id}. {step.title}
-                        </span>
+                            }`}
+                        >
+                          <span className="truncate">
+                            {step.id}. {step.title}
+                          </span>
 
-                        {isCurrent ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md shrink-0">
-                            <Clock className="w-2.5 h-2.5 animate-spin" />
-                            In Progress
-                          </span>
-                        ) : isCompleted ? (
-                          <span className="text-[10px] font-extrabold bg-white/20 text-white px-2 py-0.5 rounded-md shrink-0">
-                            Completed
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-bold text-slate-400 shrink-0">
-                            Upcoming
-                          </span>
-                        )}
+                          {isCurrent ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md shrink-0">
+                              <Clock className="w-2.5 h-2.5 animate-spin" />
+                              In Progress
+                            </span>
+                          ) : isCompleted ? (
+                            <span className="text-[10px] font-extrabold bg-white/20 text-white px-2 py-0.5 rounded-md shrink-0">
+                              Completed
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-slate-400 shrink-0">
+                              Upcoming
+                            </span>
+                          )}
+                        </div>
+
                       </div>
-
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
 
             </div>
           </div>

@@ -134,7 +134,7 @@ export default function LoanStatusTab({
   }));
 
   return (
-    <div className="min-h-full bg-white space-y-8 animate-fadeIn pb-12">
+    <div className="min-h-full space-y-8 animate-fadeIn pb-12">
 
       {/* ---------------------------------------------------------------------- */}
       {/* PART 1: PROGRESS STATUS COMPONENT (Active stage with blue header)      */}
