@@ -7,13 +7,367 @@
  * ==============================================================================
  */
 
-import React, { useState, useEffect } from "react";
-import { Calculator, DollarSign, Calendar, Info } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Calculator, DollarSign, Calendar, Info, Printer, BarChart3 } from "lucide-react";
 
 type CalcTab = "Repayments" | "Borrowing" | "InterestOnly";
 
 interface CalculatorsTabProps {
   variant?: "broker" | "loan_processing" | "client";
+}
+
+interface LoanBalanceChartProps {
+  loanAmount: number;
+  interestRate: number;
+  loanTerm: number;
+  monthlyRepayment: number;
+  totalCostOfLoan: number;
+}
+
+function LoanBalanceChart({
+  loanAmount,
+  interestRate,
+  loanTerm,
+  monthlyRepayment,
+  totalCostOfLoan,
+}: LoanBalanceChartProps) {
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+
+  const dataPoints = useMemo(() => {
+    const points = [];
+    const P = loanAmount;
+    const annualR = interestRate / 100;
+    const r = annualR / 12;
+    const totalMonths = loanTerm * 12;
+    const M = monthlyRepayment;
+
+    for (let yr = 0; yr <= loanTerm; yr++) {
+      const k = yr * 12;
+      let balance = 0;
+      if (yr === 0) {
+        balance = P;
+      } else if (yr === loanTerm) {
+        balance = 0;
+      } else {
+        if (r === 0) {
+          balance = Math.max(0, P - (P / totalMonths) * k);
+        } else {
+          const factor = Math.pow(1 + r, k);
+          balance = Math.max(0, P * factor - (M * (factor - 1)) / r);
+        }
+      }
+
+      const totalRemaining = Math.max(0, M * (totalMonths - k));
+
+      points.push({
+        year: yr,
+        balance: Math.round(balance),
+        totalRemaining: Math.round(totalRemaining),
+      });
+    }
+    return points;
+  }, [loanAmount, interestRate, loanTerm, monthlyRepayment]);
+
+  const maxVal = Math.max(
+    totalCostOfLoan > 0 ? totalCostOfLoan : loanAmount * 1.5,
+    loanAmount * 1.2
+  );
+  const roundTo = maxVal > 1000000 ? 500000 : 100000;
+  const yMax = Math.ceil((maxVal * 1.05) / roundTo) * roundTo;
+
+  const viewBoxWidth = 520;
+  const viewBoxHeight = 290;
+  const padLeft = 65;
+  const padRight = 20;
+  const padTop = 25;
+  const padBottom = 45;
+  const chartW = viewBoxWidth - padLeft - padRight;
+  const chartH = viewBoxHeight - padTop - padBottom;
+
+  const getX = (yr: number) => padLeft + (yr / loanTerm) * chartW;
+  const getY = (val: number) => padTop + chartH - (val / yMax) * chartH;
+
+  const totalPayLinePath = dataPoints
+    .map((pt, idx) => `${idx === 0 ? "M" : "L"} ${getX(pt.year)} ${getY(pt.totalRemaining)}`)
+    .join(" ");
+  const totalPayAreaPath = `${totalPayLinePath} L ${getX(loanTerm)} ${padTop + chartH} L ${getX(0)} ${padTop + chartH} Z`;
+
+  const loanBalLinePath = dataPoints
+    .map((pt, idx) => `${idx === 0 ? "M" : "L"} ${getX(pt.year)} ${getY(pt.balance)}`)
+    .join(" ");
+  const loanBalAreaPath = `${loanBalLinePath} L ${getX(loanTerm)} ${padTop + chartH} L ${getX(0)} ${padTop + chartH} Z`;
+
+  const formatCurrencyTick = (val: number) => {
+    if (val >= 1000000) {
+      return `$${(val / 1000000).toFixed(1).replace(/\.0$/, "")}M`;
+    }
+    if (val >= 1000) {
+      return `$${Math.round(val / 1000)}K`;
+    }
+    return `$${Math.round(val)}`;
+  };
+
+  const xTicks = useMemo(() => {
+    const ticks = [];
+    const step = loanTerm <= 10 ? 2 : 5;
+    for (let yr = 0; yr <= loanTerm; yr += step) {
+      ticks.push(yr);
+    }
+    if (!ticks.includes(loanTerm)) {
+      ticks.push(loanTerm);
+    }
+    return ticks;
+  }, [loanTerm]);
+
+  const yTicks = [0, yMax / 2, yMax];
+
+  return (
+    <div className="space-y-4">
+      {/* Header & Legends matching the screenshot */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <h4 className="text-sm font-extrabold text-slate-800">
+          Loan Balance Chart
+        </h4>
+        <div className="flex items-center gap-4 text-xs font-bold">
+          <div className="flex items-center gap-1.5">
+            <span className="w-3.5 h-3.5 rounded-xs bg-[#0B2369]" />
+            <span className="text-slate-700">Loan Balance</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3.5 h-3.5 rounded-xs bg-[#16A34A]" />
+            <span className="text-slate-700">Total Payment</span>
+          </div>
+        </div>
+      </div>
+
+      {/* SVG Chart */}
+      <div className="relative w-full overflow-hidden">
+        <svg
+          viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+          className="w-full h-auto select-none"
+          onMouseLeave={() => setHoverIndex(null)}
+        >
+          <defs>
+            <linearGradient id="totalPayGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#16A34A" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#16A34A" stopOpacity="0.05" />
+            </linearGradient>
+            <linearGradient id="loanBalGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#0B2369" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#1E3A8A" stopOpacity="0.35" />
+            </linearGradient>
+          </defs>
+
+          {/* Grid lines and Y axis ticks */}
+          {yTicks.map((val, idx) => {
+            const y = getY(val);
+            return (
+              <g key={idx}>
+                <line
+                  x1={padLeft}
+                  y1={y}
+                  x2={padLeft + chartW}
+                  y2={y}
+                  stroke="#E2E8F0"
+                  strokeWidth="1"
+                  strokeDasharray={idx > 0 && idx < yTicks.length - 1 ? "3 3" : undefined}
+                />
+                <text
+                  x={padLeft - 8}
+                  y={y + 4}
+                  textAnchor="end"
+                  className="text-[11px] font-bold fill-slate-500"
+                >
+                  {formatCurrencyTick(val)}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Y Axis Line */}
+          <line
+            x1={padLeft}
+            y1={padTop}
+            x2={padLeft}
+            y2={padTop + chartH}
+            stroke="#0284C7"
+            strokeWidth="1.5"
+          />
+
+          {/* X Axis Line */}
+          <line
+            x1={padLeft}
+            y1={padTop + chartH}
+            x2={padLeft + chartW}
+            y2={padTop + chartH}
+            stroke="#64748B"
+            strokeWidth="1.5"
+          />
+
+          {/* Y-Axis Label "Amount Owing" */}
+          <text
+            x={-(padTop + chartH / 2)}
+            y={16}
+            transform="rotate(-90)"
+            textAnchor="middle"
+            className="text-[11px] font-extrabold fill-slate-600"
+          >
+            Amount Owing
+          </text>
+
+          {/* Total Payment Area & Line (Green) */}
+          <path d={totalPayAreaPath} fill="url(#totalPayGrad)" />
+          <path
+            d={totalPayLinePath}
+            fill="none"
+            stroke="#16A34A"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+
+          {/* Loan Balance Area & Line (Navy Blue) */}
+          <path d={loanBalAreaPath} fill="url(#loanBalGrad)" />
+          <path
+            d={loanBalLinePath}
+            fill="none"
+            stroke="#0B2369"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+
+          {/* X Axis Ticks & Labels */}
+          {xTicks.map((yr, idx) => {
+            const x = getX(yr);
+            return (
+              <g key={idx}>
+                <line
+                  x1={x}
+                  y1={padTop + chartH}
+                  x2={x}
+                  y2={padTop + chartH + 5}
+                  stroke="#94A3B8"
+                  strokeWidth="1"
+                />
+                <text
+                  x={x}
+                  y={padTop + chartH + 18}
+                  textAnchor="middle"
+                  className="text-[11px] font-bold fill-slate-600"
+                >
+                  {yr}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* X-Axis Label "Years" */}
+          <text
+            x={padLeft + chartW / 2}
+            y={padTop + chartH + 36}
+            textAnchor="middle"
+            className="text-[11px] font-extrabold fill-slate-600"
+          >
+            Years
+          </text>
+
+          {/* Interactive hover overlay */}
+          {dataPoints.map((pt, idx) => {
+            const x = getX(pt.year);
+            const w = chartW / loanTerm;
+            return (
+              <rect
+                key={idx}
+                x={x - w / 2}
+                y={padTop}
+                width={w}
+                height={chartH}
+                fill="transparent"
+                className="cursor-pointer"
+                onMouseEnter={() => setHoverIndex(idx)}
+              />
+            );
+          })}
+
+          {/* Hover highlight markers */}
+          {hoverIndex !== null && dataPoints[hoverIndex] && (
+            <g pointerEvents="none">
+              <line
+                x1={getX(dataPoints[hoverIndex].year)}
+                y1={padTop}
+                x2={getX(dataPoints[hoverIndex].year)}
+                y2={padTop + chartH}
+                stroke="#64748B"
+                strokeWidth="1.5"
+                strokeDasharray="3 3"
+              />
+              {/* Total payment marker */}
+              <circle
+                cx={getX(dataPoints[hoverIndex].year)}
+                cy={getY(dataPoints[hoverIndex].totalRemaining)}
+                r="4.5"
+                fill="#16A34A"
+                stroke="#ffffff"
+                strokeWidth="2"
+              />
+              {/* Loan balance marker */}
+              <circle
+                cx={getX(dataPoints[hoverIndex].year)}
+                cy={getY(dataPoints[hoverIndex].balance)}
+                r="4.5"
+                fill="#0B2369"
+                stroke="#ffffff"
+                strokeWidth="2"
+              />
+            </g>
+          )}
+        </svg>
+
+        {/* Hover Tooltip Overlay */}
+        {hoverIndex !== null && dataPoints[hoverIndex] && (
+          <div
+            className="absolute top-2 right-2 bg-slate-900/90 backdrop-blur-xs text-white p-2.5 rounded-xl text-xs shadow-lg space-y-1 pointer-events-none border border-slate-700/50 z-10"
+          >
+            <div className="font-extrabold text-slate-200 border-b border-slate-700 pb-1">
+              Year {dataPoints[hoverIndex].year} of {loanTerm}
+            </div>
+            <div className="flex items-center justify-between gap-4 text-emerald-400 font-bold">
+              <span>Total Remaining:</span>
+              <span>${dataPoints[hoverIndex].totalRemaining.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center justify-between gap-4 text-blue-300 font-bold">
+              <span>Loan Balance:</span>
+              <span>${dataPoints[hoverIndex].balance.toLocaleString()}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer / Branding bar matching screenshot */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+        <div className="flex items-center gap-2">
+          {/* MFAA Accredited Badge */}
+          <div className="bg-[#0B2369] text-white px-3 py-1 rounded-md text-[11px] font-black tracking-wider flex items-center gap-1 shadow-2xs">
+            <span>mfaa</span>
+            <span className="text-[9px] font-medium text-slate-300">accredited</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            Print
+          </button>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg">
+            <Info className="w-3.5 h-3.5 text-slate-400" />
+            Standard Amortisation
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
@@ -164,6 +518,299 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
     setIoTotalInterest(Math.round(totalInterest));
     setIoTotalCost(Math.round(totalCost));
   }, [ioLoanAmount, ioInterestRate, ioTotalTerm, ioTerm]);
+
+  // ------------------------------------------------------------------------------
+  // CLIENT CALCULATOR REWORKED STATE
+  // ------------------------------------------------------------------------------
+  const [clientLoanAmount, setClientLoanAmount] = useState<string | number>(500000);
+  const [clientInterestRate, setClientInterestRate] = useState<string | number>(6.0);
+  const [clientLoanTerm, setClientLoanTerm] = useState<number>(30);
+  const [isCalculatedClient, setIsCalculatedClient] = useState<boolean>(false);
+
+  const handleCalculateClient = () => {
+    const P = typeof clientLoanAmount === "string" ? parseFloat(clientLoanAmount) || 0 : clientLoanAmount;
+    const annualR = (typeof clientInterestRate === "string" ? parseFloat(clientInterestRate) || 0 : clientInterestRate) / 100;
+    const r = annualR / 12;
+    const n = clientLoanTerm * 12;
+
+    if (n <= 0 || P <= 0) return;
+
+    let monthly = 0;
+    if (r === 0) {
+      monthly = P / n;
+    } else {
+      monthly = (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+    }
+
+    const totalPaid = monthly * n;
+    const interest = totalPaid - P;
+
+    setMonthlyRepayment(Math.round(monthly * 100) / 100);
+    setTotalInterestPaid(Math.round(interest * 100) / 100);
+    setTotalCostOfLoan(Math.round(totalPaid * 100) / 100);
+    setIsCalculatedClient(true);
+  };
+
+  // Dedicated Reworked Layout for Client Calculator Page
+  if (isClient) {
+    const numLoanAmount = typeof clientLoanAmount === "string" ? parseFloat(clientLoanAmount) || 0 : clientLoanAmount;
+    const numInterestRate = typeof clientInterestRate === "string" ? parseFloat(clientInterestRate) || 0 : clientInterestRate;
+
+    return (
+      <div className="w-full animate-fadeIn pb-12">
+        {/* Full-width Dynamic Edge-to-Edge Blue Banner */}
+        <div className="w-full min-w-full py-8 sm:py-10 md:py-12 lg:py-14 px-4 sm:px-6 md:px-8 lg:px-12 text-center text-white bg-[#0A2881] shadow-md flex flex-col items-center justify-center space-y-2 transition-all duration-300 ease-in-out shrink-0">
+          <span className="text-[10px] sm:text-xs md:text-sm font-extrabold uppercase tracking-widest text-white/80 block">
+            Financial Tools
+          </span>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight max-w-4xl leading-tight">
+            Mortgage Calculator
+          </h1>
+          <p className="text-xs sm:text-sm md:text-base text-white/80 font-medium max-w-2xl px-2">
+            Estimate your monthly repayments based on loan amount, interest rate, and loan term.
+          </p>
+        </div>
+
+        {/* Page Content Container */}
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 pt-8 space-y-8">
+          {/* 2-Container Layout (Top Section) */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
+          {/* Left Container: Calculator */}
+          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-2xl shadow-soft-xl overflow-hidden flex flex-col justify-between">
+            {/* Full-width Blue Header with #E4BA37 Text */}
+            <div className="bg-[#0A2881] px-6 py-4 flex items-center gap-3 shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-[#E4BA37]">
+                <Calculator className="w-4 h-4 text-[#E4BA37]" />
+              </div>
+              <h3 className="text-base font-black text-[#E4BA37]">
+                Loan Calculator
+              </h3>
+            </div>
+
+            {/* Inner Body with Inputs & Actions */}
+            <div className="p-6 sm:p-8 flex flex-col justify-between space-y-6 flex-1">
+              <div className="space-y-6">
+                {/* Field 1: Loan Amount */}
+                <div>
+                  <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1.5">
+                    Loan Amount
+                  </label>
+                  <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200 focus-within:border-[#0A2881] transition-colors">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none bg-[#0A2881] border-r border-[#071D60] px-3">
+                      <span className="text-xs font-black text-[#E4BA37]">A$</span>
+                    </div>
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      placeholder="e.g. 400000.00"
+                      value={clientLoanAmount}
+                      onChange={(e) => setClientLoanAmount(e.target.value)}
+                      className="w-full pl-14 pr-4 py-3 bg-white focus:outline-none text-xs sm:text-sm font-extrabold text-slate-800"
+                    />
+                  </div>
+                </div>
+
+                {/* Field 2: Interest Rate */}
+                <div>
+                  <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1.5">
+                    Interest Rate
+                  </label>
+                  <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200 focus-within:border-[#0A2881] transition-colors">
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      placeholder="e.g. 6.00"
+                      value={clientInterestRate}
+                      onChange={(e) => setClientInterestRate(e.target.value)}
+                      className="w-full pl-4 pr-14 py-3 bg-white focus:outline-none text-xs sm:text-sm font-extrabold text-slate-800"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none bg-slate-50 border-l border-slate-200 px-3">
+                      <span className="text-xs font-bold text-slate-600">%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Field 3: Loan Term */}
+                <div>
+                  <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1.5">
+                    Loan Term
+                  </label>
+                  <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200 focus-within:border-[#0A2881] transition-colors">
+                    <select
+                      value={clientLoanTerm}
+                      onChange={(e) => setClientLoanTerm(Number(e.target.value))}
+                      className="w-full px-4 py-3 bg-white focus:outline-none text-xs sm:text-sm font-extrabold text-slate-800 cursor-pointer"
+                    >
+                      {Array.from({ length: 30 }, (_, i) => i + 1).map((yr) => (
+                        <option key={yr} value={yr}>
+                          {yr} {yr === 1 ? "Year" : "Years"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Button */}
+              <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
+                <button
+                  onClick={handleCalculateClient}
+                  className="flex-1 py-3.5 bg-[#0A2881] hover:bg-[#071D60] text-[#E4BA37] rounded-xl text-xs sm:text-sm font-extrabold shadow-md shadow-[#0A2881]/20 transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Calculator className="w-4 h-4 text-[#E4BA37]" />
+                  Calculate Repayments
+                </button>
+                {isCalculatedClient && (
+                  <button
+                    onClick={() => setIsCalculatedClient(false)}
+                    className="px-4 py-3.5 bg-slate-100 hover:bg-red-600 hover:text-white active:bg-red-700 active:text-white text-slate-600 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Container: Visual */}
+          <div className="md:col-span-6 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-inner flex flex-col justify-between min-h-[460px]">
+            <div className="h-full flex flex-col justify-between items-center text-center">
+              <div className="w-full flex-1 flex items-center justify-center p-4">
+                <img
+                  src="/calculator_illustration.jpg"
+                  alt="Ready to calculate visual"
+                  className="w-full max-w-xs md:max-w-sm max-h-72 object-contain rounded-2xl shadow-xs"
+                />
+              </div>
+
+              <div className="w-full flex flex-col items-center justify-center text-center pt-4 border-t border-slate-200/60">
+                <h3 className="text-xl font-bold text-slate-800 text-center mb-1.5">
+                  Ready to calculate?
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 text-center max-w-sm">
+                  Enter your loan details to the left to see your estimated repayments
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Container: Calculation Results & Loan Balance Chart (inside max-w-7xl with space-y-8 spacing) */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-soft-xl overflow-hidden">
+          {/* Full-width Blue Header with #E4BA37 Text and 'Calculation Results' only */}
+          <div className="bg-[#0A2881] px-6 py-4 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-[#E4BA37]">
+                <BarChart3 className="w-4 h-4 text-[#E4BA37]" />
+              </div>
+              <h3 className="text-base font-black text-[#E4BA37]">
+                Calculation Results
+              </h3>
+            </div>
+            {isCalculatedClient && (
+              <span className="text-[11px] font-bold px-3 py-1 bg-white/15 text-[#E4BA37] border border-white/20 rounded-full">
+                Active Calculation
+              </span>
+            )}
+          </div>
+
+          {/* Body Content */}
+          <div className="p-6 sm:p-8">
+
+          {!isCalculatedClient ? (
+            <div className="py-12 flex flex-col items-center justify-center text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-2">
+                <Info className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-bold text-slate-600">
+                No calculations are being performed.
+              </p>
+              <p className="text-xs text-slate-400 max-w-sm">
+                Enter your loan amount, interest rate, and term above, then click &quot;Calculate Repayments&quot; to view results and chart.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* Left side: Results in list form */}
+              <div className="lg:col-span-5 space-y-6">
+                {/* Input details list (in order: Loan Amount, Interest Rate, Loan Term) */}
+                <div>
+                  <h4 className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider mb-3">
+                    Input Details
+                  </h4>
+                  <ul className="space-y-3">
+                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
+                      <span className="font-semibold text-slate-600">Loan Amount</span>
+                      <span className="font-extrabold text-slate-900">
+                        ${numLoanAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </li>
+                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
+                      <span className="font-semibold text-slate-600">Interest Rate</span>
+                      <span className="font-extrabold text-slate-900">
+                        {numInterestRate}%
+                      </span>
+                    </li>
+                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
+                      <span className="font-semibold text-slate-600">Loan Term</span>
+                      <span className="font-extrabold text-slate-900">
+                        {clientLoanTerm} {clientLoanTerm === 1 ? "year" : "years"}
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Line divider */}
+                <div className="border-t border-slate-200/80 my-4" />
+
+                {/* Results list (in order: Monthly Repayments, Total Payments, Total Interest) */}
+                <div>
+                  <h4 className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider mb-3">
+                    Repayment Results
+                  </h4>
+                  <ul className="space-y-3">
+                    <li className="flex justify-between items-center py-3 px-4 rounded-xl bg-blue-50/70 border border-blue-200/50 text-xs sm:text-sm">
+                      <span className="font-bold text-[#0024A8]">Monthly Repayments</span>
+                      <span className="text-base sm:text-lg font-black text-[#0024A8]">
+                        ${monthlyRepayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </li>
+                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
+                      <span className="font-semibold text-slate-600">Total Payments</span>
+                      <span className="font-extrabold text-slate-900">
+                        ${Math.round(totalCostOfLoan).toLocaleString()}
+                      </span>
+                    </li>
+                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
+                      <span className="font-semibold text-slate-600">Total Interest</span>
+                      <span className="font-extrabold text-slate-900">
+                        ${Math.round(totalInterestPaid).toLocaleString()}
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Right side: Graph based on MFAA / Loan Balance Chart */}
+              <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
+                <LoanBalanceChart
+                  loanAmount={numLoanAmount}
+                  interestRate={numInterestRate}
+                  loanTerm={clientLoanTerm}
+                  monthlyRepayment={monthlyRepayment}
+                  totalCostOfLoan={totalCostOfLoan}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+}
 
   return (
     <div className="space-y-6 animate-fadeIn">
