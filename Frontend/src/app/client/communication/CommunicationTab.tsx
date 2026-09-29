@@ -20,6 +20,17 @@ import { BrokerEmail, initialBrokerEmails } from "../MockClientData";
 export default function CommunicationTab() {
   const brokerEmails: BrokerEmail[] = initialBrokerEmails;
   const [selectedEmail, setSelectedEmail] = useState<BrokerEmail | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredEmails = brokerEmails.filter((email) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      email.subject.toLowerCase().includes(query) ||
+      email.sender.toLowerCase().includes(query) ||
+      email.body.toLowerCase().includes(query)
+    );
+  });
 
   // Builds a mailto: link for the OS-default mail app
   const getMailtoLink = (email: BrokerEmail) => {
@@ -34,27 +45,11 @@ export default function CommunicationTab() {
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* ==================================================================== */}
-      {/* TOP HEADER BAR: Title on Left & Non-working Search Bar on Top Right  */}
+      {/* TOP HEADER BAR                                                       */}
       {/* ==================================================================== */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-800">Communications</h2>
-          <p className="text-xs text-slate-400 font-medium mt-0.5">
-            Read secure emails and updates sent to you by your mortgage broker.
-          </p>
-        </div>
-
-        {/* Top-right non-working search bar (outside of the containers) */}
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none select-none" />
-          <input
-            type="text"
-            placeholder="Search emails..."
-            disabled
-            aria-disabled="true"
-            tabIndex={-1}
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white border border-slate-200/80 text-xs font-medium text-slate-400 placeholder:text-slate-400 cursor-not-allowed shadow-xs select-none focus:outline-none"
-          />
+          <h2 className="text-xl font-extrabold text-slate-800">Inbox</h2>
         </div>
       </div>
 
@@ -69,30 +64,28 @@ export default function CommunicationTab() {
         {/* ------------------------------------------------------------------ */}
         <div className="lg:col-span-5 flex flex-col h-full border-b lg:border-b-0 lg:border-r border-slate-200 overflow-hidden">
 
-          {/* Header of the left section with theme blue background and white text */}
-          <div className="bg-[#0A2881] px-5 py-4 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-white/10 text-white flex items-center justify-center">
-                <Mail className="w-4 h-4 text-white" />
-              </div>
-              <h3 className="text-xs font-extrabold uppercase tracking-wider text-white">
-                Received Emails
-              </h3>
+          {/* Header of the left section with search bar replacing previous texts and details */}
+          <div className="bg-[#0A2881] px-4 py-3 shrink-0 flex items-center">
+            <div className="relative w-full">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none select-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search emails..."
+                className="w-full pl-10 pr-4 py-2 rounded-xl bg-white border border-slate-200/80 text-xs font-medium text-slate-800 placeholder:text-slate-400 shadow-xs focus:outline-none focus:ring-2 focus:ring-[#E4BA37] transition-all"
+              />
             </div>
-            {/* Number messages badge with #E4BA37 background and #0A2881 text color */}
-            <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-[#E4BA37] text-[#0A2881] shadow-xs">
-              {brokerEmails.length} {brokerEmails.length === 1 ? "Message" : "Messages"}
-            </span>
           </div>
 
           {/* Email Labels List */}
           <div className="p-5 flex-1 overflow-y-auto space-y-2.5 pr-4">
-            {brokerEmails.length === 0 ? (
+            {filteredEmails.length === 0 ? (
               <div className="text-center py-16 text-slate-400 text-xs font-medium">
-                No emails sent yet.
+                {searchQuery ? "No matching emails found." : "No emails sent yet."}
               </div>
             ) : (
-              brokerEmails.map((email) => {
+              filteredEmails.map((email) => {
                 const isSelected = selectedEmail?.id === email.id;
                 return (
                   <div

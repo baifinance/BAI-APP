@@ -22,13 +22,12 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
   const activeTab = getActiveTab(pathname);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  const isWhiteBg = activeTab === "LoanStatus";
   const isLoanStatus = activeTab === "LoanStatus";
   const isCalculator = activeTab === "Calculator";
   const isFullWidthPage = isLoanStatus || isCalculator;
 
   return (
-    <div className={`min-h-screen ${isWhiteBg ? "bg-white" : "bg-[#F2F2F2]"} flex font-sans text-slate-900 selection:bg-[#0024A8] selection:text-white antialiased client-portal-wrap`}>
+    <div className="min-h-screen bg-white flex font-sans text-slate-900 selection:bg-[#0024A8] selection:text-white antialiased client-portal-wrap">
 
       {/* Sidebar Navigation */}
       <Sidebar

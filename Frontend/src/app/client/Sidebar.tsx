@@ -22,7 +22,9 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Settings,
 } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useClient } from "./ClientContext";
 
 export type ClientTabType =
@@ -73,6 +75,9 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
   const initials = displayName
     ? displayName.split(" ").filter(Boolean).map((w) => w[0]).join("").toUpperCase().slice(0, 2)
     : "EW";
+
+  const pathname = usePathname();
+  const isSettingsActive = pathname?.startsWith("/client/profile/settings");
 
   return (
     <aside
@@ -159,22 +164,38 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
       <div className="mt-auto border-t border-white/10 bg-[#071E63]">
         {!isCollapsed ? (
           <div className="p-3.5 space-y-2.5">
-            {/* Profile Row */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#E4BA37] text-[#0A2881] flex items-center justify-center font-black text-sm shrink-0 shadow-sm">
-                {initials}
+            {/* Profile Row with Settings Icon on the Top Right */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-[#E4BA37] text-[#0A2881] flex items-center justify-center font-black text-sm shrink-0 shadow-sm">
+                  {initials}
+                </div>
+                <div className="flex flex-col min-w-0 text-left overflow-hidden">
+                  <span className="font-extrabold text-white text-xs leading-snug truncate">
+                    {displayName}
+                  </span>
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-[#E4BA37]">
+                    CLIENT PROFILE
+                  </span>
+                  <span className="text-[11px] font-medium text-white/70 truncate">
+                    {displayEmail}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col min-w-0 text-left overflow-hidden">
-                <span className="font-extrabold text-white text-xs leading-snug truncate">
-                  {displayName}
-                </span>
-                <span className="text-[9px] font-extrabold uppercase tracking-wider text-[#E4BA37]">
-                  CLIENT PROFILE
-                </span>
-                <span className="text-[11px] font-medium text-white/70 truncate">
-                  {displayEmail}
-                </span>
-              </div>
+
+              {/* Settings Icon on Top Right of Profile Card */}
+              <Link
+                href="/client/profile/settings"
+                className={`p-1.5 rounded-lg transition-all shrink-0 cursor-pointer ${
+                  isSettingsActive
+                    ? "text-[#E4BA37] bg-white/20 ring-1 ring-[#E4BA37]/40 shadow-xs"
+                    : "text-white/70 hover:text-white hover:bg-white/10"
+                }`}
+                title="Profile Settings"
+                aria-label="Profile Settings"
+              >
+                <Settings className="w-4 h-4 transition-transform hover:rotate-45" />
+              </Link>
             </div>
 
             {/* Divider */}
@@ -200,6 +221,22 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
             >
               {initials}
             </div>
+
+            {/* Settings Icon (Collapsed Sidebar Mode) */}
+            <Link
+              href="/client/profile/settings"
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                isSettingsActive
+                  ? "text-[#E4BA37] bg-white/20 ring-1 ring-[#E4BA37]/40"
+                  : "text-white/70 hover:text-white hover:bg-white/10"
+              }`}
+              title="Profile Settings"
+              aria-label="Profile Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </Link>
+
+            {/* Log Out Button */}
             <button
               onClick={handleLogout}
               className="w-9 h-9 rounded-xl flex items-center justify-center text-rose-300 hover:text-white hover:bg-rose-600/30 transition-colors cursor-pointer"
