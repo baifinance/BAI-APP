@@ -173,8 +173,11 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
           mobile?: string;
           visa_subclass?: string;
           visa_expiry?: string;
+          visa?: string;
           loan_amount?: string;
           goal?: string;
+          source?: string;
+          inquiry?: string;
           loan_status?: string;
         };
 
@@ -193,6 +196,9 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
             residentialAddress: asanaProfile.address || prev.profile.residentialAddress,
             visaSubclass: asanaProfile.visa_subclass || prev.profile.visaSubclass,
             visaExpiry: asanaProfile.visa_expiry || prev.profile.visaExpiry,
+            visa: asanaProfile.visa || prev.profile.visa,
+            source: asanaProfile.source || prev.profile.source,
+            inquiry: asanaProfile.inquiry || prev.profile.inquiry,
           },
           loan: {
             ...prev.loan,

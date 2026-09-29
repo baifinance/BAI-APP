@@ -20,6 +20,9 @@ export interface ClientProfile {
   email: string;
   visaSubclass?: string;
   visaExpiry?: string;
+  visa?: string;
+  source?: string;
+  inquiry?: string;
   idType: string;
   idNumber: string;
 }
@@ -201,6 +204,11 @@ export const initialClients: Client[] = [
       previousAddress: "15 Ocean St, Manly NSW 2095, Australia (2018 - 2023)",
       mobile: "+61 498 765 432",
       email: "alice.smith@email.com",
+      visaSubclass: "Citizen",
+      visaExpiry: "N/A",
+      visa: "Australian Citizen",
+      source: "Referred by Peter Nguyen",
+      inquiry: "Refinance of owner-occupied property to reduce interest rate.",
       idType: "Driver License",
       idNumber: "DL-9988776"
     },
@@ -278,6 +286,11 @@ export const initialClients: Client[] = [
       previousAddress: "88 Station Rd, Box Hill VIC 3128, Australia (2020 - 2024)",
       mobile: "+61 412 345 678",
       email: "john.doe@email.com",
+      visaSubclass: "Citizen",
+      visaExpiry: "N/A",
+      visa: "Australian Citizen",
+      source: "Website enquiry",
+      inquiry: "First home buyer seeking pre-approval for a townhouse.",
       idType: "Passport",
       idNumber: "N-4422551"
     },
@@ -355,6 +368,11 @@ export const initialClients: Client[] = [
       previousAddress: "5 Military Rd, Neutral Bay NSW 2089, Australia (2015 - 2021)",
       mobile: "+61 422 555 111",
       email: "michael.b@email.com",
+      visaSubclass: "Citizen",
+      visaExpiry: "N/A",
+      visa: "Australian Citizen",
+      source: "Referred by existing client (Alice Smith)",
+      inquiry: "Investment loan for a second property in Mosman.",
       idType: "Driver License",
       idNumber: "DL-1122334"
     },
@@ -432,6 +450,11 @@ export const initialClients: Client[] = [
       previousAddress: "Unit 402, Sunset Towers, Makati City, Philippines (2020 - 2024)",
       mobile: "+63 917 123 4567",
       email: "emma.w@email.com",
+      visaSubclass: "Subclass 820",
+      visaExpiry: "2027-03-31",
+      visa: "Partner visa (subclass 820)",
+      source: "Referred by Sophia Martinez",
+      inquiry: "Construction loan for a new family home in Alabang.",
       idType: "UMID ID",
       idNumber: "UMID-88771"
     },
@@ -542,6 +565,11 @@ export const initialClients: Client[] = [
       previousAddress: "45 Acacia Ave, Ayala Alabang, Muntinlupa, Philippines (2016 - 2022)",
       mobile: "+63 928 888 7777",
       email: "sophia.m@email.com",
+      visaSubclass: "Subclass 189",
+      visaExpiry: "2028-06-30",
+      visa: "Skilled Independent visa (subclass 189)",
+      source: "Referred by existing client",
+      inquiry: "Refinance and debt consolidation across two properties.",
       idType: "Passport",
       idNumber: "P-880091"
     },
@@ -619,6 +647,11 @@ export const initialClients: Client[] = [
       previousAddress: "12 Riverview Tce, Toowong QLD 4066, Australia (2019 - 2023)",
       mobile: "+61 433 999 888",
       email: "david.lee@email.com",
+      visaSubclass: "Citizen",
+      visaExpiry: "N/A",
+      visa: "Australian Citizen",
+      source: "Google search",
+      inquiry: "Upgrade loan for renovation of an investment unit.",
       idType: "Driver License",
       idNumber: "DL-8855221"
     },
@@ -696,6 +729,11 @@ export const initialClients: Client[] = [
       previousAddress: "34 George St, Haymarket NSW 2000, Australia (2017 - 2022)",
       mobile: "+61 412 345 678",
       email: "michael.chang@email.com",
+      visaSubclass: "Citizen",
+      visaExpiry: "N/A",
+      visa: "Australian Citizen",
+      source: "Referred by David Lee",
+      inquiry: "Inquiry about borrowing capacity for a first investment property.",
       idType: "Passport",
       idNumber: "PA-9988776"
     },

@@ -275,7 +275,7 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
             <div className="p-6 sm:p-7 space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold">
                 <div>
-                  <span className="text-slate-400 block mb-0.5">Full Legal Name</span>
+                  <span className="text-slate-400 block mb-0.5">Full Name</span>
                   <span className="text-slate-800 font-bold">{client.profile?.fullLegalName || client.name}</span>
                 </div>
                 <div>
@@ -283,28 +283,16 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
                   <span className="text-slate-800">{client.profile?.dob || "N/A"}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block mb-0.5">Place of Birth</span>
-                  <span className="text-slate-800">{client.profile?.placeOfBirth || "N/A"}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block mb-0.5">Nationality</span>
-                  <span className="text-slate-800">{client.profile?.nationality || "N/A"}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block mb-0.5">Civil Status</span>
-                  <span className="text-slate-800">{client.profile?.civilStatus || "Single"}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block mb-0.5">Number of Dependents</span>
-                  <span className="text-slate-800">{client.profile?.numberOfDependents ?? 0}</span>
+                  <span className="text-slate-400 block mb-0.5">Email Address</span>
+                  <span className="text-slate-800 truncate block">{client.profile?.email || client.email}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block mb-0.5">Mobile Number</span>
                   <span className="text-slate-800">{client.profile?.mobile || client.phone}</span>
                 </div>
-                <div>
-                  <span className="text-slate-400 block mb-0.5">Email Address</span>
-                  <span className="text-slate-800 truncate block">{client.profile?.email || client.email}</span>
+                <div className="sm:col-span-2">
+                  <span className="text-slate-400 block mb-0.5">Address</span>
+                  <span className="text-slate-800 block">{client.profile?.residentialAddress || client.profile?.address || "N/A"}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block mb-0.5">Visa Subclass</span>
@@ -314,13 +302,9 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
                   <span className="text-slate-400 block mb-0.5">Visa Expiry</span>
                   <span className="text-slate-800">{client.profile?.visaExpiry || "N/A"}</span>
                 </div>
-                <div className="sm:col-span-2">
-                  <span className="text-slate-400 block mb-0.5">Residential Address</span>
-                  <span className="text-slate-800 block">{client.profile?.residentialAddress || client.profile?.address || "N/A"}</span>
-                </div>
-                <div className="sm:col-span-2">
-                  <span className="text-slate-400 block mb-0.5">Current / Previous Address</span>
-                  <span className="text-slate-800 block">{client.profile?.previousAddress || "N/A"}</span>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Visa</span>
+                  <span className="text-slate-800">{client.profile?.visa || "N/A"}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block mb-0.5">Requested Loan Amount</span>
@@ -329,6 +313,14 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
                 <div>
                   <span className="text-slate-400 block mb-0.5">Loan Purpose</span>
                   <span className="text-slate-800">{client.loan?.purpose || "N/A"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Referred By</span>
+                  <span className="text-slate-800">{client.profile?.source || "N/A"}</span>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-slate-400 block mb-0.5">Inquiry Description</span>
+                  <span className="text-slate-800 block">{client.profile?.inquiry || "N/A"}</span>
                 </div>
               </div>
             </div>

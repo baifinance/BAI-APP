@@ -122,52 +122,44 @@ export default function ClientProfileView({ client, onBack }: ClientProfileViewP
           {activeSubTab === "Profile" && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Full Legal Name</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Full Name</span>
                 <span className="text-sm font-semibold text-slate-700 block">{client.profile?.fullLegalName || client.name}</span>
               </div>
               <div className="space-y-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Date of Birth</span>
-                <span className="text-sm font-semibold text-slate-700 block">{client.profile.dob}</span>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Place of Birth</span>
-                <span className="text-sm font-semibold text-slate-700 block">{client.profile.placeOfBirth || "N/A"}</span>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Nationality</span>
-                <span className="text-sm font-semibold text-slate-700 block">{client.profile.nationality}</span>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Civil Status</span>
-                <span className="text-sm font-semibold text-slate-700 block">{client.profile.civilStatus}</span>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Number of Dependents</span>
-                <span className="text-sm font-semibold text-slate-700 block">{client.profile.numberOfDependents ?? 0}</span>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Mobile Number</span>
-                <span className="text-sm font-semibold text-slate-700 block">{client.profile.mobile || client.phone}</span>
+                <span className="text-sm font-semibold text-slate-700 block">{client.profile.dob || "N/A"}</span>
               </div>
               <div className="space-y-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Email Address</span>
                 <span className="text-sm font-semibold text-slate-700 block">{client.profile.email || client.email}</span>
               </div>
-              <div className="space-y-1 md:col-span-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Residential Address</span>
-                <span className="text-sm font-semibold text-slate-700 block">{client.profile.residentialAddress || client.profile.address}</span>
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Mobile Number</span>
+                <span className="text-sm font-semibold text-slate-700 block">{client.profile.mobile || client.phone}</span>
               </div>
               <div className="space-y-1 md:col-span-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Current / Previous Address</span>
-                <span className="text-sm font-semibold text-slate-700 block">{client.profile.previousAddress || "N/A"}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Address</span>
+                <span className="text-sm font-semibold text-slate-700 block">{client.profile.residentialAddress || client.profile.address || "N/A"}</span>
               </div>
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">ID Verification Type</span>
-                <span className="text-sm font-semibold text-slate-700 block">{client.profile.idType}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Visa Subclass</span>
+                <span className="text-sm font-semibold text-slate-700 block">{client.profile.visaSubclass || "N/A"}</span>
               </div>
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">ID Reference Number</span>
-                <span className="text-sm font-mono font-semibold text-slate-700 block">{client.profile.idNumber}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Visa Expiry</span>
+                <span className="text-sm font-semibold text-slate-700 block">{client.profile.visaExpiry || "N/A"}</span>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Visa</span>
+                <span className="text-sm font-semibold text-slate-700 block">{client.profile.visa || "N/A"}</span>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Referred By</span>
+                <span className="text-sm font-semibold text-slate-700 block">{client.profile.source || "N/A"}</span>
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Inquiry Description</span>
+                <span className="text-sm font-semibold text-slate-700 block">{client.profile.inquiry || "N/A"}</span>
               </div>
             </div>
           )}

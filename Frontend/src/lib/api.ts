@@ -99,8 +99,11 @@ export interface AsanaProfile {
   mobile?: string;
   visa_subclass?: string;
   visa_expiry?: string;
+  visa?: string;
   loan_amount?: string;
   goal?: string;
+  source?: string;
+  inquiry?: string;
   loan_status?: string;
 }
 

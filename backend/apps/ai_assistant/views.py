@@ -2,17 +2,13 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.throttling import UserRateThrottle
 
 from .serializers import RAGChatRequestSerializer, RAGChatResponseSerializer
 from .services.rag_service import RAGService
 
 logger = logging.getLogger(__name__)
-
-
-class AiAnonThrottle(AnonRateThrottle):
-    scope = "ai"
 
 
 class AiUserThrottle(UserRateThrottle):
@@ -26,8 +22,8 @@ class RAGChatView(APIView):
     Rate-limited (expensive LLM) + input length validated via serializer.
     """
 
-    permission_classes = [AllowAny]
-    throttle_classes = [AiAnonThrottle, AiUserThrottle]
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [AiUserThrottle]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
