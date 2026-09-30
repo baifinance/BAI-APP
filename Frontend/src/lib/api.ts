@@ -239,6 +239,8 @@ export const notificationsApi = {
 export interface StreamPush {
   notification_id?: string;
   loan_status?: string;
+  title?: string | null;
+  message?: string | null;
 }
 
 export function subscribeToNotificationStream(

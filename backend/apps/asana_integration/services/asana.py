@@ -26,9 +26,10 @@ LOAN_STATUSES = {
     "Assessment",
     "Docs for Sign",
     "For Lodgment",
-    "For Lodgement",
     "Submitted",
     "Conditional Approval",
+    "Conversion to Unconditional Approval",
+    "Unconditional Approval",
     "Settlement",
     "Settled",
     "Withdraw"
@@ -87,6 +88,7 @@ class AsanaProfileService:
                 "gid,"
                 "name,"
                 "notes,"
+                "memberships.project.gid,"
                 "memberships.section.gid,"
                 "memberships.section.name"
             ),
@@ -99,7 +101,7 @@ class AsanaProfileService:
             )
 
             for task in tasks:
-                profile = self.parse_task(task)
+                profile = self.parse_task(task, self.project_gid)
 
                 task_email = self.normalize_email(
                     profile.get("email", "")
@@ -134,7 +136,12 @@ class AsanaProfileService:
         normalized_email = self.normalize_email(email)
         task_options = {
             "limit": 100,
-            "opt_fields": "gid,name,notes,memberships.section.gid,memberships.section.name",
+            "opt_fields": (
+                "gid,name,notes,"
+                "memberships.project.gid,"
+                "memberships.section.gid,",
+                "memberships.section.name"
+            )
         }
         section_options = {
             "limit": 100,
@@ -149,7 +156,7 @@ class AsanaProfileService:
             )
 
             for task in tasks:
-                profile = self.parse_task(task)
+                profile = self.parse_task(task, self.project_gid)
                 if self.normalize_email(profile.get("email", "")) == normalized_email:
                     matching_task = task
                     break
@@ -213,7 +220,7 @@ class AsanaProfileService:
             ) from error
 
     @classmethod
-    def parse_task(cls, task):
+    def parse_task(cls, task, project_gid=None):
         """
         Convert an Asana task into a normalized profile dictionary.
         """
@@ -227,14 +234,32 @@ class AsanaProfileService:
 
         memberships = task.get("memberships") or []
 
-        if memberships:
-            section = memberships[0].get("section") or {}
-            section_name = section.get("name")
-            if section_name:
-                profile["asana_section"] = section_name
-                profile["loan_status"] = (
-                    section_name if section_name in LOAN_STATUSES else None
-                )
+        scoped = (
+            [
+                membership
+                for membership in memberships
+                if (membership.get("project") or {}).get("gid") == project_gid
+            ]
+            if project_gid
+            else memberships
+        )
+
+        section = next(
+            (
+               membership.get("section") or {}
+               for membership in scoped
+               if (membership.get("section") or {}).get("name")
+            ),
+            {}
+        )
+        section_name = section.get("name")
+
+        if section_name:
+            profile["asana_section"] = section_name
+            profile["asana_section_gid"] = section.get("gid")
+            profile["loan_status"] = (
+                section_name if section_name in LOAN_STATUSES else None
+            )
 
         return profile
 
@@ -516,7 +541,7 @@ def _task_email(task_gid):
         )
         return None
 
-    profile = service.parse_task(task)
+    profile = service.parse_task(task, service.project_gid)
     email = profile.get("email")
     if not email:
         return None

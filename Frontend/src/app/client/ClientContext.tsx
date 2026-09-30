@@ -17,15 +17,14 @@ import {
 
 import {
   bookingsApi,
-  slotsApi,
   usersApi,
   loansApi,
   BookingApiResponse,
   PublishedSlot,
   parseSlotTime,
-  toISOSlotTime,
   notificationsApi,
   NotificationApiResponse,
+  StreamPush,
   subscribeToNotificationStream,
 } from "@/lib/api";
 
@@ -48,15 +47,40 @@ interface ClientContextType {
   setBooking: React.Dispatch<React.SetStateAction<Booking | null>>;
   bookings: Booking[];
   publishedSlots: PublishedSlot[];
-  availableSlots: string[];
-  fetchAvailableSlots: (date: string, brokerId?: string) => Promise<void>;
-  handleNewBooking: (dateStr: string, timeStr: string, typeStr: string, platformStr: string) => Promise<void>;
   claimSlot: (slotId: string) => Promise<void>;
   handleLogAction: (actionText: string) => void;
   loading: boolean;
 }
 
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
+
+function maybeShowDesktopNotification(push: StreamPush): void {
+  if (typeof window === "undefined") return;
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  if (document.hasFocus()) return;
+
+  const notificationId = push.notification_id;
+  const title = push.title;
+  if (!notificationId || !title) return;
+
+  const DEDUP_TTL_MS = 5000;
+  const dedupKey = `notifx:${notificationId}`;
+  const lastShownAt = Number(localStorage.getItem(dedupKey) || 0);
+  if (Date.now() - lastShownAt < DEDUP_TTL_MS) return;
+  localStorage.setItem(dedupKey, String(Date.now()));
+
+  const notification = new Notification(title, {
+    body: push.message || "Your loan information has been updated.",
+  });
+  notification.onclick = () => {
+    window.focus();
+    window.location.assign(
+      `/client/${push.loan_status ? "loan-status" : "notifications"}`
+    );
+    notification.close();
+  };
+}
 
 type PortalNotification = {
   id: string;
@@ -129,7 +153,6 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [publishedSlots, setPublishedSlots] = useState<PublishedSlot[]>([]);
-  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadNotifications = useCallback(async () => {
@@ -250,10 +273,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
         setBooking(upcoming);
       })
       .catch((err) => console.error("Failed to load bookings:", err));
-    slotsApi.list()
-      .then(setPublishedSlots)
-      .catch((err) => console.error("Failed to load published slots:", err))
-      .finally(() => setLoading(false));
+    setLoading(false);
   }, []);
 
   const refreshLoanStatus = useCallback(async () => {
@@ -309,31 +329,10 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
         );
         setLastLoanStatusUpdate(new Date().toISOString());
       }
+      maybeShowDesktopNotification(push);
       loadNotifications();
     });
   }, [loadNotifications]);
-
-  const fetchAvailableSlots = useCallback(async (date: string, brokerId?: string) => {
-    try {
-      const data = await bookingsApi.availableSlots(date, brokerId);
-      setAvailableSlots(data.available_slots);
-    } catch (err) {
-      console.error("Failed to fetch available slots:", err);
-      setAvailableSlots([]);
-    }
-  }, []);
-
-  const handleNewBooking = useCallback(async (dateStr: string, timeStr: string, typeStr: string, platformStr: string) => {
-    const slot_time = toISOSlotTime(dateStr, timeStr);
-    const created = await bookingsApi.create({
-      slot_time,
-      consultation_type: typeStr,
-      meeting_platform: platformStr,
-    });
-    const mapped = apiBookingToBooking(created);
-    setBookings((prev) => [mapped, ...prev]);
-    setBooking(mapped);
-  }, []);
 
   const claimSlot = useCallback(async (slotId: string) => {
     const created = await bookingsApi.create({ slot_id: slotId });
@@ -405,9 +404,6 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       setBooking,
       bookings,
       publishedSlots,
-      availableSlots,
-      fetchAvailableSlots,
-      handleNewBooking,
       claimSlot,
       handleLogAction,
       loading

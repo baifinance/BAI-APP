@@ -145,8 +145,10 @@ export interface Application {
   | "Collection of Documents"
   | "Assessment"
   | "Docs for Sign"
-  | "For Lodgement"
+  | "For Lodgment"
   | "Conditional Approval"
+  | "Conversion to Unconditional Approval"
+  | "Unconditional Approval"
   | "Settlement"
   | "Withdraw";
   dateCreated: string;

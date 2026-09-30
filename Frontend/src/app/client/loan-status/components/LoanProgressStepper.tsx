@@ -116,6 +116,22 @@ export const default13Steps: StepperStep[] = [
   },
   {
     id: 12,
+    title: "Conversion to Unconditional Approval",
+    subtitle: "Conditions cleared",
+    date: "Pending",
+    status: "upcoming",
+    description: "All lender conditions are satisfied; file prepares for formal unconditional approval.",
+  },
+  {
+    id: 13,
+    title: "Unconditional Approval",
+    subtitle: "Formal lender approval",
+    date: "Pending",
+    status: "upcoming",
+    description: "Lender issues the unconditional loan offer; only legal and settlement steps remain.",
+  },
+  {
+    id: 14,
     title: "Settlement",
     subtitle: "Legal & booking phase",
     date: "Pending",
@@ -123,7 +139,7 @@ export const default13Steps: StepperStep[] = [
     description: "Lender, solicitors, and banks coordinate title registration and settlement booking.",
   },
   {
-    id: 13,
+    id: 15,
     title: "Settled",
     subtitle: "Disbursement / Closed",
     date: "Pending",

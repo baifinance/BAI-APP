@@ -85,8 +85,10 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
     { id: 9, title: "For Lodgment", date: "Pending" },
     { id: 10, title: "Submitted", date: "Pending" },
     { id: 11, title: "Conditional Approval", date: "Pending" },
-    { id: 12, title: "Settlement", date: "Pending" },
-    { id: 13, title: "Settled", date: "Pending" },
+    { id: 12, title: "Conversion to Unconditional Approval", date: "Pending" },
+    { id: 13, title: "Unconditional Approval", date: "Pending" },
+    { id: 14, title: "Settlement", date: "Pending" },
+    { id: 15, title: "Settled", date: "Pending" },
   ];
 
   const resolution = resolveLoanStatus(client.loan?.currentStatus);

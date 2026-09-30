@@ -25,7 +25,6 @@ class RAGService:
         # Groq client
         self.groq_client = Groq(api_key=self.groq_api_key) if self.groq_api_key else None
         
-        self._embedder = None
         self._collection = None
 
         # Setup persistent HTTP session with retry logic for API resilience
@@ -65,10 +64,10 @@ class RAGService:
         if not texts:
             return []
 
-        if self.jina_api_key:
-            return self._get_jina_embeddings(texts)
-        
-        return self._get_local_embeddings(texts)
+        if not self.jina_api_key:
+            raise ValueError("JINA_API_KEY is not configured.")
+
+        return self._get_jina_embeddings(texts)
 
     def _get_jina_embeddings(self, texts: List[str]) -> List[List[float]]:
         # Jina API allows up to 2048 elements per batch, but standardizing chunk sizes prevents timeout errors
@@ -90,14 +89,6 @@ class RAGService:
             all_embeddings.extend([item["embedding"] for item in response.json()["data"]])
             
         return all_embeddings
-
-    def _get_local_embeddings(self, texts: List[str]) -> List[List[float]]:
-        if self._embedder is None:
-            from sentence_transformers import SentenceTransformer
-            # Changed to a 768d model to match Jina's dimensions. 
-            # If you stick to MiniLM (384d), ChromaDB will crash on fallback!
-            self._embedder = SentenceTransformer("all-mpnet-base-v2") 
-        return self._embedder.encode(texts).tolist()
 
     def query(self, question: str, domain_filter: Optional[str] = None, top_k: int = 3) -> Dict[str, Any]:
         """Query knowledge base and synthesize response via Groq."""

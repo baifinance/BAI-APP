@@ -32,5 +32,7 @@ def publish_stream_notification(user_id, notification=None, loan_status=None):
     payload = {
         "notification_id": str(getattr(notification, "pk", "") or ""),
         "loan_status": loan_status,
+        "title": getattr(notification, "title", None),
+        "message": getattr(notification, "message", None),
     }
     redis_client.publish(f"notify:{user_id}", json.dumps(payload))

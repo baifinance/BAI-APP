@@ -110,13 +110,27 @@ export default function LoanStatusTab({
     },
     {
       id: 12,
+      title: "Conversion to Unconditional Approval",
+      subtitle: "Conditions cleared",
+      date: "Pending",
+      description: "All lender conditions are satisfied and the file prepares for formal unconditional approval.",
+    },
+    {
+      id: 13,
+      title: "Unconditional Approval",
+      subtitle: "Formal lender approval",
+      date: "Pending",
+      description: "Lender issues the unconditional loan offer; only legal and settlement steps remain.",
+    },
+    {
+      id: 14,
       title: "Settlement",
       subtitle: "Legal & booking phase",
       date: "Pending",
       description: "Lender, solicitors, and incoming/outgoing banks coordinate settlement booking.",
     },
     {
-      id: 13,
+      id: 15,
       title: "Settled",
       subtitle: "Disbursement / Closed",
       date: "Pending",
@@ -126,7 +140,7 @@ export default function LoanStatusTab({
 
   const resolution = resolveLoanStatus(client.loan?.currentStatus);
 
-  // stepperSteps: the 13 pipeline steps colored by the real loan status.
+  // stepperSteps: the pipeline steps colored by the real loan status.
   // Withdrawn applications skip the stepper entirely and get a dedicated card.
   const stepperSteps: StepperStep[] = baseSteps.map((step, i) => ({
     ...step,

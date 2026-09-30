@@ -2,7 +2,7 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.throttling import UserRateThrottle
 
 from .serializers import RAGChatRequestSerializer, RAGChatResponseSerializer
@@ -19,10 +19,11 @@ class RAGChatView(APIView):
     """
     Endpoint for asking queries to the Bai Finance RAG Knowledge Base.
     POST /api/ai/chat/
-    Rate-limited (expensive LLM) + input length validated via serializer.
+    Public (landing-page widget, no login required), but rate-limited per
+    user/IP (expensive LLM) + input length validated via serializer.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     throttle_classes = [AiUserThrottle]
 
     def __init__(self, **kwargs):

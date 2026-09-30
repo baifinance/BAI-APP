@@ -34,6 +34,8 @@ export const PIPELINE = [
   "For Lodgment",
   "Submitted",
   "Conditional Approval",
+  "Conversion to Unconditional Approval",
+  "Unconditional Approval",
   "Settlement",
   "Settled",
 ];
@@ -74,10 +76,10 @@ export function resolveLoanStatus(
 
   return {
     states: PIPELINE.map((_, i) =>
-      i <= index ? "completed" : i === index + 1 ? "in_process" : "upcoming"
+      i < index ? "completed" : i === index ? "in_process" : "upcoming"
     ),
-    header: index + 1 < PIPELINE.length ? PIPELINE[index + 1] : PIPELINE[index],
-    activeStepIndex: index + 1 < PIPELINE.length ? index + 2 : null,
+    header: PIPELINE[index],
+    activeStepIndex: index + 1,
     totalSteps: PIPELINE.length,
     withdrawn: false,
     hasApplication: true,
