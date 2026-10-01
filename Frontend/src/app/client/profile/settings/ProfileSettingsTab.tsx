@@ -21,9 +21,13 @@ import {
   Timer,
   RotateCcw,
   X,
+  Check,
   AlertTriangle,
   ShieldCheck,
   ShieldAlert,
+  Lock,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Client } from "../../../broker/MockData";
 import { usersApi, authApi } from "@/lib/api";
@@ -56,10 +60,12 @@ export default function ProfileSettingsTab({
   const [showMfaEnable, setShowMfaEnable] = useState(false);
   const [showDisableModal, setShowDisableModal] = useState(false);
   const [disablePassword, setDisablePassword] = useState("");
+  const [showDisablePassword, setShowDisablePassword] = useState(false);
   const [showPostEnable, setShowPostEnable] = useState(false);
 
-  // OTP input element reference for auto-focusing
-  const mfaInputRef = useRef<HTMLInputElement>(null);
+  // 6-digit OTP input states for MFA enable modal
+  const [mfaDigits, setMfaDigits] = useState<string[]>(["", "", "", "", "", ""]);
+  const mfaDigitRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const router = useRouter();
 
@@ -121,11 +127,11 @@ export default function ProfileSettingsTab({
     return () => clearInterval(timerId);
   }, [showMfaEnable, mfaCountdown]);
 
-  // Automatically focus the OTP input when the verification modal appears
+  // Automatically focus the first OTP input when the verification modal appears
   useEffect(() => {
-    if (showMfaEnable && mfaInputRef.current) {
+    if (showMfaEnable) {
       const focusTimeout = setTimeout(() => {
-        mfaInputRef.current?.focus();
+        mfaDigitRefs.current[0]?.focus();
       }, 100);
       return () => clearTimeout(focusTimeout);
     }
@@ -134,6 +140,82 @@ export default function ProfileSettingsTab({
   // ------------------------------------------------------------------------------
   // 3. MFA ACTION HANDLERS
   // ------------------------------------------------------------------------------
+
+  /**
+   * Handle digit entry across the 6 boxes for MFA Enable modal.
+   */
+  const handleMfaDigitChange = (index: number, val: string) => {
+    const clean = val.replace(/\D/g, "");
+    if (!clean && val !== "") return;
+
+    const char = clean.slice(-1);
+    const nextDigits = [...mfaDigits];
+    nextDigits[index] = char;
+    setMfaDigits(nextDigits);
+
+    const fullCode = nextDigits.join("");
+    setMfaOtpCode(fullCode);
+    setMfaError("");
+
+    if (char && index < 5) {
+      mfaDigitRefs.current[index + 1]?.focus();
+    }
+
+    if (fullCode.length === 6 && !nextDigits.includes("")) {
+      handleMfaEnableVerify(fullCode);
+    }
+  };
+
+  /**
+   * Handle Backspace & Arrow keys navigation between the 6 boxes.
+   */
+  const handleMfaDigitKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace") {
+      if (!mfaDigits[index] && index > 0) {
+        const nextDigits = [...mfaDigits];
+        nextDigits[index - 1] = "";
+        setMfaDigits(nextDigits);
+        setMfaOtpCode(nextDigits.join(""));
+        mfaDigitRefs.current[index - 1]?.focus();
+        e.preventDefault();
+      } else if (mfaDigits[index]) {
+        const nextDigits = [...mfaDigits];
+        nextDigits[index] = "";
+        setMfaDigits(nextDigits);
+        setMfaOtpCode(nextDigits.join(""));
+        e.preventDefault();
+      }
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      mfaDigitRefs.current[index - 1]?.focus();
+    } else if (e.key === "ArrowRight" && index < 5) {
+      mfaDigitRefs.current[index + 1]?.focus();
+    }
+  };
+
+  /**
+   * Handle paste of 6-digit code across the boxes.
+   */
+  const handleMfaDigitPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (!pasted) return;
+
+    const nextDigits = ["", "", "", "", "", ""];
+    for (let i = 0; i < pasted.length; i++) {
+      nextDigits[i] = pasted[i];
+    }
+    setMfaDigits(nextDigits);
+    const fullCode = nextDigits.join("");
+    setMfaOtpCode(fullCode);
+    setMfaError("");
+
+    if (pasted.length === 6) {
+      mfaDigitRefs.current[5]?.focus();
+      handleMfaEnableVerify(fullCode);
+    } else {
+      mfaDigitRefs.current[pasted.length]?.focus();
+    }
+  };
 
   /**
    * Request OTP dispatch to the user's registered email address to initiate MFA enablement.
@@ -147,6 +229,8 @@ export default function ProfileSettingsTab({
       setShowMfaEnable(true);
       setMfaCountdown(180); // 3-minute OTP validity
       setMfaOtpCode("");
+      setMfaDigits(["", "", "", "", "", ""]);
+      mfaDigitRefs.current[0]?.focus();
       if (onLogAction) {
         onLogAction("Requested MFA enablement OTP code");
       }
@@ -173,6 +257,7 @@ export default function ProfileSettingsTab({
       setShowMfaEnable(false);
       setShowPostEnable(true);
       setMfaOtpCode("");
+      setMfaDigits(["", "", "", "", "", ""]);
       setMfaCountdown(0);
       if (onLogAction) {
         onLogAction("Successfully enabled Multi-Factor Authentication (MFA)");
@@ -298,228 +383,359 @@ export default function ProfileSettingsTab({
       )}
 
       {/* ==================================================================== */}
-      {/* MODAL 1: ENABLE MFA - ENTER 6-DIGIT EMAIL CODE                        */}
+      {/* MODAL 1: ENABLE TWO-FACTOR AUTHENTICATION OTP POP-UP                 */}
       {/* ==================================================================== */}
       {showMfaEnable && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl p-7 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200 animate-scaleUp">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 text-[#0024A8] flex items-center justify-center shadow-xs">
-                  <KeyRound className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-slate-900">
-                    Enable Two-Factor Authentication
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Verify code sent to {displayEmail}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowMfaEnable(false);
-                  setMfaOtpCode("");
-                  setMfaError("");
-                }}
-                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                aria-label="Close modal"
+        <div
+          className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="enable-2fa-title"
+        >
+          {/* Modal Container Card */}
+          <div className="bg-white rounded-3xl p-7 sm:p-9 max-w-md w-full shadow-2xl border border-slate-100 relative animate-scaleIn">
+            
+            {/* Modal Close Icon Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowMfaEnable(false);
+                setMfaOtpCode("");
+                setMfaDigits(["", "", "", "", "", ""]);
+                setMfaError("");
+              }}
+              className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Close"
+              aria-label="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Top Centered Header: Title & Subtitle */}
+            <div className="text-center pt-2">
+              {/* Big bold text centered: "Enable Two-Factor Authentication" */}
+              <h2
+                id="enable-2fa-title"
+                className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight"
               >
-                <X className="w-5 h-5" />
-              </button>
+                Enable Two-Factor Authentication
+              </h2>
+              {/* Smaller text: "We sent a 6 digit confirmation code to (users email). Enter the code below to enable Two-Factor Authentication." */}
+              <p className="text-sm text-slate-500 font-normal mt-2.5 leading-relaxed max-w-sm mx-auto">
+                We sent a 6 digit confirmation code to{" "}
+                <span className="font-semibold text-slate-800 break-all">{displayEmail}</span>. Enter the code below to enable Two-Factor Authentication.
+              </p>
             </div>
 
-            {/* Error Message */}
+            {/* Error Message Display */}
             {mfaError && (
-              <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 shrink-0" />
+              <div className="mt-4 p-3 bg-rose-50 border border-rose-100 rounded-xl sm:rounded-2xl text-xs font-semibold text-rose-600 flex items-center justify-center gap-2 animate-fadeIn">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
                 <span>{mfaError}</span>
               </div>
             )}
 
-            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-              We sent a 6-digit confirmation code to your email. Enter the code below to finalize activating Two-Factor Authentication.
-            </p>
+            {/* OTP Form */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleMfaEnableVerify();
+              }}
+              className="mt-8"
+            >
+              {/* 6 input boxes to put the OTP */}
+              <div className="flex justify-center items-center gap-2 sm:gap-3">
+                {mfaDigits.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(el) => {
+                      mfaDigitRefs.current[index] = el;
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]*"
+                    maxLength={1}
+                    value={digit}
+                    disabled={mfaVerifying}
+                    onChange={(e) => handleMfaDigitChange(index, e.target.value)}
+                    onKeyDown={(e) => handleMfaDigitKeyDown(index, e)}
+                    onPaste={handleMfaDigitPaste}
+                    className={`w-11 h-14 sm:w-13 sm:h-16 text-center text-xl sm:text-2xl font-bold font-mono rounded-xl sm:rounded-2xl border-2 transition-all outline-none ${
+                      digit
+                        ? "border-[#0024A8] bg-blue-50/30 text-slate-900 shadow-xs"
+                        : "border-slate-200 bg-slate-50/80 text-slate-900 hover:border-slate-300"
+                    } focus:border-[#0024A8] focus:bg-white focus:ring-4 focus:ring-[#0024A8]/10 disabled:opacity-50`}
+                    aria-label={`Digit ${index + 1} of 6`}
+                  />
+                ))}
+              </div>
 
-            {/* OTP 6-Digit Input */}
-            <div className="space-y-3">
-              <input
-                ref={mfaInputRef}
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                value={mfaOtpCode}
-                onChange={(e) => {
-                  const cleaned = e.target.value.replace(/\D/g, "").slice(0, 6);
-                  setMfaOtpCode(cleaned);
-                  if (cleaned.length === 6) {
-                    handleMfaEnableVerify(cleaned);
-                  }
-                }}
-                placeholder="••••••"
-                className="w-full py-3.5 px-4 bg-slate-50 border border-slate-300 focus:border-[#0024A8] focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 rounded-xl text-center font-mono font-bold tracking-[0.5em] text-2xl transition-all shadow-inner"
-                disabled={mfaVerifying}
-                autoFocus
-              />
-
-              {/* Timer & Resend Button */}
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500 flex items-center gap-1.5">
-                  <Timer className="w-3.5 h-3.5 text-slate-400" />
-                  Expires in: <strong className="font-mono">{Math.floor(mfaCountdown / 60)}:{String(mfaCountdown % 60).padStart(2, "0")}</strong>
+              {/* Timer at Bottom Left & Resend Code at Bottom Right */}
+              <div className="flex items-center justify-between mt-4 text-xs">
+                {/* Bottom Left: Code Expires in (timer). */}
+                <span className="text-slate-500 font-medium">
+                  {mfaCountdown > 0 ? (
+                    <>
+                      Code Expires in{" "}
+                      <span className="font-bold text-slate-700 font-mono">
+                        {Math.floor(mfaCountdown / 60)}:
+                        {String(mfaCountdown % 60).padStart(2, "0")}
+                      </span>.
+                    </>
+                  ) : (
+                    <span className="text-rose-500 font-semibold">Code Expired.</span>
+                  )}
                 </span>
+
+                {/* Bottom Right: Resend Code Link (Available only if timer is 0) */}
+                {mfaCountdown === 0 && (
+                  <button
+                    type="button"
+                    onClick={handleMfaEnableSend}
+                    disabled={mfaActionLoading}
+                    className="text-[#0024A8] hover:text-[#001D85] font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <span>Resend Code</span>
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Good amount of space between timer/resend and bottom buttons */}
+              <div className="mt-8 sm:mt-10 space-y-3">
+                {/* Top Button: Confirm (Confirms the OTP) */}
+                <button
+                  type="submit"
+                  disabled={mfaVerifying || mfaOtpCode.length !== 6}
+                  className="w-full py-3.5 px-4 bg-[#0024A8] hover:bg-[#001D85] active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none text-white font-bold rounded-xl sm:rounded-2xl text-sm shadow-md shadow-[#0024A8]/20 hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {mfaVerifying ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Confirming...</span>
+                    </>
+                  ) : (
+                    <span>Confirm</span>
+                  )}
+                </button>
+
+                {/* Below Button: Grey colored Cancel button to cancel */}
                 <button
                   type="button"
-                  onClick={handleMfaEnableSend}
-                  disabled={mfaCountdown > 0 || mfaActionLoading}
-                  className="font-bold text-[#0024A8] hover:underline disabled:opacity-40 disabled:no-underline flex items-center gap-1 cursor-pointer"
+                  onClick={() => {
+                    setShowMfaEnable(false);
+                    setMfaOtpCode("");
+                    setMfaDigits(["", "", "", "", "", ""]);
+                    setMfaError("");
+                  }}
+                  className="w-full py-3.5 px-4 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-bold rounded-xl sm:rounded-2xl text-sm transition-all border border-slate-200 cursor-pointer"
                 >
-                  <RotateCcw className="w-3 h-3" />
-                  <span>Resend code</span>
+                  Cancel
                 </button>
               </div>
-            </div>
+            </form>
 
-            {mfaVerifying && (
-              <p className="text-xs font-semibold text-[#0024A8] mt-3 text-center animate-pulse">
-                Verifying code with server...
-              </p>
-            )}
-
-            {/* Action Buttons */}
-            <div className="flex gap-2.5 mt-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowMfaEnable(false);
-                  setMfaOtpCode("");
-                  setMfaError("");
-                }}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => handleMfaEnableVerify()}
-                disabled={mfaVerifying || mfaOtpCode.length !== 6}
-                className="flex-1 py-2.5 bg-[#0024A8] hover:bg-[#001D85] text-white rounded-xl text-xs font-bold shadow-md transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                {mfaVerifying ? "Verifying..." : "Confirm & Enable"}
-              </button>
-            </div>
           </div>
         </div>
       )}
 
       {/* ==================================================================== */}
-      {/* MODAL 2: POST-ENABLE CONFIRMATION SUCCESS MODAL                      */}
+      {/* MODAL 2: 2FA CONFIRMATION ENABLED MODAL                              */}
       {/* ==================================================================== */}
       {showPostEnable && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl p-7 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200 text-center animate-scaleUp">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
-              <ShieldCheck className="w-7 h-7" />
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all duration-300 animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="two-factor-enabled-title"
+          aria-describedby="two-factor-enabled-desc"
+        >
+          {/* Modal Dialog Card Container */}
+          <div className="relative w-full max-w-md bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-100 p-8 sm:p-10 text-center overflow-hidden transform transition-all duration-300 animate-scaleUp">
+            {/* Subtle decorative top background gradient glow */}
+            <div
+              aria-hidden="true"
+              className="absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"
+            />
+
+            {/* -------------------------------------------------------------- */}
+            {/* TOP CENTERED: LARGE BLUE CHECK ICON                            */}
+            {/* -------------------------------------------------------------- */}
+            <div className="relative mx-auto mb-6 flex items-center justify-center w-20 h-20 rounded-full bg-blue-50/90 border border-blue-100 ring-8 ring-blue-50/50 text-[#0038A8] shadow-sm shadow-blue-500/10 transition-transform">
+              <Check
+                className="w-10 h-10 stroke-[2.5]"
+                aria-hidden="true"
+              />
             </div>
-            <h3 className="text-lg font-black text-slate-900">
-              Two-Factor Authentication Enabled!
+
+            {/* -------------------------------------------------------------- */}
+            {/* TITLE: BOLD LARGE FORMAT CENTERED                              */}
+            {/* -------------------------------------------------------------- */}
+            <h3
+              id="two-factor-enabled-title"
+              className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 text-center"
+            >
+              Enabled Two-Factor Authentication!
             </h3>
-            <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-              Your account is now protected. From now on, you will receive a secure 6-digit code by email whenever you sign in to BAI Finance.
+
+            {/* -------------------------------------------------------------- */}
+            {/* SUBTEXT: SMALLER DESCRIPTIVE NOTICE                            */}
+            {/* -------------------------------------------------------------- */}
+            <p
+              id="two-factor-enabled-desc"
+              className="mt-3 text-sm sm:text-base text-slate-500 text-center leading-relaxed max-w-sm mx-auto"
+            >
+              Your account is now protected. You will recieve a 6 digit code by email whenever you log in.
             </p>
+
+            {/* -------------------------------------------------------------- */}
+            {/* ACTION BUTTON: CONTINUE (CLOSES THE POP-UP)                    */}
+            {/* -------------------------------------------------------------- */}
             <button
               type="button"
               onClick={() => setShowPostEnable(false)}
-              className="mt-6 w-full py-3 bg-[#0024A8] hover:bg-[#001D85] text-white rounded-xl font-bold text-xs shadow-md transition-colors cursor-pointer"
+              className="mt-8 w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-white bg-[#0038A8] hover:bg-[#002b82] active:bg-[#002066] shadow-md shadow-blue-900/20 hover:shadow-lg hover:shadow-blue-900/30 transition-all duration-200 cursor-pointer text-base group"
             >
-              Got it, Continue
+              Continue
             </button>
           </div>
         </div>
       )}
 
       {/* ==================================================================== */}
-      {/* MODAL 3: DISABLE MFA PASSWORD CONFIRMATION MODAL                     */}
+      {/* MODAL 3: DISABLE 2FA CONFIRMATION POP-UP                             */}
       {/* ==================================================================== */}
       {showDisableModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl p-7 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200 animate-scaleUp">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center">
-                  <ShieldAlert className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-slate-900">
-                    Disable Two-Factor Authentication
-                  </h3>
-                  <p className="text-xs text-slate-500">Security verification</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowDisableModal(false);
-                  setDisablePassword("");
-                  setMfaError("");
-                }}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600"
-                aria-label="Close modal"
+        <div
+          className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="disable-2fa-title"
+        >
+          {/* Modal Container Card */}
+          <div className="bg-white rounded-3xl p-7 sm:p-9 max-w-md w-full shadow-2xl border border-slate-100 relative animate-scaleIn">
+            
+            {/* Modal Close Icon Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowDisableModal(false);
+                setDisablePassword("");
+                setMfaError("");
+                setShowDisablePassword(false);
+              }}
+              className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Close"
+              aria-label="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Top Centered Header: Title & Subtitle */}
+            <div className="text-center pt-2">
+              {/* Big bold text centered: "Disable Two-Factor Authentication" */}
+              <h2
+                id="disable-2fa-title"
+                className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight"
               >
-                <X className="w-5 h-5" />
-              </button>
+                Disable Two-Factor Authentication
+              </h2>
+              {/* Smaller not bold text */}
+              <p className="text-sm text-slate-500 font-normal mt-2.5 leading-relaxed max-w-sm mx-auto">
+                Please enter your current account password to confirm that you want to turn off Two-Factor Authentication.
+              </p>
             </div>
 
-            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-              Please enter your current account password to confirm that you want to turn off Two-Factor Authentication.
-            </p>
-
-            <div className="space-y-2">
-              <label className="text-[11px] font-bold text-slate-700 block">
-                Current Password
-              </label>
-              <input
-                type="password"
-                value={disablePassword}
-                onChange={(e) => setDisablePassword(e.target.value)}
-                placeholder="Enter your current password"
-                className="w-full py-2.5 px-4 bg-slate-50 border border-slate-200 focus:border-[#0024A8] focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 rounded-xl text-xs font-semibold"
-                autoFocus
-              />
-            </div>
-
+            {/* Error Notice Display (e.g. incorrect password) */}
             {mfaError && (
-              <div className="mt-3 p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-600 font-semibold flex items-center gap-2">
-                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <div className="mt-4 p-3 bg-rose-50 border border-rose-100 rounded-xl sm:rounded-2xl text-xs font-semibold text-rose-600 flex items-center justify-center gap-2 animate-fadeIn">
+                <ShieldAlert className="w-4 h-4 shrink-0 text-rose-500" />
                 <span>{mfaError}</span>
               </div>
             )}
 
-            <div className="flex gap-2.5 mt-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowDisableModal(false);
-                  setDisablePassword("");
-                  setMfaError("");
-                }}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleMfaDisable}
-                disabled={mfaActionLoading || !disablePassword}
-                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                {mfaActionLoading ? "Disabling..." : "Confirm Disable"}
-              </button>
-            </div>
+            {/* Password Confirmation Form */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleMfaDisable();
+              }}
+              className="mt-8"
+            >
+              {/* Input Container: "Enter current password" with subtle opacity placeholder */}
+              <div className="relative flex items-center">
+                {/* Security Lock Icon */}
+                <div className="absolute left-4 pointer-events-none text-slate-400">
+                  <Lock className="w-4 h-4" />
+                </div>
+
+                {/* Password Input Field */}
+                <input
+                  type={showDisablePassword ? "text" : "password"}
+                  value={disablePassword}
+                  onChange={(e) => {
+                    setDisablePassword(e.target.value);
+                    if (mfaError) setMfaError("");
+                  }}
+                  placeholder="Enter current password"
+                  className="w-full py-3.5 pl-11 pr-11 bg-slate-50 border-2 border-slate-200 focus:border-[#0024A8] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#0024A8]/10 rounded-xl sm:rounded-2xl text-sm font-medium text-slate-900 placeholder:text-slate-400 placeholder:opacity-60 transition-all"
+                  autoFocus
+                  required
+                />
+
+                {/* Password Visibility Toggle */}
+                {disablePassword && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDisablePassword((prev) => !prev)}
+                    className="absolute right-4 text-slate-400 hover:text-slate-600 p-1 rounded-lg transition-colors cursor-pointer"
+                    aria-label={showDisablePassword ? "Hide password" : "Show password"}
+                  >
+                    {showDisablePassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {/* Action Buttons: Cancel (Left) and Confirm (Right) */}
+              <div className="flex items-center gap-3 mt-8 sm:mt-10">
+                {/* Left: Cancel Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDisableModal(false);
+                    setDisablePassword("");
+                    setMfaError("");
+                    setShowDisablePassword(false);
+                  }}
+                  disabled={mfaActionLoading}
+                  className="flex-1 py-3.5 px-4 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-bold rounded-xl sm:rounded-2xl text-sm transition-all border border-slate-200 cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                {/* Right: Confirm Button */}
+                <button
+                  type="submit"
+                  disabled={mfaActionLoading || !disablePassword.trim()}
+                  className="flex-1 py-3.5 px-4 bg-[#0024A8] hover:bg-[#001D85] active:scale-[0.99] text-white font-bold rounded-xl sm:rounded-2xl text-sm shadow-md shadow-[#0024A8]/20 hover:shadow-lg transition-all cursor-pointer disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
+                >
+                  {mfaActionLoading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Confirming...</span>
+                    </>
+                  ) : (
+                    <span>Confirm</span>
+                  )}
+                </button>
+              </div>
+            </form>
+
           </div>
         </div>
       )}
