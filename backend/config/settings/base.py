@@ -2,10 +2,10 @@
 Base settings for BAI-APP-1 project.
 
 Contains shared configurations (installed apps, middleware, databases)
-common across all environments. Extended by dev.py and production.py.
+common across all environments. Extended by development.py and production.py.
 """
-import sys
 import os
+import sys
 from pathlib import Path
 from datetime import timedelta
 import environ
@@ -14,8 +14,8 @@ import environ
 # Point to project root (backend/)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# Add 'apps' folder to Python path for direct app imports
 sys.path.insert(0, str(BASE_DIR / "apps"))
+
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -38,7 +38,6 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv(
     "DEFAULT_FROM_EMAIL", "BAI Finance <no-reply@baifinance.com>"
 )
-SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 SECRET_KEY = env("SECRET_KEY")
 
@@ -77,9 +76,7 @@ INSTALLED_APPS = [
     "users",
     "authentication",
     "loans",
-    "document_center",
     "bookings",
-    "communications",
     "audit",
     "otp",
     "ai_assistant",
@@ -95,18 +92,8 @@ REST_AUTH = {
     "JWT_AUTH_HTTPONLY": True,       
     "JWT_AUTH_SAMESITE": "Lax",       # CSRF protection
     "JWT_AUTH_RETURN_EXPIRATION": True,
-
-    # "REGISTER_SERIALIZER": "apps.authentication.serializers.RegisterSerializer",
     "USER_DETAILS_SERIALIZER": "users.serializers.UserSerializer",
 }
-
-# Tell allauth/dj-rest-auth you use email, not username
-ACCOUNT_AUTHENTICATION_METHOD = "email"
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_USER_MODEL_USERNAME_FIELD = None
-ACCOUNT_UNIQUE_EMAIL = True
-
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -165,7 +152,6 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/hour",
         "user": "1000/hour",
-        "login": "20/hour",
         "otp": "5/hour",
         "otp_verify": "10/hour",
         "ai": "30/hour",
@@ -235,20 +221,9 @@ SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = "DENY"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 # CSP nonce-based is set via middleware/headers in production; deny framing and sniffing by default
-X_CONTENT_TYPE_OPTIONS = "nosniff"
-REFERRER_POLICY = "strict-origin-when-cross-origin"
-# HSTS is enforced in production.py; base keeps preload-ready defaults
 SECURE_HSTS_SECONDS = 63072000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-
-# Throttle rates — tighten expensive endpoints (OWASP A06)
-# NOTE: keep 'login' and add 'otp'/'ai' scopes consumed via @throttle_classes
-REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].update({
-    "otp": "5/hour",
-    "otp_verify": "10/hour",
-    "ai": "30/hour",
-})
 
 TIME_ZONE= "UTC"
 USE_TZ = True

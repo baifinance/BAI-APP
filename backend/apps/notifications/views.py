@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 from authentication.permissions import IsOtpVerified
 from notifications.models import Notification
 from notifications.serializers import NotificationSerializer
-from otp.utils import redis_client
+from otp.utils import get_redis_client
 
 
 class EventStreamRenderer(BaseRenderer):
@@ -98,7 +98,7 @@ class NotificationStreamView(APIView):
     renderer_classes = [EventStreamRenderer]
 
     def get(self, request):
-        pubsub = redis_client.pubsub()
+        pubsub = get_redis_client().pubsub()
         pubsub.subscribe(f"notify:{request.user.id}")
 
         def event_stream():

@@ -1,14 +1,14 @@
 from django.contrib import admin
 from django.urls import include, path
-from apps.bookings.views import BrokerListView
-from apps.health.views import HealthView
+from bookings.views import BrokerListView
+from health.views import HealthView
 from authentication.views import LoginView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
 
-    # Custom login response; must be before dj_rest_auth.urls.
-    path("api/auth/login/", LoginView.as_view(), name="rest_login"),
+    # Custom login response; keep distinct name to avoid colliding with dj_rest_auth's rest_login.
+    path("api/auth/login/", LoginView.as_view(), name="custom-login"),
 
     # dj-rest-auth (login, logout, user, password, etc.)
     path("api/auth/", include("dj_rest_auth.urls")),
@@ -21,7 +21,6 @@ urlpatterns = [
     # Your API
     path("api/users/", include("users.urls")),
     path("api/brokers/", BrokerListView.as_view(), name="broker-list"),
-    path("api/auth/accounts/", include("authentication.urls")),
 
     # Loans
     path("api/loans/", include("loans.urls")),

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .utils import generate_otp, store_otp
+
 
 class OtpSendSerializer(serializers.Serializer):
     email = serializers.EmailField()

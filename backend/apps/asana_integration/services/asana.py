@@ -9,7 +9,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from notifications.choices import NotificationType
 from notifications.services import create_notification, publish_stream_notification
-from otp.utils import redis_client
+from otp.utils import get_redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -393,7 +393,7 @@ def _section_name(section_gid):
     if not section_gid:
         return ""
     cache_key = f"asana_section:{section_gid}"
-    cached = redis_client.get(cache_key)
+    cached = get_redis_client().get(cache_key)
     if cached is not None:
         return cached.decode()
     if section_gid in _section_name_cache:
@@ -413,7 +413,7 @@ def _section_name(section_gid):
         return ""
     name = (section or {}).get("name") or ""
     if name:
-        redis_client.setex(cache_key, _SECTION_NAME_CACHE_TTL, name)
+        get_redis_client().setex(cache_key, _SECTION_NAME_CACHE_TTL, name)
         _section_name_cache[section_gid] = name
     return name
 
@@ -525,7 +525,7 @@ def handle_task_moved_event(event):
 def _task_email(task_gid):
     """Resolve the client email for an Asana task, cached per task GID"""
     cache_key = f"asana_task:{task_gid}"
-    cached = redis_client.get(cache_key)
+    cached = get_redis_client().get(cache_key)
     if cached is not None:
         return cached.decode()
     
@@ -547,5 +547,5 @@ def _task_email(task_gid):
         return None
 
     email = service.normalize_email(email)
-    redis_client.setex(cache_key, _TASK_EMAIL_CACHE_TTL, email)
+    get_redis_client().setex(cache_key, _TASK_EMAIL_CACHE_TTL, email)
     return email

@@ -28,7 +28,7 @@ from authentication.permissions import IsLoanProcessingTeam
 from authentication.serializers import LoanProcessingAccountCreateSerializer
 from audit.models import AuditLog
 
-from users.models import User, ClientProfile, BrokerProfile
+from users.models import User
 from users.choices import UserStatus
 from users.choices import UserRole
 from authentication.models import Invitation

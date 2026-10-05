@@ -31,7 +31,6 @@ from bookings.serializers import (
     BrokerOptionSerializer,
     AvailableSlotCreateSerializer,
     AvailableSlotSerializer,
-    AvailableSlotClaimSerializer,
 )
 from authentication.permissions import IsOtpVerified
 

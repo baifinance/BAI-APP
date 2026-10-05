@@ -246,18 +246,3 @@ class AvailableSlotSerializer(serializers.ModelSerializer):
             u = obj.broker.user
             return f"{u.first_name} {u.last_name}".strip() or u.email
         return "Unknown Broker"
-
-
-class AvailableSlotClaimSerializer(serializers.Serializer):
-    """Lets an authenticated client claim an available slot into a Booking."""
-
-    consultation_type = serializers.CharField(required=False, allow_blank=True, max_length=100)
-    meeting_platform = serializers.CharField(required=False, allow_blank=True, max_length=50)
-    notes = serializers.CharField(required=False, allow_blank=True)
-
-    def validate(self, attrs):
-        slot = self.context["slot"]
-        if slot.slot_time <= timezone.now():
-            raise serializers.ValidationError("This slot is no longer available.")
-        return attrs
-    

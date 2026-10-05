@@ -2,9 +2,6 @@ from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from django.conf import settings
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
-from django.utils import timezone
 from users.models import User
 from .serializers import OtpSendSerializer, OtpVerifySerializer
 from .utils import generate_otp, store_otp, verify_otp, mark_otp_verified

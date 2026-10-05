@@ -1,7 +1,7 @@
-"""Document models package.
+"""Notification models package.
 
 Exports:
-    Document – uploaded document record linked to a loan application.
+    Notification – notification record sent to users.
 """
 
 from .notification import Notification

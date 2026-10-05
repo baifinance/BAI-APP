@@ -5,7 +5,7 @@ import uuid
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
-from apps.users.choices import UserRole, UserStatus
+from users.choices import UserRole, UserStatus
 
 
 class User(AbstractUser):

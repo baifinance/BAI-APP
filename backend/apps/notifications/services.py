@@ -1,6 +1,6 @@
 import json
 
-from otp.utils import redis_client
+from otp.utils import get_redis_client
 from notifications.models import Notification
 
 def create_notification(
@@ -35,4 +35,4 @@ def publish_stream_notification(user_id, notification=None, loan_status=None):
         "title": getattr(notification, "title", None),
         "message": getattr(notification, "message", None),
     }
-    redis_client.publish(f"notify:{user_id}", json.dumps(payload))
+    get_redis_client().publish(f"notify:{user_id}", json.dumps(payload))

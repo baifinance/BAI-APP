@@ -18,10 +18,10 @@ class LoginOtpFlowTest(APITestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        otp_utils.redis_client = redis.from_url(TEST_REDIS_URL)
+        otp_utils._redis_client = redis.from_url(TEST_REDIS_URL)
 
     def setUp(self):
-        otp_utils.redis_client.flushdb()
+        otp_utils.get_redis_client().flushdb()
         self.client = APIClient()
         self.email = "expertbake@gmail.com"
         self.password = "0909185525544"
@@ -35,7 +35,7 @@ class LoginOtpFlowTest(APITestCase):
         )
 
     def tearDown(self):
-        otp_utils.redis_client.flushdb()
+        otp_utils.get_redis_client().flushdb()
 
     def _login(self):
         return self.client.post(
@@ -54,7 +54,7 @@ class LoginOtpFlowTest(APITestCase):
         resp = self.client.get("/api/bookings/")
         self.assertEqual(resp.status_code, 403)
 
-        stored = otp_utils.redis_client.get(f"otp:login_2fa:{self.email.lower()}")
+        stored = otp_utils.get_redis_client().get(f"otp:login_2fa:{self.email.lower()}")
         code = json.loads(stored)["code"]
 
         resp = self.client.post(
