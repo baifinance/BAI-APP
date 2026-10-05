@@ -138,8 +138,8 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     initialClients.find((c) => c.id === "c4") || initialClients[0]
   );
   
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
-  const [messages, setMessages] = useState<ClientMessage[]>(initialMessages);
+  const [transactions, setTransactions] = useState<Transaction[]>(process.env.NODE_ENV === "development" ? initialTransactions : []);
+  const [messages, setMessages] = useState<ClientMessage[]>(process.env.NODE_ENV === "development" ? initialMessages : []);
   const [lastLoanStatusUpdate, setLastLoanStatusUpdate] = useState<string | null>(null);
   
   const [notifications, setNotifications] = useState<PortalNotification[]>([]);

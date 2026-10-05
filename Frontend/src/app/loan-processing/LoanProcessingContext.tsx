@@ -53,18 +53,18 @@ export function LoanProcessingProvider({ children }: { children: React.ReactNode
       if (stored) {
         try {
           const parsed = JSON.parse(stored) as SubmittedDocument[];
-          return [...initialSubmittedDocs, ...parsed];
+          return process.env.NODE_ENV === "development" ? [...initialSubmittedDocs, ...parsed] : parsed;
         } catch (e) {
           console.error("Failed to parse registrations:", e);
         }
       }
     }
-    return initialSubmittedDocs;
+    return process.env.NODE_ENV === "development" ? initialSubmittedDocs : [];
   });
 
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(initialAuditLogs);
-  const [clients, setClients] = useState<Client[]>(initialClients);
-  const [applications, setApplications] = useState<Application[]>(initialApplications);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(process.env.NODE_ENV === "development" ? initialAuditLogs : []);
+  const [clients, setClients] = useState<Client[]>(process.env.NODE_ENV === "development" ? initialClients : []);
+  const [applications, setApplications] = useState<Application[]>(process.env.NODE_ENV === "development" ? initialApplications : []);
 
   useEffect(() => {
     const newRegs = submittedDocs.filter(doc => doc.id.startsWith("reg-"));

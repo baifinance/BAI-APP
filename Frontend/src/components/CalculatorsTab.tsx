@@ -9,6 +9,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Calculator, DollarSign, Calendar, Info, Printer, BarChart3 } from "lucide-react";
+import Image from "next/image";
 
 type CalcTab = "Repayments" | "Borrowing" | "InterestOnly";
 
@@ -678,9 +679,11 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           <div className="md:col-span-6 md:sticky md:top-6 self-start bg-slate-50 border border-slate-200/80 rounded-2xl p-7 sm:p-10 shadow-inner flex flex-col justify-between min-h-[560px]">
             <div className="h-full flex flex-col justify-between items-center text-center">
               <div className="w-full flex-1 flex items-center justify-center p-4">
-                <img
+                <Image
                   src="/calculator_illustration.jpg"
                   alt="Ready to calculate visual"
+                  width={640}
+                  height={480}
                   className="w-full max-w-xs md:max-w-sm max-h-72 object-contain rounded-2xl shadow-xs"
                 />
               </div>

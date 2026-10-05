@@ -82,11 +82,11 @@ function apiBookingToBooking(b: BookingApiResponse): Booking {
 }
 
 export function BrokerProvider({ children }: { children: React.ReactNode }) {
-  const [clients, setClients] = useState<Client[]>(initialClients);
-  const [applications, setApplications] = useState<Application[]>(initialApplications);
+  const [clients, setClients] = useState<Client[]>(process.env.NODE_ENV === "development" ? initialClients : []);
+  const [applications, setApplications] = useState<Application[]>(process.env.NODE_ENV === "development" ? initialApplications : []);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [publishedSlots, setPublishedSlots] = useState<PublishedSlot[]>([]);
-  const [emails, setEmails] = useState<Email[]>(initialEmails);
+  const [emails, setEmails] = useState<Email[]>(process.env.NODE_ENV === "development" ? initialEmails : []);
   const [autoCompose, setAutoCompose] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);

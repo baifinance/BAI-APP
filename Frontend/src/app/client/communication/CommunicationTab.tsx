@@ -18,7 +18,7 @@ import { Search, X, Mail, Reply, Calendar, Clock, User, ShieldCheck } from "luci
 import { BrokerEmail, initialBrokerEmails } from "../MockClientData";
 
 export default function CommunicationTab() {
-  const brokerEmails: BrokerEmail[] = initialBrokerEmails;
+  const brokerEmails: BrokerEmail[] = process.env.NODE_ENV === "development" ? initialBrokerEmails : [];
   const [selectedEmail, setSelectedEmail] = useState<BrokerEmail | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 

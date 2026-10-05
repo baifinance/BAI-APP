@@ -15,7 +15,9 @@ import HowItWorksSection from "@/components/LandingPage/HowItWorksSection";
 import ClientPortalSection from "@/components/LandingPage/ClientPortalSection";
 import LoanCalculator from "@/components/LandingPage/LoanCalculator";
 import Footer from "@/components/LandingPage/Footer";
-import AIChatWidget from "@/components/LandingPage/AIChatWidget";
+import dynamic from "next/dynamic";
+
+const AIChatWidget = dynamic(() => import("@/components/LandingPage/AIChatWidget"));
 
 export default function Home() {
   return (
