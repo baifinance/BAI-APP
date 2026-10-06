@@ -159,7 +159,7 @@ export default function LoanProgressStepper({
     /* ------------------------------------------------------------------------ */
     /* CONTAINER: Blends with background without shadow and outline             */
     /* ------------------------------------------------------------------------ */
-    <div className="w-full max-w-5xl mx-auto bg-transparent border-0 shadow-none p-0 animate-fadeIn space-y-6">
+    <div className="w-full max-w-5xl mx-auto bg-transparent border-0 shadow-none p-0 space-y-6">
       
       {/* ---------------------------------------------------------------------- */}
       {/* VERTICAL STEPPER LAYOUT                                                */}

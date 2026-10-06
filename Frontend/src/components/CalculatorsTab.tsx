@@ -8,7 +8,16 @@
  */
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Calculator, DollarSign, Calendar, Info, Printer, BarChart3 } from "lucide-react";
+import {
+  Calculator,
+  DollarSign,
+  Calendar,
+  Info,
+  Printer,
+  BarChart3,
+  Eye,
+  X,
+} from "lucide-react";
 import Image from "next/image";
 
 type CalcTab = "Repayments" | "Borrowing" | "InterestOnly";
@@ -23,6 +32,12 @@ interface LoanBalanceChartProps {
   loanTerm: number;
   monthlyRepayment: number;
   totalCostOfLoan: number;
+  /** Callback triggered when user clicks the Eye icon to pop out the graph */
+  onExpand?: () => void;
+  /** Whether the chart is currently rendered inside the enlarged floating window */
+  isExpanded?: boolean;
+  /** Callback triggered when user clicks the exit 'X' button in the floating window */
+  onClose?: () => void;
 }
 
 function LoanBalanceChart({
@@ -31,6 +46,9 @@ function LoanBalanceChart({
   loanTerm,
   monthlyRepayment,
   totalCostOfLoan,
+  onExpand,
+  isExpanded = false,
+  onClose,
 }: LoanBalanceChartProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
@@ -76,12 +94,13 @@ function LoanBalanceChart({
   const roundTo = maxVal > 1000000 ? 500000 : 100000;
   const yMax = Math.ceil((maxVal * 1.05) / roundTo) * roundTo;
 
-  const viewBoxWidth = 520;
-  const viewBoxHeight = 290;
-  const padLeft = 65;
-  const padRight = 20;
-  const padTop = 25;
-  const padBottom = 45;
+  // Chart dimensions & padding: larger viewBox in floating view for high clarity
+  const viewBoxWidth = isExpanded ? 840 : 520;
+  const viewBoxHeight = isExpanded ? 420 : 290;
+  const padLeft = isExpanded ? 80 : 65;
+  const padRight = isExpanded ? 30 : 20;
+  const padTop = isExpanded ? 30 : 25;
+  const padBottom = isExpanded ? 50 : 45;
   const chartW = viewBoxWidth - padLeft - padRight;
   const chartH = viewBoxHeight - padTop - padBottom;
 
@@ -124,24 +143,64 @@ function LoanBalanceChart({
 
   return (
     <div className="space-y-4">
-      {/* Header & Legends matching the screenshot */}
+      {/* ---------------------------------------------------------------------- */}
+      {/* CHART HEADER: Title, Legends, Eye Expand Icon / Exit 'X' Icon          */}
+      {/* ---------------------------------------------------------------------- */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-        <h4 className="text-sm font-extrabold text-slate-800">
-          Loan Balance Chart
-        </h4>
+        <div className="flex items-center gap-2.5">
+          <h4 className={`${isExpanded ? "text-base sm:text-lg font-black" : "text-sm font-extrabold"} text-slate-800`}>
+            Loan Balance Chart
+          </h4>
+          {isExpanded && (
+            <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0A2881] border border-blue-200/60 tracking-wider">
+              Floating View
+            </span>
+          )}
+        </div>
+
         <div className="flex items-center gap-4 text-xs font-bold">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3.5 h-3.5 rounded-xs bg-[#0B2369]" />
-            <span className="text-slate-700">Loan Balance</span>
+          {/* Chart Legends */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded-xs bg-[#0B2369]" />
+              <span className="text-slate-700">Loan Balance</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded-xs bg-[#16A34A]" />
+              <span className="text-slate-700">Total Payment</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3.5 h-3.5 rounded-xs bg-[#16A34A]" />
-            <span className="text-slate-700">Total Payment</span>
-          </div>
+
+          {/* Action Button: Eye Icon to Expand when normal, 'X' Exit Button when in floating window */}
+          {isExpanded ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:bg-slate-200 rounded-lg transition-colors cursor-pointer border border-slate-200/80 shadow-2xs flex items-center justify-center ml-1"
+              title="Exit floating window"
+              aria-label="Exit floating window"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          ) : (
+            onExpand && (
+              <button
+                type="button"
+                onClick={onExpand}
+                className="p-1.5 text-slate-400 hover:text-[#0A2881] hover:bg-blue-50/80 active:bg-blue-100 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-blue-100 flex items-center justify-center ml-1"
+                title="View graph in floating window"
+                aria-label="View graph in floating window"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+            )
+          )}
         </div>
       </div>
 
-      {/* SVG Chart */}
+      {/* ---------------------------------------------------------------------- */}
+      {/* SVG INTERACTIVE CHART                                                  */}
+      {/* ---------------------------------------------------------------------- */}
       <div className="relative w-full overflow-hidden">
         <svg
           viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
@@ -174,10 +233,10 @@ function LoanBalanceChart({
                   strokeDasharray={idx > 0 && idx < yTicks.length - 1 ? "3 3" : undefined}
                 />
                 <text
-                  x={padLeft - 8}
-                  y={y + 4}
+                  x={padLeft - (isExpanded ? 10 : 8)}
+                  y={y + (isExpanded ? 5 : 4)}
                   textAnchor="end"
-                  className="text-[11px] font-bold fill-slate-500"
+                  className={`${isExpanded ? "text-[13px]" : "text-[11px]"} font-bold fill-slate-500`}
                 >
                   {formatCurrencyTick(val)}
                 </text>
@@ -208,10 +267,10 @@ function LoanBalanceChart({
           {/* Y-Axis Label "Amount Owing" */}
           <text
             x={-(padTop + chartH / 2)}
-            y={16}
+            y={isExpanded ? 24 : 16}
             transform="rotate(-90)"
             textAnchor="middle"
-            className="text-[11px] font-extrabold fill-slate-600"
+            className={`${isExpanded ? "text-[13px]" : "text-[11px]"} font-extrabold fill-slate-600`}
           >
             Amount Owing
           </text>
@@ -222,7 +281,7 @@ function LoanBalanceChart({
             d={totalPayLinePath}
             fill="none"
             stroke="#16A34A"
-            strokeWidth="2.5"
+            strokeWidth={isExpanded ? "3.5" : "2.5"}
             strokeLinecap="round"
           />
 
@@ -232,7 +291,7 @@ function LoanBalanceChart({
             d={loanBalLinePath}
             fill="none"
             stroke="#0B2369"
-            strokeWidth="2.5"
+            strokeWidth={isExpanded ? "3.5" : "2.5"}
             strokeLinecap="round"
           />
 
@@ -245,15 +304,15 @@ function LoanBalanceChart({
                   x1={x}
                   y1={padTop + chartH}
                   x2={x}
-                  y2={padTop + chartH + 5}
+                  y2={padTop + chartH + (isExpanded ? 6 : 5)}
                   stroke="#94A3B8"
                   strokeWidth="1"
                 />
                 <text
                   x={x}
-                  y={padTop + chartH + 18}
+                  y={padTop + chartH + (isExpanded ? 22 : 18)}
                   textAnchor="middle"
-                  className="text-[11px] font-bold fill-slate-600"
+                  className={`${isExpanded ? "text-[13px]" : "text-[11px]"} font-bold fill-slate-600`}
                 >
                   {yr}
                 </text>
@@ -264,9 +323,9 @@ function LoanBalanceChart({
           {/* X-Axis Label "Years" */}
           <text
             x={padLeft + chartW / 2}
-            y={padTop + chartH + 36}
+            y={padTop + chartH + (isExpanded ? 44 : 36)}
             textAnchor="middle"
-            className="text-[11px] font-extrabold fill-slate-600"
+            className={`${isExpanded ? "text-[13px]" : "text-[11px]"} font-extrabold fill-slate-600`}
           >
             Years
           </text>
@@ -298,37 +357,37 @@ function LoanBalanceChart({
                 x2={getX(dataPoints[hoverIndex].year)}
                 y2={padTop + chartH}
                 stroke="#64748B"
-                strokeWidth="1.5"
+                strokeWidth={isExpanded ? "2" : "1.5"}
                 strokeDasharray="3 3"
               />
               {/* Total payment marker */}
               <circle
                 cx={getX(dataPoints[hoverIndex].year)}
                 cy={getY(dataPoints[hoverIndex].totalRemaining)}
-                r="4.5"
+                r={isExpanded ? "6" : "4.5"}
                 fill="#16A34A"
                 stroke="#ffffff"
-                strokeWidth="2"
+                strokeWidth={isExpanded ? "2.5" : "2"}
               />
               {/* Loan balance marker */}
               <circle
                 cx={getX(dataPoints[hoverIndex].year)}
                 cy={getY(dataPoints[hoverIndex].balance)}
-                r="4.5"
+                r={isExpanded ? "6" : "4.5"}
                 fill="#0B2369"
                 stroke="#ffffff"
-                strokeWidth="2"
+                strokeWidth={isExpanded ? "2.5" : "2"}
               />
             </g>
           )}
         </svg>
 
-        {/* Hover Tooltip Overlay */}
+        {/* Hover Tooltip Overlay with real-time year calculations */}
         {hoverIndex !== null && dataPoints[hoverIndex] && (
           <div
-            className="absolute top-2 right-2 bg-slate-900/90 backdrop-blur-xs text-white p-2.5 rounded-xl text-xs shadow-lg space-y-1 pointer-events-none border border-slate-700/50 z-10"
+            className={`absolute ${isExpanded ? "top-3 right-3 p-3.5 text-sm" : "top-2 right-2 p-2.5 text-xs"} bg-slate-900/95 backdrop-blur-xs text-white rounded-xl shadow-xl space-y-1.5 pointer-events-none border border-slate-700/60 z-10`}
           >
-            <div className="font-extrabold text-slate-200 border-b border-slate-700 pb-1">
+            <div className="font-extrabold text-slate-200 border-b border-slate-700/80 pb-1">
               Year {dataPoints[hoverIndex].year} of {loanTerm}
             </div>
             <div className="flex items-center justify-between gap-4 text-emerald-400 font-bold">
@@ -343,7 +402,9 @@ function LoanBalanceChart({
         )}
       </div>
 
-      {/* Footer / Branding bar matching screenshot */}
+      {/* ---------------------------------------------------------------------- */}
+      {/* CHART FOOTER: Accreditation Badge, Print Button, Amortisation Tag     */}
+      {/* ---------------------------------------------------------------------- */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
         <div className="flex items-center gap-2">
           {/* MFAA Accredited Badge */}
@@ -355,6 +416,7 @@ function LoanBalanceChart({
 
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => window.print()}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
           >
@@ -493,6 +555,20 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
   const [clientLoanTerm, setClientLoanTerm] = useState<number>(30);
   const [isCalculatedClient, setIsCalculatedClient] = useState<boolean>(false);
 
+  // Floating Window State: expands graph into floating window modal at the front
+  const [isGraphExpanded, setIsGraphExpanded] = useState<boolean>(false);
+
+  // Accessibility: Close floating window when Escape key is pressed
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isGraphExpanded) {
+        setIsGraphExpanded(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isGraphExpanded]);
+
   const handleCalculateClient = () => {
     const P = typeof clientLoanAmount === "string" ? parseFloat(clientLoanAmount) || 0 : clientLoanAmount;
     const annualR = (typeof clientInterestRate === "string" ? parseFloat(clientInterestRate) || 0 : clientInterestRate) / 100;
@@ -523,9 +599,9 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
     const numInterestRate = typeof clientInterestRate === "string" ? parseFloat(clientInterestRate) || 0 : clientInterestRate;
 
     return (
-      <div className="w-full animate-fadeIn pb-12">
-        {/* Full-width Dynamic Edge-to-Edge Blue Banner */}
-        <div className="w-full min-w-full py-8 sm:py-10 md:py-12 lg:py-14 px-4 sm:px-6 md:px-8 lg:px-12 text-center text-white bg-[#0A2881] shadow-md flex flex-col items-center justify-center space-y-2 transition-all duration-300 ease-in-out shrink-0">
+      <div className="w-full pb-12">
+        {/* Full-width Dynamic Edge-to-Edge Blue Banner (still, non-transitioning) */}
+        <div className="w-full min-w-full py-8 sm:py-10 md:py-12 lg:py-14 px-4 sm:px-6 md:px-8 lg:px-12 text-center text-white bg-[#0A2881] shadow-md flex flex-col items-center justify-center space-y-2 shrink-0">
           <span className="text-[10px] sm:text-xs md:text-sm font-extrabold uppercase tracking-widest text-white/80 block">
             Financial Tools
           </span>
@@ -630,7 +706,10 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                 </button>
                 {isCalculatedClient && (
                   <button
-                    onClick={() => setIsCalculatedClient(false)}
+                    onClick={() => {
+                      setIsCalculatedClient(false);
+                      setIsGraphExpanded(false);
+                    }}
                     className="px-4 py-3.5 bg-slate-100 hover:bg-red-600 hover:text-white active:bg-red-700 active:text-white text-slate-600 rounded-xl text-xs font-bold transition-all cursor-pointer"
                   >
                     Reset
@@ -761,21 +840,76 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                 </div>
               </div>
 
-              {/* Right side: Graph based on MFAA / Loan Balance Chart */}
-              <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
-                <LoanBalanceChart
-                  loanAmount={numLoanAmount}
-                  interestRate={numInterestRate}
-                  loanTerm={clientLoanTerm}
-                  monthlyRepayment={monthlyRepayment}
-                  totalCostOfLoan={totalCostOfLoan}
-                />
+              {/* ---------------------------------------------------------------- */}
+              {/* RIGHT SIDE: Loan Balance Chart (Inline / Moved to Floating View) */}
+              {/* ---------------------------------------------------------------- */}
+              <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-center">
+                {isGraphExpanded ? (
+                  /* Placeholder displayed in the page when graph view is moved to the floating window */
+                  <div className="flex flex-col items-center justify-center py-20 px-4 text-center border-2 border-dashed border-blue-200/80 rounded-2xl bg-blue-50/25">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-100 text-[#0A2881] flex items-center justify-center mb-3 shadow-inner">
+                      <Eye className="w-6 h-6" />
+                    </div>
+                    <h4 className="text-sm font-extrabold text-slate-800">
+                      Graph Moved to Floating Window
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                      The loan balance chart is currently open in front in an expanded floating view.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setIsGraphExpanded(false)}
+                      className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-lg border border-slate-200 shadow-2xs transition-colors cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5 text-slate-400" />
+                      Restore Graph to Page
+                    </button>
+                  </div>
+                ) : (
+                  <LoanBalanceChart
+                    loanAmount={numLoanAmount}
+                    interestRate={numInterestRate}
+                    loanTerm={clientLoanTerm}
+                    monthlyRepayment={monthlyRepayment}
+                    totalCostOfLoan={totalCostOfLoan}
+                    onExpand={() => setIsGraphExpanded(true)}
+                  />
+                )}
               </div>
             </div>
           )}
         </div>
       </div>
     </div>
+
+    {/* ==================================================================== */}
+    {/* FLOATING WINDOW: EXPANDED GRAPH VIEW (AT THE FRONT)                  */}
+    {/* ==================================================================== */}
+    {isGraphExpanded && (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Expanded Loan Balance Chart"
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 lg:p-8 bg-slate-900/60 backdrop-blur-sm animate-fadeIn"
+        onClick={() => setIsGraphExpanded(false)}
+      >
+        {/* Floating Window Dialog Container (clicks inside do not dismiss) */}
+        <div
+          className="relative bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-2xl w-full max-w-5xl max-h-[92vh] overflow-y-auto p-5 sm:p-8 space-y-4 transition-all"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <LoanBalanceChart
+            loanAmount={numLoanAmount}
+            interestRate={numInterestRate}
+            loanTerm={clientLoanTerm}
+            monthlyRepayment={monthlyRepayment}
+            totalCostOfLoan={totalCostOfLoan}
+            isExpanded={true}
+            onClose={() => setIsGraphExpanded(false)}
+          />
+        </div>
+      </div>
+    )}
   </div>
 );
 }

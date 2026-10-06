@@ -15,7 +15,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Calendar, Building2 } from "lucide-react";
+import { Calendar } from "lucide-react";
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -47,33 +47,12 @@ export default function Header() {
         <div className="flex items-center justify-between">
           
           {/* LOGO & BRANDING BLOCK */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 shadow-md ${
-                isScrolled
-                  ? "bg-white text-[#0038A8]"
-                  : "bg-[#0038A8] text-white"
-              }`}
-            >
-              <Building2 className="w-5 h-5 stroke-[2.2]" />
-            </div>
-
-            <div className="flex flex-col">
-              <span
-                className={`text-xl font-bold tracking-tight transition-colors duration-300 ${
-                  isScrolled ? "text-white" : "text-[#0038A8]"
-                }`}
-              >
-                BAI<span className={isScrolled ? "text-amber-400" : "text-[#0038A8]"}>Finance</span>
-              </span>
-              <span
-                className={`text-[9px] font-semibold uppercase tracking-widest -mt-1 ${
-                  isScrolled ? "text-slate-300" : "text-slate-400"
-                }`}
-              >
-                Philippines & Australia
-              </span>
-            </div>
+          <Link href="/" className="flex items-center group py-1">
+            <img
+              src={isScrolled ? "/bai_logo_white.png" : "/bai_logo_blue.png"}
+              alt="BAI Group of Companies"
+              className="h-8 sm:h-9 w-auto object-contain transition-all duration-300"
+            />
           </Link>
 
           {/* DESKTOP NAVIGATION LINKS */}

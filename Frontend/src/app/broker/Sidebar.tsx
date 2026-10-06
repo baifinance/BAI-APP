@@ -45,15 +45,22 @@ export default function Sidebar({ activeTab }: SidebarProps) {
         }`}
       >
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-8 h-8 rounded-[5px] bg-[#0038A8] flex items-center justify-center text-white font-extrabold text-sm tracking-tighter shrink-0">
-            BAI
-          </div>
-          {!isCollapsed && (
-            <div className="animate-fadeIn">
-              <span className="font-extrabold text-[#0038A8] text-sm tracking-tight block whitespace-nowrap">
-                BAI FINANCE
-              </span>
-              <span className="text-[10px] text-[#0038A8]/80 font-bold uppercase tracking-wider block whitespace-nowrap">
+          {isCollapsed ? (
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-start shrink-0" title="BAI Group of Companies">
+              <img
+                src="/bai_logo_blue.png"
+                alt="BAI"
+                className="h-8 w-auto max-w-none object-left"
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-0.5 animate-fadeIn min-w-0">
+              <img
+                src="/bai_logo_blue.png"
+                alt="BAI Group of Companies"
+                className="h-8 w-auto object-contain"
+              />
+              <span className="text-[10px] text-[#0038A8]/80 font-bold uppercase tracking-wider block whitespace-nowrap pl-0.5">
                 Broker Portal
               </span>
             </div>

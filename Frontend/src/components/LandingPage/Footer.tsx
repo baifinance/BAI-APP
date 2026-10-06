@@ -14,7 +14,7 @@
  */
 
 import Link from "next/link";
-import { Calendar, Mail, Phone, MapPin, Building2 } from "lucide-react";
+import { Calendar, Mail, Phone, MapPin } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -70,13 +70,12 @@ export default function Footer() {
             {/* Column 1: Brand Info & Contact Lines */}
             <div className="md:col-span-6 space-y-5">
               {/* Logo Emblem */}
-              <Link href="/" className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-white text-[#0038A8] flex items-center justify-center font-bold shadow-md">
-                  <Building2 className="w-5 h-5 stroke-[2.2]" />
-                </div>
-                <span className="text-xl font-bold tracking-tight text-white">
-                  BAI<span className="text-amber-400">Finance</span>
-                </span>
+              <Link href="/" className="inline-block group">
+                <img
+                  src="/bai_logo_white.png"
+                  alt="BAI Group of Companies"
+                  className="h-9 sm:h-10 w-auto object-contain"
+                />
               </Link>
 
               {/* Description Paragraph */}

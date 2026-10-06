@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   title: "BAI Finance | A Friend in Finance, From First Home to Settled",
   description: "Broker-led loan preparation and live tracking for Philippines & Australia. Track your home loans, refinancing, and investments from submission to settlement.",
   keywords: ["Loan Brokerage", "Australia Home Loans", "Philippines Finance", "Loan Tracking", "BAI Finance"],
+  icons: {
+    icon: "/bai_logo_blue.png",
+  },
 };
 
 export default function RootLayout({

@@ -29,6 +29,15 @@ export default function StatusScreen({ type, title, message, token }: StatusScre
       {/* ---------------------------------------------------------------------- */}
       <div className="bg-white border border-slate-200 shadow-xl rounded-[24px] p-8 max-w-md w-full text-center space-y-6 relative z-10 animate-scaleIn">
         
+        {/* Logo */}
+        <div className="flex justify-center pt-1">
+          <img
+            src="/bai_logo_blue.png"
+            alt="BAI Group of Companies"
+            className="h-9 w-auto object-contain"
+          />
+        </div>
+
         {/* Header Icon */}
         <div className="flex justify-center">
           {isError ? (

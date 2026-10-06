@@ -136,7 +136,7 @@ export default function NotificationsTab({
   // 6. JSX UI RENDERING
   // ----------------------------------------------------------------------------
   return (
-    <div className="w-full animate-fadeIn">
+    <div className="w-full">
       {/* ==================================================================== */}
       {/* NOTIFICATIONS CONTAINER CARD                                         */}
       {/* ==================================================================== */}
