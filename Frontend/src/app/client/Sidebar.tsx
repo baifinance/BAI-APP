@@ -88,18 +88,25 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
       {/* Brand Header                                                       */}
       {/* ------------------------------------------------------------------ */}
       <div
-        className={`p-4 border-b border-white/10 flex items-center gap-3 overflow-hidden ${isCollapsed ? "justify-center" : ""
+        className={`p-4 border-b border-white/10 flex items-center min-h-[69px] overflow-hidden ${isCollapsed ? "justify-center" : "gap-3"
           }`}
       >
-        <div className="w-8 h-8 rounded-lg bg-[#E4BA37] flex items-center justify-center text-[#0A2881] font-black text-sm tracking-tighter shrink-0 shadow-md">
-          BAI
-        </div>
-        {!isCollapsed && (
-          <div>
-            <span className="font-extrabold text-white text-sm tracking-tight block">
-              BAI FINANCE
-            </span>
-            <span className="text-[10px] text-[#E4BA37] font-bold uppercase tracking-wider block">
+        {isCollapsed ? (
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-start shrink-0" title="BAI Group of Companies">
+            <img
+              src="/bai_logo_white.png"
+              alt="BAI"
+              className="h-8 w-auto max-w-none object-left"
+            />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <img
+              src="/bai_logo_white.png"
+              alt="BAI Group of Companies"
+              className="h-8 w-auto object-contain"
+            />
+            <span className="text-[10px] text-[#E4BA37] font-bold uppercase tracking-wider block pl-0.5">
               Client Hub
             </span>
           </div>

@@ -314,7 +314,7 @@ export default function ProfileSettingsTab({
   // 4. RENDER UI
   // ------------------------------------------------------------------------------
   return (
-    <div className="space-y-6 animate-fadeIn pb-12">
+    <div className="space-y-6 pb-12">
 
       {/* ==================================================================== */}
       {/* PAGE HEADER: Back Arrow Button & Profile Settings Title              */}

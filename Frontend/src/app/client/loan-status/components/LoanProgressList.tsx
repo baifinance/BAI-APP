@@ -129,7 +129,7 @@ export default function LoanProgressList({
     /* ------------------------------------------------------------------------ */
     /* 2. MAIN CONTAINER: Unified compact table container without shadows      */
     /* ------------------------------------------------------------------------ */
-    <div className="w-full rounded-2xl border border-slate-200/80 overflow-hidden shadow-none bg-white animate-fadeIn">
+    <div className="w-full rounded-2xl border border-slate-200/80 overflow-hidden shadow-none bg-white">
       
       {/* ---------------------------------------------------------------------- */}
       {/* 3. TABLE HEADER: Blue theme (#0024A8) background with white text       */}

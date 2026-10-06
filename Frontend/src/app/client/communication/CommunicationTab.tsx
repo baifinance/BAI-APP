@@ -43,7 +43,7 @@ export default function CommunicationTab() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6">
       {/* ==================================================================== */}
       {/* TOP HEADER BAR                                                       */}
       {/* ==================================================================== */}
@@ -144,7 +144,7 @@ export default function CommunicationTab() {
         <div className="lg:col-span-11 p-6 sm:p-8 flex flex-col h-full min-h-[520px]">
           {selectedEmail ? (
             /* Selected Email View */
-            <div className="flex-1 flex flex-col animate-fadeIn">
+            <div className="flex-1 flex flex-col">
 
               {/* Header: Title and Deselect / Close button */}
               <div className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100 shrink-0">

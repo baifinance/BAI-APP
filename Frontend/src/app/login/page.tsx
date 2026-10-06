@@ -14,7 +14,6 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Building2,
   Lock,
   Mail,
   ArrowLeft,
@@ -297,17 +296,13 @@ export default function ClientLoginPage() {
 
           {/* Logo / Header */}
           <div className="flex items-center gap-3 relative z-10">
-            <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shadow-md">
-              <Building2 className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <div>
-              <span className="text-lg font-black tracking-tight text-white block leading-none">
-                BAI FINANCE
-              </span>
-              <span className="text-[9px] font-extrabold text-blue-200 uppercase tracking-widest block mt-1">
-                A Friend in Finance
-              </span>
-            </div>
+            <Link href="/" className="inline-block hover:opacity-90 transition-opacity">
+              <img
+                src="/bai_logo_white.png"
+                alt="BAI Group of Companies"
+                className="h-10 md:h-11 w-auto object-contain"
+              />
+            </Link>
           </div>
 
           {/* Core App Information */}

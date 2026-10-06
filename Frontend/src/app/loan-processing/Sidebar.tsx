@@ -52,14 +52,13 @@ export default function Sidebar({ activeTab }: SidebarProps) {
 
       {/* Brand Header (Contrast logo on blue background) */}
       <div className="p-6 border-b border-white/10 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-[#1429A9] font-black text-sm tracking-tighter">
-          BAI
-        </div>
-        <div>
-          <span className="font-extrabold text-white text-sm tracking-tight block">
-            BAI FINANCE
-          </span>
-          <span className="text-[10px] text-slate-100/70 font-bold uppercase tracking-wider block">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <img
+            src="/bai_logo_white.png"
+            alt="BAI Group of Companies"
+            className="h-8 w-auto object-contain"
+          />
+          <span className="text-[10px] text-slate-100/70 font-bold uppercase tracking-wider block pl-0.5">
             Loan Processing Portal
           </span>
         </div>

@@ -165,7 +165,7 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6">
 
       {/* ==================================================================== */}
       {/* SECTION 1: CLIENT PROFILE HERO CARD                                  */}
@@ -178,11 +178,11 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
         const isPhilippines = displayAddress.toLowerCase().includes("philippines") || client.profile?.nationality?.toLowerCase().includes("filipino");
 
         return (
-          <div className="bg-white rounded-[5px] border-0 shadow-sm overflow-hidden animate-fadeIn">
+          <div className="bg-white rounded-[5px] border-0 shadow-sm overflow-hidden">
 
             {/* Banner with Theme Toggle */}
             <div
-              className={`relative h-36 sm:h-44 w-full transition-all duration-500 overflow-hidden ${bannerTheme === "blue"
+              className={`relative h-36 sm:h-44 w-full transition-colors duration-500 overflow-hidden ${bannerTheme === "blue"
                 ? "bg-gradient-to-r from-[#001B79] via-[#0024A8] to-[#1E40AF]"
                 : "bg-gradient-to-r from-[#B45309] via-[#D97706] to-[#FBBF24]"
                 }`}

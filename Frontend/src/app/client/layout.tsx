@@ -36,10 +36,10 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
         onToggle={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
-      {/* Content Wrapper */}
-      <div className="flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ease-in-out">
+      {/* Content Wrapper (remains stable and still during page transfers) */}
+      <div className="flex-1 flex flex-col min-w-0 w-full">
         {/* Scrollable page body */}
-        <main className={`flex-1 overflow-y-auto w-full transition-all duration-300 ease-in-out ${isFullWidthPage ? "p-0" : "p-8 max-w-[1600px] mx-auto"}`}>
+        <main className={`flex-1 overflow-y-auto w-full ${isFullWidthPage ? "p-0" : "p-8 max-w-[1600px] mx-auto"}`}>
           {children}
         </main>
       </div>

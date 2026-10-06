@@ -26,7 +26,7 @@ export default function ProgressStatus({
   tone = "blue",
 }: ProgressStatusProps) {
   return (
-    <div className={`w-full py-10 sm:py-12 px-6 sm:px-8 text-center text-white shadow-md flex flex-col items-center justify-center space-y-4 animate-fadeIn ${
+    <div className={`w-full py-10 sm:py-12 px-6 sm:px-8 text-center text-white shadow-md flex flex-col items-center justify-center space-y-4 ${
       tone === "neutral" ? "bg-slate-700" : "bg-[#0A2881]"
     }`}>
       

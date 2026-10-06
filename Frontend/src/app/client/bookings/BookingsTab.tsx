@@ -49,7 +49,7 @@ export default function BookingsTab() {
   }
 
   return (
-    <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto">
 
       {/* Header section */}
       <div>
@@ -61,7 +61,7 @@ export default function BookingsTab() {
 
       {/* Success Notification Alert */}
       {notification && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-2xl animate-fadeIn">
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-2xl">
           {notification}
         </div>
       )}
