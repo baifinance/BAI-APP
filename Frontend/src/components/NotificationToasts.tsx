@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { useClient } from "@/app/client/ClientContext";
 import NotificationTypeIcon, { notificationTone } from "./NotificationTypeIcon";
-import { timeAgo } from "@/lib/time";
+import { useTimeAgo } from "@/lib/time";
 
 const TOAST_MS = 6000;
 
@@ -28,6 +28,7 @@ function ToastItem({
   onMarkRead: (id: string) => Promise<void>;
   onOpen: (id: string) => void;
 }) {
+  const timeLabel = useTimeAgo(created_at);
   useEffect(() => {
     const timer = window.setTimeout(() => onDismiss(id), TOAST_MS);
     return () => window.clearTimeout(timer);
@@ -51,7 +52,7 @@ function ToastItem({
           {title || message}
         </p>
         <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
-          {timeAgo(created_at)}
+          {timeLabel}
         </p>
       </div>
       <button

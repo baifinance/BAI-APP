@@ -8,7 +8,7 @@
 
 import React, { useState } from "react";
 import { Mail, Search, Send, X, AlertCircle, FileText, CheckCircle2 } from "lucide-react";
-import { Client, Email } from "../MockData";
+import { Client, Email } from "../types";
 
 interface CommunicationTabProps {
   clients: Client[];

@@ -9,7 +9,7 @@
 
 import React, { useState } from "react";
 import { ArrowLeft, User, DollarSign, Briefcase, ShieldAlert, FileText, CheckCircle, Percent } from "lucide-react";
-import { Client } from "../MockData";
+import { Client } from "../types";
 
 interface ClientProfileViewProps {
   client: Client;
@@ -315,7 +315,7 @@ export default function ClientProfileView({ client, onBack }: ClientProfileViewP
                   <span className="text-[10px] font-bold text-[#0B2369] uppercase tracking-wider block">Detailed Liabilities Breakdown</span>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {client.obligations.items.map((item, idx) => (
-                      <div key={idx} className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
+                      <div key={item.liabilityType} className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
                         <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
                           <span className="font-extrabold text-xs text-slate-800">{item.liabilityType}</span>
                           <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-100">{item.paymentStatus}</span>

@@ -9,7 +9,7 @@
 
 import React, { useState } from "react";
 import { Search, ShieldAlert, History } from "lucide-react";
-import { AuditLogEntry } from "../MockLoanProcessingData";
+import { AuditLogEntry } from "../types";
 
 interface AuditLogTabProps {
   auditLogs: AuditLogEntry[];

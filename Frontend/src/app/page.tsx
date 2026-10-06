@@ -16,8 +16,9 @@ import ClientPortalSection from "@/components/LandingPage/ClientPortalSection";
 import LoanCalculator from "@/components/LandingPage/LoanCalculator";
 import Footer from "@/components/LandingPage/Footer";
 import dynamic from "next/dynamic";
+import LoadingSkeleton from "@/components/LoadingSkeleton";
 
-const AIChatWidget = dynamic(() => import("@/components/LandingPage/AIChatWidget"));
+const AIChatWidget = dynamic(() => import("@/components/LandingPage/AIChatWidget"), { loading: () => <LoadingSkeleton /> });
 
 export default function Home() {
   return (

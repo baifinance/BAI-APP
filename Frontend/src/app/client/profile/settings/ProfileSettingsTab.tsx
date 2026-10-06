@@ -29,7 +29,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { Client } from "../../../broker/MockData";
+import { Client } from "../../../broker/types";
 import { usersApi, authApi } from "@/lib/api";
 
 interface ProfileSettingsTabProps {

@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useClient } from "./ClientContext";
+import { API_BASE } from "@/lib/api";
 
 export type ClientTabType =
   | "Profile"
@@ -56,7 +57,7 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
 
   const handleLogout = async () => {
     try {
-      await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") + "/api/auth/logout/", {
+      await fetch(API_BASE + "/api/auth/logout/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

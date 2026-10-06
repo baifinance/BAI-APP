@@ -83,7 +83,7 @@ export default function HowItWorksSection() {
             const Icon = step.icon;
             return (
               <div
-                key={idx}
+                key={step.stepNumber}
                 className="bg-[#002266]/80 backdrop-blur-md rounded-3xl p-6 sm:p-7 border border-[#002D87]/60 flex flex-col justify-between hover:bg-[#002266] hover:border-[#0047D4]/50 transition-all duration-300 shadow-lg"
               >
                 <div>

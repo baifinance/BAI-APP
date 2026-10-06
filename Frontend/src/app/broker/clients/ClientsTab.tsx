@@ -10,7 +10,7 @@
 
 import React, { useState } from "react";
 import { Search, ArrowUpDown, Mail, Calendar, Eye, X, CalendarRange, Filter } from "lucide-react";
-import { Client } from "../MockData";
+import { Client } from "../types";
 import ClientProfileView from "./ClientProfileView";
 import { useBroker } from "../BrokerContext";
 

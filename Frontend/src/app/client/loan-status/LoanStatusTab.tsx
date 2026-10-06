@@ -13,7 +13,7 @@
 
 import React from "react";
 import { Ban, FileSearch } from "lucide-react";
-import { Client } from "../../broker/MockData";
+import { Client } from "../../broker/types";
 import { resolveLoanStatus } from "../loanStatus";
 import ProgressStatus from "./components/ProgressStatus";
 import LoanProgressStepper, { StepperStep } from "./components/LoanProgressStepper";

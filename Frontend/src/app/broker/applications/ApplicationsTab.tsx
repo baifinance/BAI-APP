@@ -18,9 +18,9 @@ import {
   FileText,
   UserCheck,
 } from "lucide-react";
-import { Application, Client } from "../MockData";
+import { Application, Client } from "../types";
 import ClientApplicationDashboard from "./ClientApplicationDashboard";
-import { loansApi } from "@/lib/api";
+import { loansApi, API_BASE } from "@/lib/api";
 
 interface ApplicationsTabProps {
   clients: Client[];
@@ -113,11 +113,11 @@ export default function ApplicationsTab({
   useEffect(() => {
     async function fetchBrokers() {
       try {
-        let res = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") + "/api/brokers/", {
+        let res = await fetch(API_BASE + "/api/brokers/", {
           credentials: "include",
         });
         if (!res.ok) {
-          res = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") + "/api/bookings/brokers/", {
+          res = await fetch(API_BASE + "/api/bookings/brokers/", {
             credentials: "include",
           });
         }
@@ -176,7 +176,7 @@ export default function ApplicationsTab({
 
     try {
       const res = await fetch(
-        (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") + "/api/auth/invitations/send/",
+        API_BASE + "/api/auth/invitations/send/",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

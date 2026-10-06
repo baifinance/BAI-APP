@@ -15,10 +15,10 @@
 
 import React, { useState } from "react";
 import { Search, X, Mail, Reply, Calendar, Clock, User, ShieldCheck } from "lucide-react";
-import { BrokerEmail, initialBrokerEmails } from "../MockClientData";
+import { BrokerEmail } from "../types";
 
 export default function CommunicationTab() {
-  const brokerEmails: BrokerEmail[] = process.env.NODE_ENV === "development" ? initialBrokerEmails : [];
+  const brokerEmails: BrokerEmail[] = [];
   const [selectedEmail, setSelectedEmail] = useState<BrokerEmail | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 

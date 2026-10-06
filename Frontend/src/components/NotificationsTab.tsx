@@ -18,7 +18,7 @@
 
 import React, { useState, useMemo } from "react";
 import { CheckCheck, ChevronDown } from "lucide-react";
-import { timeAgo } from "@/lib/time";
+import { useTimeAgo } from "@/lib/time";
 
 // ==============================================================================
 // 1. DATA TYPES & INTERFACES
@@ -45,6 +45,11 @@ interface NotificationsTabProps {
 // ==============================================================================
 // 2. MAIN COMPONENT DEFINITION
 // ==============================================================================
+function TimeText({ createdAt, fallback }: { createdAt?: string; fallback?: string }) {
+  const label = useTimeAgo(createdAt, fallback);
+  return <span suppressHydrationWarning>{label}</span>;
+}
+
 export default function NotificationsTab({
   notifications,
   variant = "broker",
@@ -97,11 +102,6 @@ export default function NotificationsTab({
     return notifications.filter((item, idx) => checkIsUnread(item, idx)).length;
   }, [notifications, readItemIds]);
 
-  // Format time display gracefully supporting created_at timestamps or legacy strings
-  const displayTime = (item: NotificationItem): string => {
-    if (item.created_at) return timeAgo(item.created_at);
-    return item.time || "";
-  };
 
   // ----------------------------------------------------------------------------
   // 5. ACTION HANDLERS
@@ -269,7 +269,7 @@ export default function NotificationsTab({
                   {/* -------------------------------------------------------- */}
                   <div className="shrink-0 text-left sm:text-right sm:min-w-[100px]">
                     <span className="text-xs font-semibold text-slate-400 whitespace-nowrap">
-                      {displayTime(notif)}
+                      <TimeText createdAt={notif.created_at} fallback={notif.time} />
                     </span>
                   </div>
                 </div>

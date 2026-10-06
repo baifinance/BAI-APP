@@ -13,7 +13,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Check, Clock, ArrowRight, Pen, Mail, Phone, User, Ban, Settings } from "lucide-react";
-import { Client } from "../../broker/MockData";
+import { Client } from "../../broker/types";
 import { usersApi, loansApi } from "@/lib/api";
 import { resolveLoanStatus } from "../loanStatus";
 

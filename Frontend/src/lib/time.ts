@@ -12,3 +12,19 @@ export function timeAgo(iso?: string | null): string {
   if (days < 7) return `${days}d ago`;
   return new Date(iso).toLocaleDateString();
 }
+import { useEffect, useState } from "react";
+
+export function useTimeAgo(iso?: string | null, fallback?: string): string {
+  const [label, setLabel] = useState<string>(fallback ?? "");
+  useEffect(() => {
+    if (!iso) {
+      setLabel(fallback ?? "");
+      return;
+    }
+    const update = () => setLabel(timeAgo(iso));
+    update();
+    const id = window.setInterval(update, 30_000);
+    return () => window.clearInterval(id);
+  }, [iso, fallback]);
+  return label;
+}

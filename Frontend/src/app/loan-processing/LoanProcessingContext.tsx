@@ -1,19 +1,16 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import useSWR from "swr";
 import { 
-  initialSubmittedDocs, 
-  initialAuditLogs, 
   SubmittedDocument, 
   AuditLogEntry 
-} from "./MockLoanProcessingData";
+} from "./types";
 
 import { 
-  initialClients, 
-  initialApplications, 
   Client, 
   Application 
-} from "../broker/MockData";
+} from "../broker/types";
 import { notificationsApi, NotificationApiResponse } from "@/lib/api";
 
 interface LoanProcessingContextType {
@@ -53,18 +50,18 @@ export function LoanProcessingProvider({ children }: { children: React.ReactNode
       if (stored) {
         try {
           const parsed = JSON.parse(stored) as SubmittedDocument[];
-          return process.env.NODE_ENV === "development" ? [...initialSubmittedDocs, ...parsed] : parsed;
+          return parsed;
         } catch (e) {
           console.error("Failed to parse registrations:", e);
         }
       }
     }
-    return process.env.NODE_ENV === "development" ? initialSubmittedDocs : [];
+    return [];
   });
 
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(process.env.NODE_ENV === "development" ? initialAuditLogs : []);
-  const [clients, setClients] = useState<Client[]>(process.env.NODE_ENV === "development" ? initialClients : []);
-  const [applications, setApplications] = useState<Application[]>(process.env.NODE_ENV === "development" ? initialApplications : []);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
 
   useEffect(() => {
     const newRegs = submittedDocs.filter(doc => doc.id.startsWith("reg-"));
@@ -77,28 +74,13 @@ export function LoanProcessingProvider({ children }: { children: React.ReactNode
     { type: "New Submission", message: "New application submitted by Emma Wilson.", time: "1 day ago" },
   ]);
 
+  const { data: notifData } = useSWR("notifications", () => notificationsApi.list(), {
+    refreshInterval: 30_000,
+  });
+
   useEffect(() => {
-    let cancelled = false;
-
-    const loadNotifications = async () => {
-      try {
-        const data = await notificationsApi.list();
-        if (!cancelled) {
-          setNotifications(data.map(mapNotification));
-        }
-      } catch (error) {
-        console.error("Failed to load notifications:", error);
-      }
-    };
-
-    loadNotifications();
-    const intervalId = window.setInterval(loadNotifications, 30_000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, []);
+    if (notifData) setNotifications(notifData.map(mapNotification));
+  }, [notifData]);
 
   const handleLogAction = (actionText: string) => {
     const now = new Date();

@@ -163,7 +163,7 @@ function LoanBalanceChart({
           {yTicks.map((val, idx) => {
             const y = getY(val);
             return (
-              <g key={idx}>
+              <g key={val}>
                 <line
                   x1={padLeft}
                   y1={y}
@@ -237,10 +237,10 @@ function LoanBalanceChart({
           />
 
           {/* X Axis Ticks & Labels */}
-          {xTicks.map((yr, idx) => {
+          {xTicks.map((yr) => {
             const x = getX(yr);
             return (
-              <g key={idx}>
+              <g key={yr}>
                 <line
                   x1={x}
                   y1={padTop + chartH}
@@ -277,7 +277,7 @@ function LoanBalanceChart({
             const w = chartW / loanTerm;
             return (
               <rect
-                key={idx}
+                key={pt.year}
                 x={x - w / 2}
                 y={padTop}
                 width={w}
@@ -407,8 +407,6 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
   const [borrowFirstPaymentDate, setBorrowFirstPaymentDate] = useState("2026-09-01");
 
   // Outputs
-  const [borrowingPower, setBorrowingPower] = useState(0);
-  const [maxMonthlyAffordable, setMaxMonthlyAffordable] = useState(0);
 
   // ------------------------------------------------------------------------------
   // CALCULATOR 3: INTEREST ONLY STATE
@@ -419,11 +417,6 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
   const [ioTerm, setIoTerm] = useState(5);
   const [ioFirstPaymentDate, setIoFirstPaymentDate] = useState("2026-09-01");
 
-  // Outputs
-  const [ioMonthlyRepayment, setIoMonthlyRepayment] = useState(0);
-  const [postIoMonthlyRepayment, setPostIoMonthlyRepayment] = useState(0);
-  const [ioTotalInterest, setIoTotalInterest] = useState(0);
-  const [ioTotalCost, setIoTotalCost] = useState(0);
 
   // ------------------------------------------------------------------------------
   // EFFECTS FOR CALCULATIONS
@@ -453,71 +446,43 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
     setTotalCostOfLoan(Math.round(totalPaid));
   }, [loanAmount, interestRate, loanTerm]);
 
-  // 2. Calculate Borrowing Power
-  useEffect(() => {
-    // Serviceability buffer is standard 3% added to the base rate
+  const { borrowingPower, maxMonthlyAffordable } = useMemo(() => {
     const bufferRate = (borrowInterestRate + 3) / 100;
     const r = bufferRate / 12;
-    const n = 30 * 12; // Standard 30 year term assumed
-
-    // Approximate net monthly income after tax (assuming ~25% average tax rate)
+    const n = 30 * 12;
     const totalAnnualGross = annualIncome + otherIncome;
     const netMonthlyIncome = (totalAnnualGross * 0.75) / 12;
-
-    // CC monthly commitment is estimated at 3% of limit
     const ccCommitment = creditCardLimit * 0.03;
-    
-    // Dependent buffer cost
     const dependentCost = dependents * 250;
-
     const totalMonthlyCommitments = monthlyExpenses + monthlyLoans + ccCommitment + dependentCost;
     const monthlySurplus = netMonthlyIncome - totalMonthlyCommitments;
-
     if (monthlySurplus <= 0 || r === 0) {
-      setBorrowingPower(0);
-      setMaxMonthlyAffordable(0);
-      return;
+      return { borrowingPower: 0, maxMonthlyAffordable: 0 };
     }
-
-    // Banks qualify based on roughly 75% of surplus for loan repayments
     const maxAffordablePayment = monthlySurplus * 0.75;
     const maxLoan = (maxAffordablePayment * (Math.pow(1 + r, n) - 1)) / (r * Math.pow(1 + r, n));
-
-    setBorrowingPower(Math.round(maxLoan));
-    setMaxMonthlyAffordable(Math.round(maxAffordablePayment));
+    return { borrowingPower: Math.round(maxLoan), maxMonthlyAffordable: Math.round(maxAffordablePayment) };
   }, [annualIncome, otherIncome, monthlyExpenses, monthlyLoans, creditCardLimit, dependents, borrowInterestRate]);
 
-  // 3. Calculate Interest Only Repayments
-  useEffect(() => {
+  const { ioMonthlyRepayment, postIoMonthlyRepayment, ioTotalInterest, ioTotalCost } = useMemo(() => {
     const P = ioLoanAmount;
     const annualR = ioInterestRate / 100;
     const r = annualR / 12;
-    
-    // Interest Only Period (months)
     const ioMonths = ioTerm * 12;
-    // Remaining P&I Period (months)
     const piMonths = (ioTotalTerm - ioTerm) * 12;
-
-    if (piMonths <= 0) return;
-
-    // Monthly repayment during IO
-    const monthlyIo = P * r;
-
-    // Monthly repayment during remaining P&I
-    let monthlyPi = 0;
-    if (r === 0) {
-      monthlyPi = P / piMonths;
-    } else {
-      monthlyPi = (P * r * Math.pow(1 + r, piMonths)) / (Math.pow(1 + r, piMonths) - 1);
+    if (piMonths <= 0) {
+      return { ioMonthlyRepayment: 0, postIoMonthlyRepayment: 0, ioTotalInterest: 0, ioTotalCost: P };
     }
-
+    const monthlyIo = P * r;
+    const monthlyPi = r === 0 ? P / piMonths : (P * r * Math.pow(1 + r, piMonths)) / (Math.pow(1 + r, piMonths) - 1);
     const totalInterest = (monthlyIo * ioMonths) + (monthlyPi * piMonths) - P;
     const totalCost = P + totalInterest;
-
-    setIoMonthlyRepayment(Math.round(monthlyIo));
-    setPostIoMonthlyRepayment(Math.round(monthlyPi));
-    setIoTotalInterest(Math.round(totalInterest));
-    setIoTotalCost(Math.round(totalCost));
+    return {
+      ioMonthlyRepayment: Math.round(monthlyIo),
+      postIoMonthlyRepayment: Math.round(monthlyPi),
+      ioTotalInterest: Math.round(totalInterest),
+      ioTotalCost: Math.round(totalCost),
+    };
   }, [ioLoanAmount, ioInterestRate, ioTotalTerm, ioTerm]);
 
   // ------------------------------------------------------------------------------
@@ -676,7 +641,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           </div>
 
           {/* Right Container: Visual */}
-          <div className="md:col-span-6 md:sticky md:top-6 self-start bg-slate-50 border border-slate-200/80 rounded-2xl p-7 sm:p-10 shadow-inner flex flex-col justify-between min-h-[560px]">
+          <div className="md:col-span-6 md:sticky md:top-6 self-start bg-slate-50 border border-slate-200/80 rounded-2xl p-7 sm:p-10 shadow-inner flex flex-col justify-between md:min-h-[560px]">
             <div className="h-full flex flex-col justify-between items-center text-center">
               <div className="w-full flex-1 flex items-center justify-center p-4">
                 <Image

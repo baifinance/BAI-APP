@@ -1,15 +1,13 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import useSWR from "swr";
 import { 
-  initialClients, 
-  initialApplications, 
-  initialEmails, 
-  Client, 
-  Application, 
-  Booking, 
-  Email 
-} from "./MockData";
+  Client,
+  Application,
+  Booking,
+  Email
+} from "./types";
 
 import {
   bookingsApi,
@@ -82,11 +80,11 @@ function apiBookingToBooking(b: BookingApiResponse): Booking {
 }
 
 export function BrokerProvider({ children }: { children: React.ReactNode }) {
-  const [clients, setClients] = useState<Client[]>(process.env.NODE_ENV === "development" ? initialClients : []);
-  const [applications, setApplications] = useState<Application[]>(process.env.NODE_ENV === "development" ? initialApplications : []);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [publishedSlots, setPublishedSlots] = useState<PublishedSlot[]>([]);
-  const [emails, setEmails] = useState<Email[]>(process.env.NODE_ENV === "development" ? initialEmails : []);
+  const [emails, setEmails] = useState<Email[]>([]);
   const [autoCompose, setAutoCompose] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -96,28 +94,13 @@ export function BrokerProvider({ children }: { children: React.ReactNode }) {
     { type: "Valuation Scheduled", message: "John Doe's property appraisal booking is locked for tomorrow." , time: "3 hours ago" },
   ]);
 
+  const { data: notifData } = useSWR("notifications", () => notificationsApi.list(), {
+    refreshInterval: 30_000,
+  });
+
   useEffect(() => {
-    let cancelled = false;
-
-    const loadNotifications = async () => {
-      try {
-        const data = await notificationsApi.list();
-        if (!cancelled) {
-          setNotifications(data.map(mapNotification));
-        }
-      } catch (error) {
-        console.error("Failed to load notifications:", error);
-      }
-    };
-
-    loadNotifications();
-    const intervalId = window.setInterval(loadNotifications, 30_000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, []);
+    if (notifData) setNotifications(notifData.map(mapNotification));
+  }, [notifData]);
 
   useEffect(() => {
     bookingsApi.list()

@@ -9,7 +9,7 @@
 
 import React, { useState } from "react";
 import { CheckSquare, Check, HelpCircle, XCircle, Info, FileText } from "lucide-react";
-import { SubmittedDocument } from "../MockLoanProcessingData";
+import { SubmittedDocument } from "../types";
 
 interface ReviewTabProps {
   submittedDocs: SubmittedDocument[];

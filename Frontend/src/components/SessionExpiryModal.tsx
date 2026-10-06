@@ -17,7 +17,7 @@ import { AlertTriangle, Loader2 } from "lucide-react";
 import { SESSION_EXPIRED_EVENT } from "@/lib/api";
 
 // Base API URL for backend session termination
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+import { API_BASE } from "@/lib/api";
 
 export default function SessionExpiryModal() {
   // ----------------------------------------------------------------------------

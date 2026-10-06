@@ -1,19 +1,17 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import useSWR from "swr";
 import { useRef } from "react";
-import { 
-  initialClients, 
-  Client, 
-  Booking 
-} from "../broker/MockData";
+import {
+  Client,
+  Booking
+} from "../broker/types";
 
-import { 
-  initialTransactions, 
-  initialMessages, 
-  Transaction, 
-  ClientMessage 
-} from "./MockClientData";
+import {
+  Transaction,
+  ClientMessage
+} from "./types";
 
 import {
   bookingsApi,
@@ -133,13 +131,31 @@ function toHHMM(time: string): string {
   return `${String(hours).padStart(2, "0")}:${minutes}:00`;
 }
 
+const EMPTY_CLIENT: Client = {
+  id: "",
+  name: "",
+  email: "",
+  phone: "",
+  applicationType: "",
+  amount: 0,
+  documentState: "Submitted",
+  lastActivity: "",
+  dateStarted: "",
+  progress: 0,
+  profile: {} as Client["profile"],
+  loan: {} as Client["loan"],
+  employment: {} as Client["employment"],
+  obligations: {} as Client["obligations"],
+  collateral: {} as Client["collateral"],
+  documents: {} as Client["documents"],
+  brokerDetails: {} as Client["brokerDetails"],
+};
+
 export function ClientProvider({ children }: { children: React.ReactNode }) {
-  const [client, setClient] = useState<Client>(
-    initialClients.find((c) => c.id === "c4") || initialClients[0]
-  );
+  const [client, setClient] = useState<Client>(EMPTY_CLIENT);
   
-  const [transactions, setTransactions] = useState<Transaction[]>(process.env.NODE_ENV === "development" ? initialTransactions : []);
-  const [messages, setMessages] = useState<ClientMessage[]>(process.env.NODE_ENV === "development" ? initialMessages : []);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [messages, setMessages] = useState<ClientMessage[]>([]);
   const [lastLoanStatusUpdate, setLastLoanStatusUpdate] = useState<string | null>(null);
   
   const [notifications, setNotifications] = useState<PortalNotification[]>([]);
@@ -177,11 +193,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  useEffect(() => {
-    loadNotifications();
-    const intervalId = window.setInterval(loadNotifications, 30_000);
-    return () => window.clearInterval(intervalId);
-  }, [loadNotifications]);
+  useSWR("notifications", loadNotifications, { refreshInterval: 30_000 });
 
   useEffect(() => {
     const storedAsanaProfile = sessionStorage.getItem("asana_profile");
@@ -307,11 +319,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  useEffect(() => {
-    refreshLoanStatus();
-    const intervalId = window.setInterval(refreshLoanStatus, 30_000);
-    return () => window.clearInterval(intervalId);
-  }, [refreshLoanStatus]);
+  useSWR("loan-status", refreshLoanStatus, { refreshInterval: 30_000 });
 
   useEffect(() => {
     return subscribeToNotificationStream((push) => {

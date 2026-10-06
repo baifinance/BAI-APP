@@ -8,7 +8,7 @@
 
 import React, { useState } from "react";
 import { Search, DollarSign, ArrowUpRight, ArrowDownLeft, ShieldCheck } from "lucide-react";
-import { Transaction } from "../MockClientData";
+import { Transaction } from "../types";
 
 interface PaymentHistoryTabProps {
   transactions: Transaction[];

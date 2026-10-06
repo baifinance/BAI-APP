@@ -342,9 +342,9 @@ export default function AIChatWidget() {
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
               Suggested:
             </span>
-            {SUGGESTED_PROMPTS.map((item, idx) => (
+            {SUGGESTED_PROMPTS.map((item) => (
               <button
-                key={idx}
+                key={item.prompt}
                 type="button"
                 onClick={() => handleSendMessage(item.prompt)}
                 disabled={isLoading}

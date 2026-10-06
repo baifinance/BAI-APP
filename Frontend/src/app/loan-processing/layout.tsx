@@ -6,6 +6,7 @@ import { LoanProcessingProvider } from "./LoanProcessingContext";
 import { usePathname } from "next/navigation";
 import { Bell, LogOut } from "lucide-react";
 import Link from "next/link";
+import { API_BASE } from "@/lib/api";
 
 const getActiveTab = (pathname: string) => {
   if (pathname.includes("/loan-processing/dashboard")) return "Dashboard";
@@ -21,6 +22,7 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
   const pathname = usePathname();
   const activeTab = getActiveTab(pathname);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -36,7 +38,7 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
 
   const handleLogout = async () => {
     try {
-      await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") + "/api/auth/logout/", {
+      await fetch(API_BASE + "/api/auth/logout/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -65,8 +67,18 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
     <LoanProcessingProvider>
       <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 selection:bg-[#1429A9] selection:text-white antialiased loan-processing-portal-wrap">
         
+        <button
+          className="fixed top-4 left-4 z-50 md:hidden p-2 rounded-md bg-white/80 border border-slate-200 text-[#1429A9]"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open menu"
+        >
+          &#9776;
+        </button>
         {/* Sidebar Navigation */}
-        <Sidebar activeTab={activeTab} />
+        <div className={`fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 md:static md:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+          <Sidebar activeTab={activeTab} />
+        </div>
+        {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />}
 
         {/* Content Wrapper */}
         <div className="flex-1 flex flex-col min-w-0">
@@ -135,7 +147,7 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
           </header>
 
           {/* Scrollable page body */}
-          <main className="flex-1 overflow-y-auto p-8 max-w-[1600px] w-full mx-auto">
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
             {children}
           </main>
 

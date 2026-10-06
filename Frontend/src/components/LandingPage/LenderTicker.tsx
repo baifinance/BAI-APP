@@ -37,7 +37,7 @@ export default function LenderTicker() {
             <div className="flex items-center justify-between md:justify-around gap-8 min-w-max">
               {lenders.map((lender, index) => (
                 <div
-                  key={index}
+                  key={lender.name}
                   className="flex items-center gap-2 group cursor-default"
                 >
                   <span className="text-base sm:text-lg font-extrabold text-slate-400 group-hover:text-[#0038A8] transition-colors tracking-tight">

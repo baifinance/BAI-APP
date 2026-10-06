@@ -10,9 +10,10 @@
 
 import React, { useState, useEffect } from "react";
 import { FileSearch, CheckCircle, FileWarning, HelpCircle, ChevronLeft, ChevronRight, Bell, CalendarClock, AlertTriangle } from "lucide-react";
-import { SubmittedDocument, AuditLogEntry } from "../MockLoanProcessingData";
+import { SubmittedDocument, AuditLogEntry } from "../types";
 import { useLoanProcessing } from "../LoanProcessingContext";
 import { useRouter } from "next/navigation";
+import { API_BASE } from "@/lib/api";
 import Link from "next/link";
 
 export default function DashboardTab() {
@@ -97,12 +98,13 @@ export default function DashboardTab() {
 
   // Fetch brokers from API on mount
   useEffect(() => {
-    fetch("/api/brokers/", { credentials: "include" })
+    fetch(`${API_BASE}/api/brokers/`, { credentials: "include" })
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch brokers");
         return res.json();
       })
-      .then((data) => {
+      .then((payload) => {
+        const data = Array.isArray(payload) ? payload : payload.results ?? [];
         // Transform API response to dropdown options
         const options = data.map((b: any) => ({
           id: b.id || b.user_id,

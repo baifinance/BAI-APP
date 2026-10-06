@@ -6,6 +6,7 @@ import { BrokerProvider } from "./BrokerContext";
 import { usePathname } from "next/navigation";
 import { Bell, LogOut, ChevronDown } from "lucide-react";
 import Link from "next/link";
+import { API_BASE } from "@/lib/api";
 
 const getActiveTab = (pathname: string) => {
   if (pathname.includes("/broker/dashboard")) return "Dashboard";
@@ -24,6 +25,7 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
   
   // Profile dropdown state
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Click outside to close dropdown menu
@@ -42,7 +44,7 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
   // API Call & Cookie Clear Logout Handler
   const handleLogout = async () => {
     try {
-      await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") + "/api/auth/logout/", {
+      await fetch(API_BASE + "/api/auth/logout/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -64,14 +66,24 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
       {/* Wrapper with solid #F2F2F2 background */}
       <div className="min-h-screen bg-[#F2F2F2] flex font-sans text-slate-900 selection:bg-blue-600 selection:text-white antialiased">
         
+        <button
+          className="fixed top-4 left-4 z-50 md:hidden p-2 rounded-md bg-white/80 border border-slate-200 text-[#0038A8]"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open menu"
+        >
+          &#9776;
+        </button>
         {/* Sidebar Navigation */}
-        <Sidebar activeTab={activeTab} />
+        <div className={`fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 md:static md:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+          <Sidebar activeTab={activeTab} />
+        </div>
+        {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />}
 
         {/* Content Wrapper */}
         <div className="flex-1 flex flex-col min-w-0">
           
           {/* Portal Top Header with Account Section & Notifications */}
-          <header className="h-16 bg-white/70 backdrop-blur-md border-b border-slate-200/80 px-8 flex justify-between items-center z-30 select-none shrink-0">
+          <header className="h-16 bg-white/70 backdrop-blur-md border-b border-slate-200/80 px-4 md:px-8 flex justify-between items-center z-30 select-none shrink-0">
             
             {/* Left side: Dynamic Title */}
             <div className="flex items-center">
@@ -141,7 +153,7 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
           </header>
 
           {/* Page body content */}
-          <main className="flex-1 overflow-y-auto p-8 max-w-[1600px] w-full mx-auto">
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
             {children}
           </main>
 
