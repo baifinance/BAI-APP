@@ -169,7 +169,7 @@ export default function ServicesSection() {
   };
 
   return (
-    <section id="services" className="py-24 bg-slate-50/70 border-t border-slate-200/60 relative">
+    <section id="services" className="py-24 bg-[#FAFAFA]/70 border-t border-slate-200/60 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* SUB-SECTION 1: SECTION HEADER & CATEGORY BADGE */}

@@ -196,7 +196,7 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
 
   if (isValidating) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-3 border-[#0024A8]/20 border-t-[#0024A8] rounded-full animate-spin" />
           <span className="text-xs font-semibold text-slate-500">Validating invitation link...</span>
@@ -207,7 +207,7 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
 
   if (tokenError) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4">
         <div className="bg-white border border-slate-200 shadow-xl rounded-[24px] p-8 max-w-md w-full space-y-4 text-center">
           <ShieldAlert className="w-10 h-10 text-rose-500 mx-auto" />
           <h3 className="text-lg font-bold text-slate-900">Invalid Invitation</h3>
@@ -220,7 +220,7 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
   const isBroker = role === "broker";
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
+    <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4 font-sans text-slate-800">
       <div className="bg-white border border-slate-200 shadow-xl rounded-[24px] p-8 max-w-md w-full space-y-6 animate-scaleIn">
         {/* Logo */}
         <div className="flex justify-center pt-1">

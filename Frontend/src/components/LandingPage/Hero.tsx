@@ -28,7 +28,7 @@ import {
 
 export default function Hero() {
   return (
-    <section id="home" className="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden bg-slate-50">
+    <section id="home" className="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden bg-[#FAFAFA]">
       
       {/* BACKGROUND DECORATIVE GLOWS & RINGS */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[1000px] h-[1000px] bg-radial-glow pointer-events-none opacity-80" />

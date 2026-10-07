@@ -22,7 +22,7 @@ export default function StatusScreen({ type, title, message, token }: StatusScre
   const isError = type === "error";
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 selection:bg-blue-600 selection:text-white font-sans text-slate-800 relative">
+    <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4 selection:bg-blue-600 selection:text-white font-sans text-slate-800 relative">
       
       {/* ---------------------------------------------------------------------- */}
       {/* MAIN CONTAINER CARD                                                   */}

@@ -61,8 +61,8 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
 
   return (
     <BrokerProvider>
-      {/* Wrapper with solid #F2F2F2 background */}
-      <div className="min-h-screen bg-[#F2F2F2] flex font-sans text-slate-900 selection:bg-blue-600 selection:text-white antialiased">
+      {/* Wrapper with solid #FAFAFA background */}
+      <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-blue-600 selection:text-white antialiased">
         
         {/* Sidebar Navigation */}
         <Sidebar activeTab={activeTab} />

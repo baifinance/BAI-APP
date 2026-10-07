@@ -30,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${poppins.variable} scroll-smooth antialiased`}>
-      <body className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-blue-600 selection:text-white flex flex-col">
+      <body className="min-h-screen bg-[#FAFAFA] font-sans text-slate-900 selection:bg-blue-600 selection:text-white flex flex-col">
         {children}
         <SessionExpiryModal />
       </body>

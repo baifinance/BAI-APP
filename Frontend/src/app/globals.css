@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+html,
+body {
+  background-color: #FAFAFA;
+}
+
 @layer utilities {
   .bg-grid-pattern {
     background-size: 36px 36px;
@@ -10,7 +15,7 @@
   }
 
   .bg-radial-glow {
-    background: radial-gradient(circle at 75% 30%, rgba(0, 56, 168, 0.08) 0%, rgba(248, 250, 252, 0) 65%);
+    background: radial-gradient(circle at 75% 30%, rgba(0, 56, 168, 0.08) 0%, rgba(250, 250, 250, 0) 65%);
   }
 
   /* Moving gradient background utility: White shifting into low-opacity theme blue (#0038A8) */
@@ -112,6 +117,65 @@
 
 .animate-pulse-subtle {
   animation: pulse-subtle 3s ease-in-out infinite;
+}
+
+/* Floating and drifting animations for golden background circles */
+@keyframes orb-float-1 {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(32px, -18px) scale(1.06);
+  }
+  66% {
+    transform: translate(-22px, 14px) scale(0.94);
+  }
+}
+
+@keyframes orb-float-2 {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(-30px, 22px) scale(1.05);
+  }
+  66% {
+    transform: translate(24px, -14px) scale(0.92);
+  }
+}
+
+@keyframes orb-float-3 {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  50% {
+    transform: translate(20px, 24px) scale(1.1);
+  }
+}
+
+@keyframes orb-float-4 {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  50% {
+    transform: translate(-22px, -20px) scale(0.92);
+  }
+}
+
+.animate-orb-1 {
+  animation: orb-float-1 12s ease-in-out infinite;
+}
+
+.animate-orb-2 {
+  animation: orb-float-2 15s ease-in-out infinite;
+}
+
+.animate-orb-3 {
+  animation: orb-float-3 10s ease-in-out infinite;
+}
+
+.animate-orb-4 {
+  animation: orb-float-4 13s ease-in-out infinite;
 }
 
 /* Custom scrollbar */

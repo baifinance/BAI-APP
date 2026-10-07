@@ -267,7 +267,7 @@ export default function ClientLoginPage() {
 
   return (
     <div
-      className="min-h-screen bg-slate-100 flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans
+      className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans
   selection:bg-[#0024A8] selection:text-white antialiased relative"
     >
       {/* ---------------------------------------------------------------------- */}

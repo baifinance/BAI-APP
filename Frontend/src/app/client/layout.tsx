@@ -27,7 +27,7 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
   const isFullWidthPage = isLoanStatus || isCalculator;
 
   return (
-    <div className="min-h-screen bg-white flex font-sans text-slate-900 selection:bg-[#0024A8] selection:text-white antialiased client-portal-wrap">
+    <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-[#0024A8] selection:text-white antialiased client-portal-wrap">
 
       {/* Sidebar Navigation */}
       <Sidebar

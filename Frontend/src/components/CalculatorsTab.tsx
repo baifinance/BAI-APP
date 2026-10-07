@@ -634,17 +634,50 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
 
     return (
       <div className="w-full pb-12">
-        {/* Full-width Dynamic Edge-to-Edge Blue Banner (still, non-transitioning) */}
-        <div className="w-full min-w-full py-8 sm:py-10 md:py-12 lg:py-14 px-4 sm:px-6 md:px-8 lg:px-12 text-center text-white bg-[#0A2881] shadow-md flex flex-col items-center justify-center space-y-2 shrink-0">
-          <span className="text-[10px] sm:text-xs md:text-sm font-extrabold uppercase tracking-widest text-white/80 block">
-            Financial Tools
-          </span>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight max-w-4xl leading-tight">
-            Mortgage Calculator
-          </h1>
-          <p className="text-xs sm:text-sm md:text-base text-white/80 font-medium max-w-2xl px-2">
-            Estimate your monthly repayments based on loan amount, interest rate, and loan term.
-          </p>
+        {/* Full-width Dynamic Edge-to-Edge Banner with officeImage background, 80% blue overlay, floating golden circles, and text on top */}
+        <div className="relative w-full min-w-full py-8 sm:py-10 md:py-12 lg:py-14 px-4 sm:px-6 md:px-8 lg:px-12 text-center text-white shadow-md flex flex-col items-center justify-center shrink-0 overflow-hidden bg-[#0A2881]">
+          {/* Layer 1: officeImage background */}
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+            style={{ backgroundImage: "url('/officeImage.jpg')" }}
+          />
+
+          {/* Layer 2: Semi-transparent blue layer (around 80%) */}
+          <div className="absolute inset-0 bg-[#0A2881]/80 pointer-events-none" />
+
+          {/* Layer 3: Semi-transparent floating golden circles moving around the background */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none z-10" aria-hidden="true">
+            {/* Golden Circle 1 - Top Left Large Atmospheric Orb */}
+            <div className="absolute -top-10 left-[6%] w-48 h-48 sm:w-60 sm:h-60 rounded-full bg-gradient-to-tr from-[#E4BA37]/25 via-[#F59E0B]/15 to-transparent blur-md border border-[#E4BA37]/30 animate-orb-1" />
+
+            {/* Golden Circle 2 - Bottom Right Large Glowing Disc */}
+            <div className="absolute -bottom-14 right-[10%] w-56 h-56 sm:w-68 sm:h-68 rounded-full bg-[#E4BA37]/20 blur-lg border border-[#E4BA37]/20 animate-orb-2" />
+
+            {/* Golden Circle 3 - Center Right Crisp Translucent Circle with Golden Border */}
+            <div className="absolute top-[22%] right-[24%] w-24 h-24 rounded-full bg-[#E4BA37]/20 border border-[#E4BA37]/45 shadow-lg shadow-[#E4BA37]/20 backdrop-blur-[2px] animate-orb-3" />
+
+            {/* Golden Circle 4 - Bottom Left Crisp Golden Disc */}
+            <div className="absolute bottom-[16%] left-[20%] w-18 h-18 rounded-full bg-[#E4BA37]/25 border border-[#E4BA37]/50 shadow-md shadow-[#E4BA37]/20 backdrop-blur-[1px] animate-orb-4" />
+
+            {/* Golden Circle 5 - Top Center Floating Golden Accent Circle */}
+            <div className="absolute -top-6 left-[48%] -translate-x-1/2 w-32 h-32 rounded-full bg-[#E4BA37]/15 blur-sm border border-[#E4BA37]/25 animate-orb-2" />
+
+            {/* Golden Circle 6 - Floating Small Golden Sparkling Circle */}
+            <div className="absolute top-[60%] left-[38%] w-12 h-12 rounded-full bg-[#E4BA37]/30 border border-[#E4BA37]/60 shadow-sm shadow-[#E4BA37]/30 backdrop-blur-[1px] animate-orb-1" />
+          </div>
+
+          {/* Layer 4: Text overlayed at the top of everything for crisp visibility */}
+          <div className="relative z-20 flex flex-col items-center justify-center space-y-2 max-w-4xl mx-auto">
+            <span className="text-[10px] sm:text-xs md:text-sm font-extrabold uppercase tracking-widest text-white/90 drop-shadow-xs block">
+              Financial Tools
+            </span>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight drop-shadow-sm">
+              Mortgage Calculator
+            </h1>
+            <p className="text-xs sm:text-sm md:text-base text-white/90 font-medium max-w-2xl px-2 drop-shadow-xs">
+              Estimate your monthly repayments based on loan amount, interest rate, and loan term.
+            </p>
+          </div>
         </div>
 
         {/* Page Content Container */}

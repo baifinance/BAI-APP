@@ -63,7 +63,7 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
 
   return (
     <LoanProcessingProvider>
-      <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 selection:bg-[#1429A9] selection:text-white antialiased loan-processing-portal-wrap">
+      <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-[#1429A9] selection:text-white antialiased loan-processing-portal-wrap">
         
         {/* Sidebar Navigation */}
         <Sidebar activeTab={activeTab} />
