@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import type { Viewport } from "next";
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
-import Providers from "./providers";
 import SessionExpiryModal from "@/components/SessionExpiryModal";
 
 const inter = Inter({
@@ -20,12 +18,9 @@ export const metadata: Metadata = {
   title: "BAI Finance | A Friend in Finance, From First Home to Settled",
   description: "Broker-led loan preparation and live tracking for Philippines & Australia. Track your home loans, refinancing, and investments from submission to settlement.",
   keywords: ["Loan Brokerage", "Australia Home Loans", "Philippines Finance", "Loan Tracking", "BAI Finance"],
-};
-
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  themeColor: "#0024A8",
+  icons: {
+    icon: "/bai_logo_blue.png",
+  },
 };
 
 export default function RootLayout({
@@ -35,8 +30,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${poppins.variable} scroll-smooth antialiased`}>
-      <body className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-blue-600 selection:text-white flex flex-col">
-        <Providers>{children}</Providers>
+      <body className="min-h-screen bg-[#FAFAFA] font-sans text-slate-900 selection:bg-blue-600 selection:text-white flex flex-col">
+        {children}
         <SessionExpiryModal />
       </body>
     </html>

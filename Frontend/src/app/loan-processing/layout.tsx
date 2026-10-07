@@ -65,7 +65,7 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
 
   return (
     <LoanProcessingProvider>
-      <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 selection:bg-[#1429A9] selection:text-white antialiased loan-processing-portal-wrap">
+      <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-[#1429A9] selection:text-white antialiased loan-processing-portal-wrap">
         
         <button
           className="fixed top-4 left-4 z-50 md:hidden p-2 rounded-md bg-white/80 border border-slate-200 text-[#1429A9]"

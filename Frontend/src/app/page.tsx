@@ -22,7 +22,7 @@ const AIChatWidget = dynamic(() => import("@/components/LandingPage/AIChatWidget
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 selection:bg-[#0038A8] selection:text-white">
+    <div className="min-h-screen flex flex-col bg-[#FAFAFA] selection:bg-[#0038A8] selection:text-white">
       {/* ---------------------------------------------------------------------- */}
       {/* SECTION 1: DYNAMIC STICKY HEADER (TURNS SOLID BLUE ON SCROLL)           */}
       {/* ---------------------------------------------------------------------- */}

@@ -31,7 +31,7 @@ export default function LoanCalculator() {
   };
 
   return (
-    <section id="calculator" className="py-20 bg-slate-50 border-t border-slate-200/60">
+    <section id="calculator" className="py-20 bg-[#FAFAFA] border-t border-slate-200/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* SECTION HEADER */}

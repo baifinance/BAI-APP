@@ -63,8 +63,8 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
 
   return (
     <BrokerProvider>
-      {/* Wrapper with solid #F2F2F2 background */}
-      <div className="min-h-screen bg-[#F2F2F2] flex font-sans text-slate-900 selection:bg-blue-600 selection:text-white antialiased">
+      {/* Wrapper with solid #FAFAFA background */}
+      <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-blue-600 selection:text-white antialiased">
         
         <button
           className="fixed top-4 left-4 z-50 md:hidden p-2 rounded-md bg-white/80 border border-slate-200 text-[#0038A8]"
