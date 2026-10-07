@@ -10,7 +10,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Clock, ChevronLeft, ChevronRight, Video, Phone, Plus, Loader2, Trash2 } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, Video, Plus, Loader2, Trash2 } from "lucide-react";
 import { useBroker } from "../BrokerContext";
 import { parseSlotTime, toISOSlotTime } from "@/lib/api";
 

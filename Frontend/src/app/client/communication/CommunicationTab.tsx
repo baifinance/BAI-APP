@@ -14,10 +14,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { Search, X, Mail, Reply, Calendar, Clock, User, ShieldCheck } from "lucide-react";
+import { Search, X, Reply, Calendar, Clock, ShieldCheck } from "lucide-react";
 import { BrokerEmail } from "../types";
 
 export default function CommunicationTab() {
+  // The backend has no communication/inbox endpoint yet (`communications` is
+  // model-only), so the inbox is empty until one is wired up.
   const brokerEmails: BrokerEmail[] = [];
   const [selectedEmail, setSelectedEmail] = useState<BrokerEmail | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -56,13 +58,13 @@ export default function CommunicationTab() {
       {/* ==================================================================== */}
       {/* MAIN UNIFIED WORKSPACE CONTAINER                                     */}
       {/* ==================================================================== */}
-      <div className="bg-white border border-slate-200/80 rounded-3xl shadow-soft-xl overflow-hidden grid grid-cols-1 lg:grid-cols-16 min-h-[620px]">
+      <div className="bg-white border border-slate-200/80 rounded-3xl shadow-soft-xl overflow-hidden grid grid-cols-1 lg:grid-cols-16 lg:min-h-[620px]">
 
         {/* ------------------------------------------------------------------ */}
         {/* LEFT SECTION: LIST OF EMAILS SENT TO CLIENT                         */}
         {/* Contains ONLY the email titles with date and time on bottom right  */}
         {/* ------------------------------------------------------------------ */}
-        <div className="lg:col-span-5 flex flex-col h-full border-b lg:border-b-0 lg:border-r border-slate-200 overflow-hidden">
+        <div className="lg:col-span-5 flex flex-col h-full border-b lg:border-b-0 lg:border-r border-slate-200 overflow-hidden max-h-[50vh] lg:max-h-none">
 
           {/* Header of the left section with search bar replacing previous texts and details */}
           <div className="bg-[#0A2881] px-4 py-3 shrink-0 flex items-center">
@@ -141,7 +143,7 @@ export default function CommunicationTab() {
         {/* ------------------------------------------------------------------ */}
         {/* RIGHT SECTION: EMAIL PREVIEW OR NO EMAIL PLACEHOLDER                */}
         {/* ------------------------------------------------------------------ */}
-        <div className="lg:col-span-11 p-6 sm:p-8 flex flex-col h-full min-h-[520px]">
+        <div className="lg:col-span-11 p-6 sm:p-8 flex flex-col h-full min-h-[60vh] lg:min-h-[520px]">
           {selectedEmail ? (
             /* Selected Email View */
             <div className="flex-1 flex flex-col">
@@ -186,7 +188,7 @@ export default function CommunicationTab() {
                       </span>
                     </div>
                     <div className="text-[10px] text-slate-400 font-medium">
-                      To: <span className="text-slate-600 font-semibold">Emma Wilson</span>
+                      To: <span className="text-slate-600 font-semibold">You</span>
                     </div>
                   </div>
                 </div>

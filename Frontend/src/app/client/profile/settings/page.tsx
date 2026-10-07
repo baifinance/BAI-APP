@@ -1,25 +1,22 @@
-/**
- * ==============================================================================
- * PAGE: /client/profile/settings
- * Path: src/app/client/profile/settings/page.tsx
- * Description: Client Profile Settings Page routing container. Connects the
- *              ProfileSettingsTab component with client context, state, and handlers.
- * ==============================================================================
- */
-
 "use client";
 
 import React from "react";
-import { useClient } from "../../ClientContext";
-import ProfileSettingsTab from "./ProfileSettingsTab";
+import dynamic from "next/dynamic";
+import { useClientData } from "../../ClientContext";
+import { PageSkeleton } from "@/components/Skeleton";
+
+const ProfileSettingsTab = dynamic(() => import("./ProfileSettingsTab"), {
+  loading: () => <PageSkeleton rows={2} />,
+});
 
 export default function ClientProfileSettingsPage() {
-  const { client, setClient, handleLogAction } = useClient();
+  const { client, handleLogAction, loading } = useClientData();
+
+  if (loading) return <PageSkeleton rows={2} />;
 
   return (
     <ProfileSettingsTab
       client={client}
-      setClient={setClient}
       onLogAction={handleLogAction}
     />
   );

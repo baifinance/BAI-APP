@@ -11,8 +11,9 @@
 
 import React from "react";
 import Link from "next/link";
-import { LayoutDashboard, CheckSquare, ClipboardList, ShieldAlert, Percent, Bell, LogOut } from "lucide-react";
-import { API_BASE } from "@/lib/api";
+import Image from "next/image";
+import { LayoutDashboard, ClipboardList, ShieldAlert, Percent } from "lucide-react";
+import logoWhite from "@/assets/brand/bai_logo_white.png";
 
 export type LoanProcessingTabType = "Dashboard" | "Application" | "AuditLog" | "Calculator" | "Notifications" | "Review";
 
@@ -29,33 +30,14 @@ export default function Sidebar({ activeTab }: SidebarProps) {
     { id: "Calculator" as LoanProcessingTabType, label: "Calculator", icon: Percent, href: "/loan-processing/calculator" },
   ];
 
-  const handleLogout = async () => {
-    try {
-      await fetch(API_BASE + "/api/auth/logout/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      });
-    } catch (err) {
-      console.error("Failed to log out from backend:", err);
-    }
-    // Clear cookies
-    document.cookie = "jwt-access-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "jwt-refresh-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "user-role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-
-    // Redirect to landing page
-    window.location.href = "/";
-  };
-
   return (
     <aside className="w-64 bg-[#1429A9] text-white border-r border-black/10 min-h-screen flex flex-col shrink-0">
 
       {/* Brand Header (Contrast logo on blue background) */}
       <div className="p-6 border-b border-white/10 flex items-center gap-3">
         <div className="flex flex-col gap-0.5 min-w-0">
-          <img
-            src="/bai_logo_white.png"
+          <Image
+            src={logoWhite}
             alt="BAI Group of Companies"
             className="h-8 w-auto object-contain"
           />

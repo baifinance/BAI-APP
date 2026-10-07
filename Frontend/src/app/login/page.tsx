@@ -12,7 +12,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
+import logoWhite from "@/assets/brand/bai_logo_white.png";
 import {
   Lock,
   Mail,
@@ -23,10 +25,7 @@ import {
   CheckCircle2,
   FileText,
   UserCheck,
-  KeyRound,
-  Timer,
   RotateCcw,
-  Inbox,
   X,
   ArrowRight,
 } from "lucide-react";
@@ -297,9 +296,10 @@ export default function ClientLoginPage() {
           {/* Logo / Header */}
           <div className="flex items-center gap-3 relative z-10">
             <Link href="/" className="inline-block hover:opacity-90 transition-opacity">
-              <img
-                src="/bai_logo_white.png"
+              <Image
+                src={logoWhite}
                 alt="BAI Group of Companies"
+                priority
                 className="h-10 md:h-11 w-auto object-contain"
               />
             </Link>
@@ -412,8 +412,9 @@ export default function ClientLoginPage() {
                     required
                     placeholder="Enter your registered email address"
                     value={email}
+                    disabled={isLoading}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:outline-none focus:border-[#0024A8]/40 focus:ring-2 focus:ring-[#0024A8]/10 rounded-xl text-slate-700 font-medium block transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:outline-none focus:border-[#0024A8]/40 focus:ring-2 focus:ring-[#0024A8]/10 rounded-xl text-slate-700 font-medium block transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -430,8 +431,9 @@ export default function ClientLoginPage() {
                     required
                     placeholder="Enter your secure password"
                     value={password}
+                    disabled={isLoading}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:outline-none focus:border-[#0024A8]/40 focus:ring-2 focus:ring-[#0024A8]/10 rounded-xl text-slate-700 font-medium block transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:outline-none focus:border-[#0024A8]/40 focus:ring-2 focus:ring-[#0024A8]/10 rounded-xl text-slate-700 font-medium block transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>

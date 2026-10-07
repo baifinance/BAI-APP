@@ -10,8 +10,8 @@
  */
 
 import React, { useState } from "react";
-import { ClipboardList, Clock, AlertTriangle, CheckCircle, ArrowRight, Calendar, UserPlus, Percent, Bell, CalendarClock, ChevronDown, ArrowUpRight, ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
-import { Client } from "../types";
+import { ClipboardList, Clock, AlertTriangle, CheckCircle, ArrowUpRight, ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
+import { Client } from "../MockData";
 import ClientApplicationDashboard from "../applications/ClientApplicationDashboard";
 import { useBroker } from "../BrokerContext";
 import Link from "next/link";

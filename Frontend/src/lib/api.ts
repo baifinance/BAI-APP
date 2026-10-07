@@ -244,7 +244,7 @@ export interface StreamPush {
 }
 
 export function subscribeToNotificationStream(
-  onPush: (push: StreamPush) => void
+  onPush: (push: StreamPush, event: string) => void
 ): () => void {
   let cancelled = false;
   let controller: AbortController | null = null;
@@ -278,8 +278,10 @@ export function subscribeToNotificationStream(
           buffer = buffer.slice(separator + 2);
 
           let data = "";
+          let event = "message";
           for (const line of frame.split("\n")) {
-            if (line.startsWith("data:")) data += line.slice(5).trimStart();
+            if (line.startsWith("event:")) event = line.slice(6).trim();
+            else if (line.startsWith("data:")) data += line.slice(5).trimStart();
           }
           if (data) {
             let payload: StreamPush = {};
@@ -288,7 +290,7 @@ export function subscribeToNotificationStream(
             } catch {
               // Non-JSON frames are ignored; nothing to push.
             }
-            onPush(payload);
+            onPush(payload, event);
           }
         }
       }

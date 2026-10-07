@@ -15,7 +15,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Calendar } from "lucide-react";
+import logoWhite from "@/assets/brand/bai_logo_white.png";
+import logoBlue from "@/assets/brand/bai_logo_blue.png";
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -48,9 +51,10 @@ export default function Header() {
           
           {/* LOGO & BRANDING BLOCK */}
           <Link href="/" className="flex items-center group py-1">
-            <img
-              src={isScrolled ? "/bai_logo_white.png" : "/bai_logo_blue.png"}
+            <Image
+              src={isScrolled ? logoWhite : logoBlue}
               alt="BAI Group of Companies"
+              priority
               className="h-8 sm:h-9 w-auto object-contain transition-all duration-300"
             />
           </Link>

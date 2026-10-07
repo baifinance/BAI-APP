@@ -52,8 +52,6 @@ function TimeText({ createdAt, fallback }: { createdAt?: string; fallback?: stri
 
 export default function NotificationsTab({
   notifications,
-  variant = "broker",
-  unreadCount = 0,
   onMarkRead,
   onMarkAllRead,
   onOpen,
@@ -239,7 +237,7 @@ export default function NotificationsTab({
                     {/* Notification Title / Text */}
                     <div className="min-w-0 flex-1">
                       <p
-                        className={`text-sm leading-snug truncate ${
+                        className={`text-sm leading-snug line-clamp-2 ${
                           unread
                             ? "font-extrabold text-slate-900"
                             : "font-semibold text-slate-700"
@@ -248,7 +246,7 @@ export default function NotificationsTab({
                         {notif.title || notif.message}
                       </p>
                       {notif.title && notif.message && notif.title !== notif.message && (
-                        <p className="text-xs text-slate-400 truncate mt-0.5 font-normal">
+                        <p className="text-xs text-slate-400 line-clamp-2 mt-0.5 font-normal">
                           {notif.message}
                         </p>
                       )}

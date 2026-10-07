@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
-import { useClient } from "@/app/client/ClientContext";
+import { useClientNotifications } from "@/app/client/ClientContext";
 import NotificationTypeIcon, { notificationTone } from "./NotificationTypeIcon";
 import { useTimeAgo } from "@/lib/time";
 
@@ -37,7 +37,7 @@ function ToastItem({
   return (
     <div
       role="status"
-      className="w-80 bg-white border border-slate-200/80 rounded-2xl shadow-2xl p-4 flex items-start gap-3 cursor-pointer hover:shadow-xl hover:-translate-y-0.5 transition-all animate-fadeIn"
+      className="w-[calc(100vw-2rem)] max-w-sm bg-white border border-slate-200/80 rounded-2xl shadow-2xl p-4 flex items-start gap-3 cursor-pointer hover:shadow-xl hover:-translate-y-0.5 transition-all animate-fadeIn"
       onClick={() => {
         onMarkRead(id);
         onOpen(id);
@@ -70,7 +70,7 @@ function ToastItem({
 }
 
 export default function NotificationToasts() {
-  const { toasts, dismissToast, markNotificationRead } = useClient();
+  const { toasts, dismissToast, markNotificationRead } = useClientNotifications();
   const router = useRouter();
 
   const handleOpen = (id: string) => {
@@ -83,7 +83,7 @@ export default function NotificationToasts() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-3">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[100] flex flex-col gap-3">
       {toasts.map((t) => (
         <ToastItem
           key={t.id}

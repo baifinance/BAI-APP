@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import { BrokerProvider } from "./BrokerContext";
 import { usePathname } from "next/navigation";
-import { Bell, LogOut, ChevronDown } from "lucide-react";
+import { Bell, LogOut } from "lucide-react";
 import Link from "next/link";
 import { API_BASE } from "@/lib/api";
 

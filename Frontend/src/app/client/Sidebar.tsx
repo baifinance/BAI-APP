@@ -13,6 +13,9 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { createPortal } from "react-dom";
+import logoWhite from "@/assets/brand/bai_logo_white.png";
 import {
   User,
   Landmark,
@@ -25,8 +28,7 @@ import {
   Settings,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useClient } from "./ClientContext";
-import { API_BASE } from "@/lib/api";
+import { useClientData, useClientNotifications } from "./ClientContext";
 
 export type ClientTabType =
   | "Profile"
@@ -42,10 +44,15 @@ interface SidebarProps {
   clientName?: string;
   isCollapsed: boolean;
   onToggle: () => void;
+  isMobileOpen?: boolean;
+  onClose?: () => void;
 }
 
-export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }: SidebarProps) {
-  const { client, unreadCount } = useClient();
+export default function Sidebar({ activeTab, clientName, isCollapsed: isCollapsedProp, onToggle, isMobileOpen = false, onClose }: SidebarProps) {
+  // Collapse only applies to the desktop rail; the mobile drawer always shows full labels.
+  const isCollapsed = isCollapsedProp && !isMobileOpen;
+  const { client } = useClientData();
+  const { unreadCount } = useClientNotifications();
 
   const menuItems = [
     { id: "Profile" as ClientTabType, label: "Profile", icon: User, href: "/client/profile" },
@@ -57,7 +64,7 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
 
   const handleLogout = async () => {
     try {
-      await fetch(API_BASE + "/api/auth/logout/", {
+      await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") + "/api/auth/logout/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -71,19 +78,30 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
     window.location.href = "/";
   };
 
-  const displayName = client?.name || clientName || "Emma Wilson";
-  const displayEmail = client?.email || `${displayName.toLowerCase().replace(/\s+/g, ".")}@email.com`;
+  const displayName = client?.name || clientName || "Client";
+  const displayEmail = client?.email || "";
   const initials = displayName
     ? displayName.split(" ").filter(Boolean).map((w) => w[0]).join("").toUpperCase().slice(0, 2)
-    : "EW";
+    : "CL";
 
   const pathname = usePathname();
   const isSettingsActive = pathname?.startsWith("/client/profile/settings");
 
+  // Collapsed-mode hover tooltip rendered via portal (outside the nav scroll container)
+  const [tip, setTip] = React.useState<{ x: number; y: number; label: string } | null>(null);
+
+  const showTip = (label: string, el: HTMLElement) => {
+    if (!isCollapsed) return;
+    const rect = el.getBoundingClientRect();
+    setTip({ x: rect.right + 10, y: rect.top + rect.height / 2, label });
+  };
+
+  const hideTip = () => setTip(null);
+
   return (
     <aside
-      className={`sticky top-0 h-screen bg-[#0A2881] text-white border-r border-[#001D85] flex flex-col shrink-0 transition-all duration-300 ease-in-out z-40 select-none shadow-xl ${isCollapsed ? "w-16" : "w-64"
-        }`}
+      className={`fixed inset-y-0 left-0 z-50 h-full w-64 bg-[#0A2881] text-white border-r border-[#001D85] flex flex-col shrink-0 transition-all duration-300 ease-in-out select-none shadow-xl lg:sticky lg:top-0 lg:h-screen lg:z-40 lg:translate-x-0 ${isMobileOpen ? "translate-x-0" : "-translate-x-full"
+        } ${isCollapsed ? "lg:w-16" : "lg:w-64"}`}
     >
       {/* ------------------------------------------------------------------ */}
       {/* Brand Header                                                       */}
@@ -94,16 +112,16 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
       >
         {isCollapsed ? (
           <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-start shrink-0" title="BAI Group of Companies">
-            <img
-              src="/bai_logo_white.png"
+            <Image
+              src={logoWhite}
               alt="BAI"
               className="h-8 w-auto max-w-none object-left"
             />
           </div>
         ) : (
           <div className="flex flex-col gap-0.5 min-w-0">
-            <img
-              src="/bai_logo_white.png"
+            <Image
+              src={logoWhite}
               alt="BAI Group of Companies"
               className="h-8 w-auto object-contain"
             />
@@ -117,16 +135,24 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
       {/* ------------------------------------------------------------------ */}
       {/* Navigation Menu                                                    */}
       {/* ------------------------------------------------------------------ */}
-      <nav className="flex-1 py-4 space-y-1.5 px-2 overflow-y-auto">
+      <nav className="flex-1 py-4 space-y-1.5 px-2 overflow-y-auto overflow-x-clip" onScroll={hideTip}>
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
 
           return (
-            <div key={item.id} className="relative group">
+            <div
+              key={item.id}
+              className="relative group"
+              onMouseEnter={(e) => showTip(item.label, e.currentTarget)}
+              onMouseLeave={hideTip}
+              onFocus={(e) => showTip(item.label, e.currentTarget)}
+              onBlur={hideTip}
+            >
               <Link
                 href={item.href}
-                className={`w-full flex items-center gap-3.5 px-3 py-3 rounded-xl text-left text-sm font-extrabold transition-all relative ${isCollapsed ? "justify-center" : ""
+                onClick={onClose}
+                className={`w-full flex items-center gap-3.5 px-3 py-3 rounded-xl text-left text-sm font-extrabold transition-all relative ${isCollapsed ? "lg:justify-center" : ""
                   } ${isActive
                     ? "bg-[#E4BA37] text-[#0A2881] shadow-lg shadow-[#E4BA37]/20"
                     : "text-white/85 hover:text-white hover:bg-white/10"
@@ -152,15 +178,6 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
                   </span>
                 )}
               </Link>
-
-              {/* Tooltip — visible in collapsed mode on hover */}
-              {isCollapsed && (
-                <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-[#001859] text-white text-xs font-bold rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 z-50 shadow-xl border border-white/10">
-                  {item.label}
-                  {/* Tooltip arrow */}
-                  <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#001859]" />
-                </div>
-              )}
             </div>
           );
         })}
@@ -262,7 +279,7 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
       <button
         type="button"
         onClick={onToggle}
-        className="absolute top-0 bottom-0 -right-5 w-5 z-30 flex items-center justify-center bg-[#071E63] hover:bg-[#E4BA37] text-white/70 hover:text-[#0A2881] border-r border-[#001D85] transition-all cursor-pointer group focus:outline-none rounded-none shadow-2xs"
+        className="absolute top-0 bottom-0 -right-5 w-5 z-30 hidden lg:flex items-center justify-center bg-[#071E63] hover:bg-[#E4BA37] text-white/70 hover:text-[#0A2881] border-r border-[#001D85] transition-all cursor-pointer group focus:outline-none rounded-none shadow-2xs"
         title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
@@ -274,6 +291,21 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
           )}
         </div>
       </button>
+
+      {/* Portaled collapsed-mode hover tooltip (rendered on document.body so it
+          stays out of the nav scroll container — no horizontal scrollbar) */}
+      {isCollapsed && tip && typeof document !== "undefined" &&
+        createPortal(
+          <div
+            role="tooltip"
+            style={{ left: tip.x, top: tip.y }}
+            className="fixed z-[100] -translate-y-1/2 pointer-events-none px-2.5 py-1.5 bg-[#001859] text-white text-xs font-bold rounded-lg whitespace-nowrap shadow-xl border border-white/10 animate-fadeIn"
+          >
+            {tip.label}
+            <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#001859]" />
+          </div>,
+          document.body
+        )}
     </aside>
   );
 }

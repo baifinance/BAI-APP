@@ -8,9 +8,9 @@
  */
 
 import React, { useState, useEffect, useMemo } from "react";
+import Image from "next/image";
 import {
   Calculator,
-  DollarSign,
   Calendar,
   Info,
   Printer,
@@ -18,7 +18,7 @@ import {
   Eye,
   X,
 } from "lucide-react";
-import Image from "next/image";
+import calcIllustration from "@/assets/brand/calculator_illustration.jpg";
 
 type CalcTab = "Repayments" | "Borrowing" | "InterestOnly";
 
@@ -222,7 +222,7 @@ function LoanBalanceChart({
           {yTicks.map((val, idx) => {
             const y = getY(val);
             return (
-              <g key={val}>
+              <g key={idx}>
                 <line
                   x1={padLeft}
                   y1={y}
@@ -296,10 +296,10 @@ function LoanBalanceChart({
           />
 
           {/* X Axis Ticks & Labels */}
-          {xTicks.map((yr) => {
+          {xTicks.map((yr, idx) => {
             const x = getX(yr);
             return (
-              <g key={yr}>
+              <g key={idx}>
                 <line
                   x1={x}
                   y1={padTop + chartH}
@@ -336,7 +336,7 @@ function LoanBalanceChart({
             const w = chartW / loanTerm;
             return (
               <rect
-                key={pt.year}
+                key={idx}
                 x={x - w / 2}
                 y={padTop}
                 width={w}
@@ -460,7 +460,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
   // CALCULATOR 2: BORROWING POWER STATE
   // ------------------------------------------------------------------------------
   const [annualIncome, setAnnualIncome] = useState(120000);
-  const [otherIncome, setOtherIncome] = useState(10000);
+  const [otherIncome] = useState(10000);
   const [monthlyExpenses, setMonthlyExpenses] = useState(2500);
   const [monthlyLoans, setMonthlyLoans] = useState(500);
   const [creditCardLimit, setCreditCardLimit] = useState(10000);
@@ -469,6 +469,8 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
   const [borrowFirstPaymentDate, setBorrowFirstPaymentDate] = useState("2026-09-01");
 
   // Outputs
+  const [borrowingPower, setBorrowingPower] = useState(0);
+  const [maxMonthlyAffordable, setMaxMonthlyAffordable] = useState(0);
 
   // ------------------------------------------------------------------------------
   // CALCULATOR 3: INTEREST ONLY STATE
@@ -479,6 +481,11 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
   const [ioTerm, setIoTerm] = useState(5);
   const [ioFirstPaymentDate, setIoFirstPaymentDate] = useState("2026-09-01");
 
+  // Outputs
+  const [ioMonthlyRepayment, setIoMonthlyRepayment] = useState(0);
+  const [postIoMonthlyRepayment, setPostIoMonthlyRepayment] = useState(0);
+  const [ioTotalInterest, setIoTotalInterest] = useState(0);
+  const [ioTotalCost, setIoTotalCost] = useState(0);
 
   // ------------------------------------------------------------------------------
   // EFFECTS FOR CALCULATIONS
@@ -508,43 +515,71 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
     setTotalCostOfLoan(Math.round(totalPaid));
   }, [loanAmount, interestRate, loanTerm]);
 
-  const { borrowingPower, maxMonthlyAffordable } = useMemo(() => {
+  // 2. Calculate Borrowing Power
+  useEffect(() => {
+    // Serviceability buffer is standard 3% added to the base rate
     const bufferRate = (borrowInterestRate + 3) / 100;
     const r = bufferRate / 12;
-    const n = 30 * 12;
+    const n = 30 * 12; // Standard 30 year term assumed
+
+    // Approximate net monthly income after tax (assuming ~25% average tax rate)
     const totalAnnualGross = annualIncome + otherIncome;
     const netMonthlyIncome = (totalAnnualGross * 0.75) / 12;
+
+    // CC monthly commitment is estimated at 3% of limit
     const ccCommitment = creditCardLimit * 0.03;
+    
+    // Dependent buffer cost
     const dependentCost = dependents * 250;
+
     const totalMonthlyCommitments = monthlyExpenses + monthlyLoans + ccCommitment + dependentCost;
     const monthlySurplus = netMonthlyIncome - totalMonthlyCommitments;
+
     if (monthlySurplus <= 0 || r === 0) {
-      return { borrowingPower: 0, maxMonthlyAffordable: 0 };
+      setBorrowingPower(0);
+      setMaxMonthlyAffordable(0);
+      return;
     }
+
+    // Banks qualify based on roughly 75% of surplus for loan repayments
     const maxAffordablePayment = monthlySurplus * 0.75;
     const maxLoan = (maxAffordablePayment * (Math.pow(1 + r, n) - 1)) / (r * Math.pow(1 + r, n));
-    return { borrowingPower: Math.round(maxLoan), maxMonthlyAffordable: Math.round(maxAffordablePayment) };
+
+    setBorrowingPower(Math.round(maxLoan));
+    setMaxMonthlyAffordable(Math.round(maxAffordablePayment));
   }, [annualIncome, otherIncome, monthlyExpenses, monthlyLoans, creditCardLimit, dependents, borrowInterestRate]);
 
-  const { ioMonthlyRepayment, postIoMonthlyRepayment, ioTotalInterest, ioTotalCost } = useMemo(() => {
+  // 3. Calculate Interest Only Repayments
+  useEffect(() => {
     const P = ioLoanAmount;
     const annualR = ioInterestRate / 100;
     const r = annualR / 12;
+    
+    // Interest Only Period (months)
     const ioMonths = ioTerm * 12;
+    // Remaining P&I Period (months)
     const piMonths = (ioTotalTerm - ioTerm) * 12;
-    if (piMonths <= 0) {
-      return { ioMonthlyRepayment: 0, postIoMonthlyRepayment: 0, ioTotalInterest: 0, ioTotalCost: P };
-    }
+
+    if (piMonths <= 0) return;
+
+    // Monthly repayment during IO
     const monthlyIo = P * r;
-    const monthlyPi = r === 0 ? P / piMonths : (P * r * Math.pow(1 + r, piMonths)) / (Math.pow(1 + r, piMonths) - 1);
+
+    // Monthly repayment during remaining P&I
+    let monthlyPi = 0;
+    if (r === 0) {
+      monthlyPi = P / piMonths;
+    } else {
+      monthlyPi = (P * r * Math.pow(1 + r, piMonths)) / (Math.pow(1 + r, piMonths) - 1);
+    }
+
     const totalInterest = (monthlyIo * ioMonths) + (monthlyPi * piMonths) - P;
     const totalCost = P + totalInterest;
-    return {
-      ioMonthlyRepayment: Math.round(monthlyIo),
-      postIoMonthlyRepayment: Math.round(monthlyPi),
-      ioTotalInterest: Math.round(totalInterest),
-      ioTotalCost: Math.round(totalCost),
-    };
+
+    setIoMonthlyRepayment(Math.round(monthlyIo));
+    setPostIoMonthlyRepayment(Math.round(monthlyPi));
+    setIoTotalInterest(Math.round(totalInterest));
+    setIoTotalCost(Math.round(totalCost));
   }, [ioLoanAmount, ioInterestRate, ioTotalTerm, ioTerm]);
 
   // ------------------------------------------------------------------------------
@@ -614,9 +649,9 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
         </div>
 
         {/* Page Content Container */}
-        <div className="w-full max-w-[88rem] mx-auto px-4 sm:px-6 md:px-8 pt-8 space-y-8">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 pt-8 space-y-8">
           {/* 2-Container Layout (Top Section) */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
           {/* Left Container: Calculator */}
           <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-2xl shadow-soft-xl overflow-hidden flex flex-col justify-between">
             {/* Full-width Blue Header with #E4BA37 Text */}
@@ -630,7 +665,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
             </div>
 
             {/* Inner Body with Inputs & Actions */}
-            <div className="p-7 sm:p-10 flex flex-col justify-between space-y-6 flex-1">
+            <div className="p-6 sm:p-8 flex flex-col justify-between space-y-6 flex-1">
               <div className="space-y-6">
                 {/* Field 1: Loan Amount */}
                 <div>
@@ -648,7 +683,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                       placeholder="e.g. 400000.00"
                       value={clientLoanAmount}
                       onChange={(e) => setClientLoanAmount(e.target.value)}
-                      className="w-full pl-14 pr-4 py-4 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 text-sm sm:text-base font-extrabold text-slate-800"
+                      className="w-full pl-14 pr-4 py-3 bg-white focus:outline-none text-xs sm:text-sm font-extrabold text-slate-800"
                     />
                   </div>
                 </div>
@@ -666,7 +701,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                       placeholder="e.g. 6.00"
                       value={clientInterestRate}
                       onChange={(e) => setClientInterestRate(e.target.value)}
-                      className="w-full pl-4 pr-14 py-4 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 text-sm sm:text-base font-extrabold text-slate-800"
+                      className="w-full pl-4 pr-14 py-3 bg-white focus:outline-none text-xs sm:text-sm font-extrabold text-slate-800"
                     />
                     <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none bg-slate-50 border-l border-slate-200 px-3">
                       <span className="text-xs font-bold text-slate-600">%</span>
@@ -683,7 +718,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                     <select
                       value={clientLoanTerm}
                       onChange={(e) => setClientLoanTerm(Number(e.target.value))}
-                      className="w-full px-4 py-4 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 text-sm sm:text-base font-extrabold text-slate-800 cursor-pointer"
+                      className="w-full px-4 py-3 bg-white focus:outline-none text-xs sm:text-sm font-extrabold text-slate-800 cursor-pointer"
                     >
                       {Array.from({ length: 30 }, (_, i) => i + 1).map((yr) => (
                         <option key={yr} value={yr}>
@@ -720,15 +755,14 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           </div>
 
           {/* Right Container: Visual */}
-          <div className="md:col-span-6 md:sticky md:top-6 self-start bg-slate-50 border border-slate-200/80 rounded-2xl p-7 sm:p-10 shadow-inner flex flex-col justify-between md:min-h-[560px]">
+          <div className="md:col-span-6 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-inner flex flex-col justify-between min-h-[460px]">
             <div className="h-full flex flex-col justify-between items-center text-center">
               <div className="w-full flex-1 flex items-center justify-center p-4">
                 <Image
-                  src="/calculator_illustration.jpg"
+                  src={calcIllustration}
                   alt="Ready to calculate visual"
-                  width={640}
-                  height={480}
-                  className="w-full max-w-xs md:max-w-sm max-h-72 object-contain rounded-2xl shadow-xs"
+                  sizes="(max-width: 768px) 100vw, 24rem"
+                  className="w-full max-w-xs md:max-w-sm h-full max-h-72 object-contain rounded-2xl shadow-xs"
                 />
               </div>
 
@@ -744,7 +778,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           </div>
         </div>
 
-        {/* Bottom Container: Calculation Results & Loan Balance Chart (inside max-w-[88rem] with space-y-8 spacing) */}
+        {/* Bottom Container: Calculation Results & Loan Balance Chart (inside max-w-7xl with space-y-8 spacing) */}
         <div className="bg-white border border-slate-200/80 rounded-2xl shadow-soft-xl overflow-hidden">
           {/* Full-width Blue Header with #E4BA37 Text and 'Calculation Results' only */}
           <div className="bg-[#0A2881] px-6 py-4 flex items-center justify-between shrink-0">
@@ -764,11 +798,11 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           </div>
 
           {/* Body Content */}
-          <div className="p-7 sm:p-10">
+          <div className="p-6 sm:p-8">
 
           {!isCalculatedClient ? (
-            <div className="py-16 flex flex-col items-center justify-center text-center space-y-2">
-              <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-2">
+            <div className="py-12 flex flex-col items-center justify-center text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-2">
                 <Info className="w-6 h-6" />
               </div>
               <p className="text-sm font-bold text-slate-600">
@@ -788,19 +822,19 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                     Input Details
                   </h4>
                   <ul className="space-y-3">
-                    <li className="flex justify-between items-center py-3 px-5 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
+                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
                       <span className="font-semibold text-slate-600">Loan Amount</span>
                       <span className="font-extrabold text-slate-900">
                         ${numLoanAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </li>
-                    <li className="flex justify-between items-center py-3 px-5 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
+                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
                       <span className="font-semibold text-slate-600">Interest Rate</span>
                       <span className="font-extrabold text-slate-900">
                         {numInterestRate}%
                       </span>
                     </li>
-                    <li className="flex justify-between items-center py-3 px-5 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
+                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
                       <span className="font-semibold text-slate-600">Loan Term</span>
                       <span className="font-extrabold text-slate-900">
                         {clientLoanTerm} {clientLoanTerm === 1 ? "year" : "years"}
@@ -818,19 +852,19 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                     Repayment Results
                   </h4>
                   <ul className="space-y-3">
-                    <li className="flex justify-between items-center py-3.5 px-5 rounded-xl bg-blue-50/70 border border-blue-200/50 text-xs sm:text-sm">
+                    <li className="flex justify-between items-center py-3 px-4 rounded-xl bg-blue-50/70 border border-blue-200/50 text-xs sm:text-sm">
                       <span className="font-bold text-[#0024A8]">Monthly Repayments</span>
                       <span className="text-base sm:text-lg font-black text-[#0024A8]">
-                        ${monthlyRepayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<span className="text-xs font-bold text-slate-400"> /month</span>
+                        ${monthlyRepayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </li>
-                    <li className="flex justify-between items-center py-3 px-5 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
+                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
                       <span className="font-semibold text-slate-600">Total Payments</span>
                       <span className="font-extrabold text-slate-900">
                         ${Math.round(totalCostOfLoan).toLocaleString()}
                       </span>
                     </li>
-                    <li className="flex justify-between items-center py-3 px-5 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
+                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
                       <span className="font-semibold text-slate-600">Total Interest</span>
                       <span className="font-extrabold text-slate-900">
                         ${Math.round(totalInterestPaid).toLocaleString()}
@@ -966,9 +1000,9 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
       {/* TAB 1: LOAN REPAYMENTS                                               */}
       {/* ==================================================================== */}
       {activeTab === "Repayments" && (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
           {/* Left panel: Loan Details input (styled matching screenshot 3) */}
-          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-3xl p-7 sm:p-10 shadow-soft-xl flex flex-col justify-between">
+          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-soft-xl flex flex-col justify-between">
             <div className="space-y-6">
               <h3 className={`text-base font-extrabold border-b border-slate-50 pb-2 ${primaryText}`}>
                 Loan Details
@@ -976,7 +1010,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
 
               {/* Loan Amount Input (A$ prefix) */}
               <div>
-                <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+                <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Loan Amount
                 </label>
                 <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200">
@@ -987,14 +1021,14 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                     type="number"
                     value={loanAmount}
                     onChange={(e) => setLoanAmount(Number(e.target.value))}
-                    className="w-full pl-14 pr-4 py-4.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 focus:bg-slate-50/50 text-sm font-extrabold text-slate-700"
+                    className="w-full pl-14 pr-4 py-2.5 bg-white focus:outline-none focus:bg-slate-50/50 text-xs font-extrabold text-slate-700"
                   />
                 </div>
               </div>
 
               {/* Interest Rate (per year) (% suffix) */}
               <div>
-                <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+                <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Interest Rate (per year)
                 </label>
                 <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200">
@@ -1003,7 +1037,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                     step="0.01"
                     value={interestRate}
                     onChange={(e) => setInterestRate(Number(e.target.value))}
-                    className="w-full pl-4 pr-14 py-4.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 focus:bg-slate-50/50 text-sm font-bold text-slate-700"
+                    className="w-full pl-4 pr-14 py-2.5 bg-white focus:outline-none focus:bg-slate-50/50 text-xs font-bold text-slate-700"
                   />
                   <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none bg-slate-50 border-l border-slate-200/80 px-3">
                     <span className="text-xs font-bold text-slate-500">%</span>
@@ -1013,7 +1047,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
 
               {/* Loan Term Input (Represented as numbers instead of dropdown) */}
               <div>
-                <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+                <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Loan Term (Years)
                 </label>
                 <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200">
@@ -1021,7 +1055,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                     type="number"
                     value={loanTerm}
                     onChange={(e) => setLoanTerm(Number(e.target.value))}
-                    className="w-full pl-4 pr-16 py-3.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 focus:bg-slate-50/50 text-sm font-bold text-slate-700"
+                    className="w-full pl-4 pr-16 py-2.5 bg-white focus:outline-none focus:bg-slate-50/50 text-xs font-bold text-slate-700"
                   />
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none bg-slate-50 border-l border-slate-200/80 px-3">
                     <span className="text-[10px] font-bold text-slate-400 uppercase">years</span>
@@ -1031,7 +1065,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
 
               {/* First Repayment Date (Input as requested instead of selected) */}
               <div>
-                <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+                <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   First Repayment Date
                 </label>
                 <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200">
@@ -1042,7 +1076,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                     type="date"
                     value={firstPaymentDate}
                     onChange={(e) => setFirstPaymentDate(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 focus:bg-slate-50/50 text-sm font-bold text-slate-700"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white focus:outline-none focus:bg-slate-50/50 text-xs font-bold text-slate-700"
                   />
                 </div>
               </div>
@@ -1063,7 +1097,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           </div>
 
           {/* Right panel: Estimated Repayments (styled matching screenshot 3) */}
-          <div className="md:col-span-6 md:sticky md:top-6 self-start bg-slate-50 border border-slate-200/80 rounded-3xl p-7 sm:p-10 shadow-inner flex flex-col justify-between">
+          <div className="md:col-span-6 bg-slate-50 border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-inner flex flex-col justify-between">
             <div className="space-y-6">
               <div>
                 <h3 className={`text-base font-extrabold ${primaryText}`}>Estimated Repayments</h3>
@@ -1075,11 +1109,11 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
               {/* Monthly Repayment Box */}
               <div className="bg-white border border-slate-200/60 rounded-3xl p-6 text-center shadow-soft-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50/30 rounded-full blur-xl pointer-events-none" />
-                <span className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+                <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Monthly Repayment
                 </span>
                 <span className={`text-4xl sm:text-5xl font-black tracking-tight block ${primaryText}`}>
-                  ${monthlyRepayment.toLocaleString()}<span className="text-xs font-bold text-slate-400"> /month</span>
+                  ${monthlyRepayment.toLocaleString()}
                 </span>
               </div>
 
@@ -1101,7 +1135,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                 Total Cost of Loan
               </span>
-              <span className={`text-3xl font-black tracking-tight ${primaryText}`}>
+              <span className={`text-2xl font-black tracking-tight ${primaryText}`}>
                 ${totalCostOfLoan.toLocaleString()}
               </span>
             </div>
@@ -1113,16 +1147,16 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
       {/* TAB 2: BORROWING POWER                                               */}
       {/* ==================================================================== */}
       {activeTab === "Borrowing" && (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
           {/* Left panel: Financial Inputs */}
-          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-3xl p-7 sm:p-10 shadow-soft-xl space-y-6">
+          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-soft-xl space-y-6">
             <h3 className={`text-base font-extrabold border-b border-slate-50 pb-2 ${primaryText}`}>
               Financial Circumstances
             </h3>
 
             {/* Annual Income */}
             <div>
-              <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+              <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                 Annual Salary (Before Tax)
               </label>
               <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200">
@@ -1133,7 +1167,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                   type="number"
                   value={annualIncome}
                   onChange={(e) => setAnnualIncome(Number(e.target.value))}
-                  className="w-full pl-14 pr-4 py-4.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 focus:bg-slate-50/50 text-sm font-extrabold text-slate-700"
+                  className="w-full pl-14 pr-4 py-2.5 bg-white focus:outline-none focus:bg-slate-50/50 text-xs font-extrabold text-slate-700"
                 />
               </div>
             </div>
@@ -1141,7 +1175,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
             {/* Expenses & Commitments */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+                <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Monthly Expenses
                 </label>
                 <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200">
@@ -1149,13 +1183,13 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                     type="number"
                     value={monthlyExpenses}
                     onChange={(e) => setMonthlyExpenses(Number(e.target.value))}
-                    className="w-full pl-3 pr-3 py-3.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 focus:bg-slate-50/50 text-sm font-extrabold text-slate-700"
+                    className="w-full pl-3 pr-3 py-2.5 bg-white focus:outline-none focus:bg-slate-50/50 text-xs font-extrabold text-slate-700"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+                <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Other Monthly Loans
                 </label>
                 <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200">
@@ -1163,7 +1197,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                     type="number"
                     value={monthlyLoans}
                     onChange={(e) => setMonthlyLoans(Number(e.target.value))}
-                    className="w-full pl-3 pr-3 py-3.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 focus:bg-slate-50/50 text-sm font-extrabold text-slate-700"
+                    className="w-full pl-3 pr-3 py-2.5 bg-white focus:outline-none focus:bg-slate-50/50 text-xs font-extrabold text-slate-700"
                   />
                 </div>
               </div>
@@ -1172,7 +1206,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
             {/* Credit Limits & Dependents */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+                <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Credit Card Limits
                 </label>
                 <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200">
@@ -1180,13 +1214,13 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                     type="number"
                     value={creditCardLimit}
                     onChange={(e) => setCreditCardLimit(Number(e.target.value))}
-                    className="w-full pl-3 pr-3 py-3.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 focus:bg-slate-50/50 text-sm font-extrabold text-slate-700"
+                    className="w-full pl-3 pr-3 py-2.5 bg-white focus:outline-none focus:bg-slate-50/50 text-xs font-extrabold text-slate-700"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+                <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Dependents
                 </label>
                 <input
@@ -1194,7 +1228,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                   min="0"
                   value={dependents}
                   onChange={(e) => setDependents(Number(e.target.value))}
-                  className="w-full px-3.5 py-3.5 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 focus:bg-slate-50/50 text-sm font-extrabold text-slate-700"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:bg-slate-50/50 text-xs font-extrabold text-slate-700"
                 />
               </div>
             </div>
@@ -1202,7 +1236,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
             {/* Base Interest Rate & Date inputs */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+                <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Assumed Rate
                 </label>
                 <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200">
@@ -1211,7 +1245,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                     step="0.01"
                     value={borrowInterestRate}
                     onChange={(e) => setBorrowInterestRate(Number(e.target.value))}
-                    className="w-full pl-3 pr-10 py-3.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 text-sm font-bold text-slate-700"
+                    className="w-full pl-3 pr-10 py-2.5 bg-white focus:outline-none text-xs font-bold text-slate-700"
                   />
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none bg-slate-50 border-l border-slate-200/80 px-2.5">
                     <span className="text-[10px] font-bold text-slate-500">%</span>
@@ -1220,21 +1254,21 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
               </div>
 
               <div>
-                <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+                <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Start Date
                 </label>
                 <input
                   type="date"
                   value={borrowFirstPaymentDate}
                   onChange={(e) => setBorrowFirstPaymentDate(e.target.value)}
-                  className="w-full px-3.5 py-3.5 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 text-sm font-bold text-slate-700"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none text-xs font-bold text-slate-700"
                 />
               </div>
             </div>
           </div>
 
           {/* Right panel: Estimated Borrowing Capacity */}
-          <div className="md:col-span-6 md:sticky md:top-6 self-start bg-slate-50 border border-slate-200/80 rounded-3xl p-7 sm:p-10 shadow-inner flex flex-col justify-between">
+          <div className="md:col-span-6 bg-slate-50 border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-inner flex flex-col justify-between">
             <div className="space-y-6">
               <div>
                 <h3 className={`text-base font-extrabold ${primaryText}`}>Borrowing Capacity</h3>
@@ -1246,10 +1280,10 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
               {/* Borrowing Power Box */}
               <div className="bg-white border border-slate-200/60 rounded-3xl p-6 text-center shadow-soft-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50/30 rounded-full blur-xl pointer-events-none" />
-                <span className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+                <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   ESTIMATED BORROWING UP TO
                 </span>
-                <span className={`text-4xl sm:text-5xl font-black tracking-tight block ${primaryText}`}>
+                <span className={`text-3xl sm:text-4xl font-black tracking-tight block ${primaryText}`}>
                   A$ {borrowingPower.toLocaleString()}
                 </span>
               </div>
@@ -1267,10 +1301,9 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
               </div>
             </div>
 
-            <details className="pt-6 border-t border-slate-200/60 mt-6 text-[10px] text-slate-400 leading-normal">
-              <summary className="cursor-pointer font-bold text-slate-500">Disclaimer</summary>
-              Lending capacity varies by lender scorecard parameters, debt-to-income (DTI) caps, and actual expenses verification.
-            </details>
+            <div className="pt-6 border-t border-slate-200/60 mt-6 text-[10px] text-slate-400 leading-normal">
+              Disclaimer: Lending capacity varies by lender scorecard parameters, debt-to-income (DTI) caps, and actual expenses verification.
+            </div>
           </div>
         </div>
       )}
@@ -1279,16 +1312,16 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
       {/* TAB 3: INTEREST ONLY                                                 */}
       {/* ==================================================================== */}
       {activeTab === "InterestOnly" && (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
           {/* Left panel: Interest Only Details */}
-          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-3xl p-7 sm:p-10 shadow-soft-xl space-y-6">
+          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-soft-xl space-y-6">
             <h3 className={`text-base font-extrabold border-b border-slate-50 pb-2 ${primaryText}`}>
               Interest Only Terms
             </h3>
 
             {/* Loan Amount */}
             <div>
-              <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+              <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                 Loan Amount
               </label>
               <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200">
@@ -1299,14 +1332,14 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                   type="number"
                   value={ioLoanAmount}
                   onChange={(e) => setIoLoanAmount(Number(e.target.value))}
-                  className="w-full pl-14 pr-4 py-4.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 text-sm font-extrabold text-slate-700"
+                  className="w-full pl-14 pr-4 py-2.5 bg-white focus:outline-none text-xs font-extrabold text-slate-700"
                 />
               </div>
             </div>
 
             {/* Interest Rate */}
             <div>
-              <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+              <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                 Interest Rate (per year)
               </label>
               <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200">
@@ -1315,7 +1348,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                   step="0.01"
                   value={ioInterestRate}
                   onChange={(e) => setIoInterestRate(Number(e.target.value))}
-                  className="w-full pl-4 pr-14 py-4.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 text-sm font-bold text-slate-700"
+                  className="w-full pl-4 pr-14 py-2.5 bg-white focus:outline-none text-xs font-bold text-slate-700"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none bg-slate-50 border-l border-slate-200/80 px-3">
                   <span className="text-xs font-bold text-slate-500">%</span>
@@ -1326,7 +1359,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
             {/* Terms grid: total term and IO term */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+                <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Total Term (Years)
                 </label>
                 <div className="relative rounded-xl overflow-hidden border border-slate-200">
@@ -1334,13 +1367,13 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                     type="number"
                     value={ioTotalTerm}
                     onChange={(e) => setIoTotalTerm(Number(e.target.value))}
-                    className="w-full px-3 py-3.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 text-sm font-bold text-slate-700"
+                    className="w-full px-3 py-2.5 bg-white focus:outline-none text-xs font-bold text-slate-700"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+                <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Interest Only Term (Years)
                 </label>
                 <div className="relative rounded-xl overflow-hidden border border-slate-200">
@@ -1348,33 +1381,28 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                     type="number"
                     value={ioTerm}
                     onChange={(e) => setIoTerm(Number(e.target.value))}
-                    className="w-full px-3 py-3.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 text-sm font-bold text-slate-700"
+                    className="w-full px-3 py-2.5 bg-white focus:outline-none text-xs font-bold text-slate-700"
                   />
                 </div>
-                {ioTerm > ioTotalTerm && (
-                  <p className="text-[11px] font-bold text-red-500 mt-1">
-                    Interest-only term cannot exceed the total term.
-                  </p>
-                )}
               </div>
             </div>
 
             {/* First Payment Date (Input) */}
             <div>
-              <label className="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider block mb-1">
+              <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                 First Repayment Date
               </label>
               <input
                 type="date"
                 value={ioFirstPaymentDate}
                 onChange={(e) => setIoFirstPaymentDate(e.target.value)}
-                className="w-full px-3.5 py-3.5 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0A2881]/30 text-sm font-bold text-slate-700"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none text-xs font-bold text-slate-700"
               />
             </div>
           </div>
 
           {/* Right panel: Interest Only Repayments details */}
-          <div className="md:col-span-6 md:sticky md:top-6 self-start bg-slate-50 border border-slate-200/80 rounded-3xl p-7 sm:p-10 shadow-inner flex flex-col justify-between">
+          <div className="md:col-span-6 bg-slate-50 border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-inner flex flex-col justify-between">
             <div className="space-y-6">
               <div>
                 <h3 className={`text-base font-extrabold ${primaryText}`}>Interest Only Repayments</h3>
@@ -1389,14 +1417,14 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                   <span className="text-[10px] font-bold text-slate-400 block mb-0.5">
                     MONTHLY INTEREST-ONLY REPAYMENT ({ioTerm} Years)
                   </span>
-                  <span className={`text-3xl font-black ${primaryText}`}>${ioMonthlyRepayment.toLocaleString()}<span className="text-xs font-bold text-slate-400"> /month</span></span>
+                  <span className={`text-2xl font-black ${primaryText}`}>${ioMonthlyRepayment.toLocaleString()}</span>
                 </div>
 
                 <div className="bg-white border border-slate-200/50 p-5 rounded-2xl text-center shadow-xs">
                   <span className="text-[10px] font-bold text-slate-400 block mb-0.5">
                     MONTHLY P&I REPAYMENT (Remaining {ioTotalTerm - ioTerm} Years)
                   </span>
-                  <span className="text-3xl font-black text-slate-700">${postIoMonthlyRepayment.toLocaleString()}<span className="text-xs font-bold text-slate-400"> /month</span></span>
+                  <span className="text-2xl font-black text-slate-700">${postIoMonthlyRepayment.toLocaleString()}</span>
                 </div>
               </div>
             </div>

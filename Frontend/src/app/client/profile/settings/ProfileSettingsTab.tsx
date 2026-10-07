@@ -17,30 +17,25 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  KeyRound,
-  Timer,
   RotateCcw,
   X,
   Check,
   AlertTriangle,
-  ShieldCheck,
   ShieldAlert,
   Lock,
   Eye,
   EyeOff,
 } from "lucide-react";
-import { Client } from "../../../broker/types";
+import { ClientData } from "../../types";
 import { usersApi, authApi } from "@/lib/api";
 
 interface ProfileSettingsTabProps {
-  client: Client;
-  setClient?: React.Dispatch<React.SetStateAction<Client>>;
+  client: ClientData;
   onLogAction?: (actionText: string) => void;
 }
 
 export default function ProfileSettingsTab({
   client,
-  setClient,
   onLogAction,
 }: ProfileSettingsTabProps) {
   // ------------------------------------------------------------------------------
@@ -393,7 +388,7 @@ export default function ProfileSettingsTab({
           aria-labelledby="enable-2fa-title"
         >
           {/* Modal Container Card */}
-          <div className="bg-white rounded-3xl p-7 sm:p-9 max-w-md w-full shadow-2xl border border-slate-100 relative animate-scaleIn">
+          <div className="bg-white rounded-3xl p-7 sm:p-9 max-w-md w-full shadow-2xl border border-slate-100 relative animate-scaleIn max-h-[90vh] overflow-y-auto">
             
             {/* Modal Close Icon Button */}
             <button
@@ -614,7 +609,7 @@ export default function ProfileSettingsTab({
           aria-labelledby="disable-2fa-title"
         >
           {/* Modal Container Card */}
-          <div className="bg-white rounded-3xl p-7 sm:p-9 max-w-md w-full shadow-2xl border border-slate-100 relative animate-scaleIn">
+          <div className="bg-white rounded-3xl p-7 sm:p-9 max-w-md w-full shadow-2xl border border-slate-100 relative animate-scaleIn max-h-[90vh] overflow-y-auto">
             
             {/* Modal Close Icon Button */}
             <button

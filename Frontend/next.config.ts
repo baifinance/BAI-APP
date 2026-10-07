@@ -18,14 +18,11 @@ const PROD_CSP = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  reactStrictMode: true,
-  compress: true,
-  poweredByHeader: false,
-  images: {
-    remotePatterns: [{ protocol: "https", hostname: "**" }],
-  },
   experimental: {
-    optimizePackageImports: ["lucide-react"],
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
   },
   async headers() {
     return [

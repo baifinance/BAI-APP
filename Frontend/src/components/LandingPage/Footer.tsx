@@ -14,7 +14,9 @@
  */
 
 import Link from "next/link";
+import Image from "next/image";
 import { Calendar, Mail, Phone, MapPin } from "lucide-react";
+import logoWhite from "@/assets/brand/bai_logo_white.png";
 
 export default function Footer() {
   return (
@@ -71,8 +73,8 @@ export default function Footer() {
             <div className="md:col-span-6 space-y-5">
               {/* Logo Emblem */}
               <Link href="/" className="inline-block group">
-                <img
-                  src="/bai_logo_white.png"
+                <Image
+                  src={logoWhite}
                   alt="BAI Group of Companies"
                   className="h-9 sm:h-10 w-auto object-contain"
                 />

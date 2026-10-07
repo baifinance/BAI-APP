@@ -8,8 +8,8 @@
  */
 
 import React, { useState } from "react";
-import { CheckSquare, Check, HelpCircle, XCircle, Info, FileText } from "lucide-react";
-import { SubmittedDocument } from "../types";
+import { Check, HelpCircle, XCircle } from "lucide-react";
+import { SubmittedDocument } from "../MockLoanProcessingData";
 
 interface ReviewTabProps {
   submittedDocs: SubmittedDocument[];
@@ -27,10 +27,6 @@ export default function ReviewTab({ submittedDocs, setSubmittedDocs, onLogAction
 
   // Filter only pending reviews
   const pendingDocs = submittedDocs.filter((doc) => doc.status === "To Be Reviewed");
-
-  // Helper date parsing (current date 2026-08-24)
-  const currentDateStr = "2026-08-24";
-  const currentTimeStr = "11:00 AM";
 
   // ------------------------------------------------------------------------------
   // ACTION HANDLERS

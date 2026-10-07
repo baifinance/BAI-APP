@@ -9,8 +9,8 @@
  */
 
 import React from "react";
-import { ArrowLeft, Check, FileText, X, AlertTriangle, AlertCircle, Calendar, MessageSquare, Info } from "lucide-react";
-import { Client } from "../types";
+import { ArrowLeft, Check, FileText } from "lucide-react";
+import { Client } from "../MockData";
 
 interface ClientApplicationDashboardProps {
   client: Client;
@@ -267,7 +267,7 @@ export default function ClientApplicationDashboard({ client: initialClient, onBa
                       : { type: "-", date: "-", size: "-" };
 
                     return (
-                      <tr key={doc.key ?? doc.name} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                      <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                         <td className="py-3 px-3 text-slate-800 font-bold">{doc.name}</td>
                         <td className="py-3 px-3 relative">
                           <span 
@@ -432,7 +432,7 @@ export default function ClientApplicationDashboard({ client: initialClient, onBa
             <div className="space-y-3">
               {clientNotifications.map((notif, idx) => (
                 <div 
-                  key={notif.message} 
+                  key={idx} 
                   className={`p-3 rounded-2xl border text-[11px] leading-relaxed font-semibold ${
                     notif.type === "alert" 
                       ? "bg-rose-50/50 border-rose-100 text-rose-800"

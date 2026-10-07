@@ -16,7 +16,6 @@ import {
   Filter,
   X,
   FileText,
-  UserCheck,
 } from "lucide-react";
 import { Application, Client } from "../types";
 import ClientApplicationDashboard from "./ClientApplicationDashboard";
@@ -83,7 +82,6 @@ export default function ApplicationsTab({
   clients,
   applications,
   setApplications,
-  onSendEmail,
   variant,
   setClients,
 }: ApplicationsTabProps) {

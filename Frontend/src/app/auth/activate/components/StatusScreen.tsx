@@ -8,8 +8,10 @@
  */
 
 import React from "react";
+import Image from "next/image";
 import { AlertCircle, CheckCircle, ArrowRight, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import logoBlue from "@/assets/brand/bai_logo_blue.png";
 
 interface StatusScreenProps {
   type: "error" | "success";
@@ -18,7 +20,7 @@ interface StatusScreenProps {
   token?: string;
 }
 
-export default function StatusScreen({ type, title, message, token }: StatusScreenProps) {
+export default function StatusScreen({ type, title, message }: StatusScreenProps) {
   const isError = type === "error";
 
   return (
@@ -31,9 +33,10 @@ export default function StatusScreen({ type, title, message, token }: StatusScre
         
         {/* Logo */}
         <div className="flex justify-center pt-1">
-          <img
-            src="/bai_logo_blue.png"
+          <Image
+            src={logoBlue}
             alt="BAI Group of Companies"
+            priority
             className="h-9 w-auto object-contain"
           />
         </div>

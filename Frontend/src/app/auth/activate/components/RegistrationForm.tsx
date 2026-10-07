@@ -9,8 +9,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { Lock, ShieldAlert, Award } from "lucide-react";
-import { API_BASE } from "@/lib/api";
+import logoBlue from "@/assets/brand/bai_logo_blue.png";
 
 interface RegistrationFormProps {
   token: string;
@@ -47,7 +48,7 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
     async function validateToken() {
       try {
         const res = await fetch(
-          `${API_BASE}/api/auth/invitations/validate/?token=${encodeURIComponent(token)}`
+          `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"}/api/auth/invitations/validate/?token=${encodeURIComponent(token)}`
         );
         if (res.ok) {
           const data: TokenValidation = await res.json();
@@ -79,11 +80,11 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
     if (role === "client") {
       async function fetchBrokers() {
         try {
-          let res = await fetch(API_BASE + "/api/brokers/", {
+          let res = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") + "/api/brokers/", {
             credentials: "include",
           });
           if (!res.ok) {
-            res = await fetch(API_BASE + "/api/bookings/brokers/", {
+            res = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") + "/api/bookings/brokers/", {
               credentials: "include",
             });
           }
@@ -151,7 +152,7 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
         payload.broker_id = selectedBrokerId;
       }
 
-      const res = await fetch(API_BASE + "/api/auth/invitations/accept/", {
+      const res = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") + "/api/auth/invitations/accept/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -225,9 +226,10 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
       <div className="bg-white border border-slate-200 shadow-xl rounded-[24px] p-8 max-w-md w-full space-y-6 animate-scaleIn">
         {/* Logo */}
         <div className="flex justify-center pt-1">
-          <img
-            src="/bai_logo_blue.png"
+          <Image
+            src={logoBlue}
             alt="BAI Group of Companies"
+            priority
             className="h-9 w-auto object-contain"
           />
         </div>

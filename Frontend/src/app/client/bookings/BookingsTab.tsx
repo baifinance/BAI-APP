@@ -11,11 +11,11 @@
 
 import React, { useState } from "react";
 import { Video, X, Clock, Loader2, CalendarCheck, User, MapPin } from "lucide-react";
-import { useClient } from "../ClientContext";
+import { useClientData } from "../ClientContext";
 import { parseSlotTime } from "@/lib/api";
 
 export default function BookingsTab() {
-  const { booking, bookings, publishedSlots, claimSlot, handleLogAction, loading } = useClient();
+  const { booking, bookings, publishedSlots, claimSlot, handleLogAction, loading } = useClientData();
 
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
@@ -157,7 +157,7 @@ export default function BookingsTab() {
       {/* ==================================================================== */}
       {selectedSlot && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200/50 space-y-6 animate-scaleIn">
+          <div className="bg-white w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200/50 space-y-6 animate-scaleIn max-h-[90vh] overflow-y-auto">
 
             {/* Header */}
             <div className="flex justify-between items-start border-b border-slate-100 pb-3">

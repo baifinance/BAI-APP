@@ -10,16 +10,14 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { Check, Clock, ArrowRight, Pen, Mail, Phone, User, Ban, Settings } from "lucide-react";
-import { Client } from "../../broker/types";
-import { usersApi, loansApi } from "@/lib/api";
+import { ClientData } from "../types";
 import { resolveLoanStatus } from "../loanStatus";
 
 interface ProfileTabProps {
-  client: Client;
-  setClient?: React.Dispatch<React.SetStateAction<Client>>;
+  client: ClientData;
   onLogAction?: (actionText: string) => void;
 }
 
@@ -62,7 +60,7 @@ function CountryFlag({ isPhilippines }: { isPhilippines: boolean }) {
   );
 }
 
-export default function ProfileTab({ client, setClient }: ProfileTabProps) {
+export default function ProfileTab({ client }: ProfileTabProps) {
   // ------------------------------------------------------------------------------
   // 1. STATE DEFINITIONS
   // ------------------------------------------------------------------------------
@@ -85,10 +83,8 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
     { id: 9, title: "For Lodgment", date: "Pending" },
     { id: 10, title: "Submitted", date: "Pending" },
     { id: 11, title: "Conditional Approval", date: "Pending" },
-    { id: 12, title: "Conversion to Unconditional Approval", date: "Pending" },
-    { id: 13, title: "Unconditional Approval", date: "Pending" },
-    { id: 14, title: "Settlement", date: "Pending" },
-    { id: 15, title: "Settled", date: "Pending" },
+    { id: 12, title: "Settlement", date: "Pending" },
+    { id: 13, title: "Settled", date: "Pending" },
   ];
 
   const resolution = resolveLoanStatus(client.loan?.currentStatus);
@@ -114,54 +110,6 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
   const startIndex = Math.min(completedCount, maxStartIndex);
   const displayedSteps = allLoanWorkflowSteps.slice(startIndex, startIndex + 6);
 
-  // ------------------------------------------------------------------------------
-  // 4. FETCH BACKEND PROFILE & LIVE LOAN STATUS ENDPOINTS
-  // ------------------------------------------------------------------------------
-  useEffect(() => {
-    if (!setClient) return;
-
-    // Fetch user profile from backend
-    usersApi.getProfile()
-      .then((profile) => {
-        if (profile && (profile.full_name || profile.first_name || profile.last_name)) {
-          const resolvedFullName = profile.full_name || `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
-          setClient(prev => ({
-            ...prev,
-            name: resolvedFullName || prev.name,
-            email: profile.email || prev.email,
-            profile: {
-              ...prev.profile,
-              fullLegalName: resolvedFullName || prev.profile?.fullLegalName || prev.name,
-              email: profile.email || prev.profile?.email || prev.email,
-            }
-          }));
-        }
-      })
-      .catch((err) => {
-        console.debug("Note: Could not reach /api/users/profile/ or unauthorized, using current client context:", err);
-      });
-
-    // Fetch live loan status from backend / Asana
-    loansApi.getCurrentStatus()
-      .then((res) => {
-        if (res?.loan_status) {
-          setClient(prev => {
-            if (prev.loan?.currentStatus === res.loan_status) return prev;
-            return {
-              ...prev,
-              loan: {
-                ...prev.loan,
-                currentStatus: res.loan_status || undefined,
-              },
-            };
-          });
-        }
-      })
-      .catch((err) => {
-        console.debug("Note: Could not reach /api/loans/current-status/ or unauthorized:", err);
-      });
-  }, [setClient]);
-
   const toggleBannerTheme = () => {
     setBannerTheme(prev => (prev === "blue" ? "gold" : "blue"));
   };
@@ -174,7 +122,7 @@ export default function ProfileTab({ client, setClient }: ProfileTabProps) {
       {/* ==================================================================== */}
       {(() => {
         const displayName = client.profile?.fullLegalName || client.name;
-        const displayAddress = client.profile?.residentialAddress || client.profile?.address || "Block 15 Lot 4, Park Place, Alabang, Muntinlupa, Philippines";
+        const displayAddress = client.profile?.residentialAddress || client.profile?.address || "N/A";
         const displayMobile = client.profile?.mobile || client.phone;
         const displayEmail = client.profile?.email || client.email;
         const isPhilippines = displayAddress.toLowerCase().includes("philippines") || client.profile?.nationality?.toLowerCase().includes("filipino");
