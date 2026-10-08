@@ -29,6 +29,8 @@ import {
   Inbox,
   X,
   ArrowRight,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   authApi,
@@ -47,8 +49,96 @@ export default function ClientLoginPage() {
   // ==============================================================================
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isNavigatingHome, setIsNavigatingHome] = useState(false);
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
+
+  // ==============================================================================
+  // 1b. PASSWORD RESET POP-UP MODAL STATE & HANDLERS
+  // ==============================================================================
+  const [isResetPopupOpen, setIsResetPopupOpen] = useState(false);
+  const [resetDigits, setResetDigits] = useState<string[]>(["", "", "", "", "", ""]);
+  const resetDigitRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleOpenPasswordReset = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setErrorMsg("Please enter your registered email address first to reset your password.");
+      emailInputRef.current?.focus();
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setErrorMsg("Please enter a valid email address format (e.g., name@example.com).");
+      emailInputRef.current?.focus();
+      return;
+    }
+
+    setErrorMsg("");
+    setIsResetPopupOpen(true);
+    setResetDigits(["", "", "", "", "", ""]);
+    setTimeout(() => resetDigitRefs.current[0]?.focus(), 120);
+  };
+
+  const handleResetDigitChange = (index: number, val: string) => {
+    const clean = val.replace(/\D/g, "");
+    if (!clean && val !== "") return;
+
+    const char = clean.slice(-1);
+    const nextDigits = [...resetDigits];
+    nextDigits[index] = char;
+    setResetDigits(nextDigits);
+
+    if (char && index < 5) {
+      resetDigitRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleResetDigitKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace") {
+      if (!resetDigits[index] && index > 0) {
+        const nextDigits = [...resetDigits];
+        nextDigits[index - 1] = "";
+        setResetDigits(nextDigits);
+        resetDigitRefs.current[index - 1]?.focus();
+        e.preventDefault();
+      } else if (resetDigits[index]) {
+        const nextDigits = [...resetDigits];
+        nextDigits[index] = "";
+        setResetDigits(nextDigits);
+      }
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      resetDigitRefs.current[index - 1]?.focus();
+    } else if (e.key === "ArrowRight" && index < 5) {
+      resetDigitRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleResetPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (!pastedData) return;
+
+    const nextDigits = [...resetDigits];
+    for (let i = 0; i < 6; i++) {
+      nextDigits[i] = pastedData[i] || "";
+    }
+    setResetDigits(nextDigits);
+
+    const nextFocusIndex = Math.min(pastedData.length, 5);
+    resetDigitRefs.current[nextFocusIndex]?.focus();
+  };
+
+  const handleBackToHome = () => {
+    setIsNavigatingHome(true);
+    setTimeout(() => {
+      router.push("/");
+    }, 250);
+  };
 
   // ==============================================================================
   // 2. OTP POP-UP MODAL STATE
@@ -267,21 +357,65 @@ export default function ClientLoginPage() {
 
   return (
     <div
-      className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans
-  selection:bg-[#0024A8] selection:text-white antialiased relative"
+      className="min-h-screen bg-[#0A2881] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans
+  selection:bg-[#0024A8] selection:text-white antialiased relative overflow-hidden"
     >
       {/* ---------------------------------------------------------------------- */}
-      {/* BACKGROUND RADIAL GLOW OVERLAYS                                        */}
-      {/* ---------------------------------------------------------------------- */}
-      <div className="fixed -top-40 -right-40 w-96 h-96 bg-[#0024A8]/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="fixed -bottom-40 -left-40 w-96 h-96 bg-[#0B2369]/10 rounded-full blur-3xl pointer-events-none" />
-
-      {/* ---------------------------------------------------------------------- */}
-      {/* MAIN SPLIT-CONTAINER CARD                                              */}
+      {/* FARTHEST BACKGROUND: loginImage.jpeg (blurry) + 65% Blue Layer         */}
+      {/* + Moving Blurry Glowing Gold Rings                                     */}
       {/* ---------------------------------------------------------------------- */}
       <div
-        className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-200/50
-  grid grid-cols-1 md:grid-cols-2 overflow-hidden relative min-h-[600px] animate-scaleIn"
+        className="fixed inset-0 pointer-events-none overflow-hidden select-none z-0"
+        aria-hidden="true"
+      >
+        {/* Layer 0a: loginImage background, expanded slightly and blurred */}
+        <img
+          src="/loginImage.jpeg"
+          alt=""
+          className="absolute -inset-6 w-[calc(100%+3rem)] h-[calc(100%+3rem)] object-cover object-center filter blur-md scale-105 pointer-events-none"
+        />
+
+        {/* Layer 0b: Theme blue layer on top with 65% opacity */}
+        <div className="absolute inset-0 bg-[#0A2881]/65 pointer-events-none" />
+
+        {/* Layer 0c: Moving blurry glowing golden rings */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* Glowing Golden Ring 1 - Top Left Large Atmospheric Orb */}
+          <div className="absolute -top-16 -left-16 w-80 h-80 sm:w-96 sm:h-96 rounded-full bg-gradient-to-tr from-[#E4BA37]/35 via-[#F59E0B]/20 to-transparent blur-2xl animate-orb-1" />
+
+          {/* Glowing Golden Ring 2 - Bottom Right Large Glowing Disc */}
+          <div className="absolute -bottom-24 -right-24 w-96 h-96 sm:w-[28rem] sm:h-[28rem] rounded-full bg-[#E4BA37]/25 blur-3xl animate-orb-2" />
+
+          {/* Glowing Golden Ring 3 - Center Right Soft Floating Accent Ring */}
+          <div className="absolute top-[20%] right-[14%] w-64 h-64 rounded-full bg-gradient-to-br from-[#E4BA37]/25 via-[#F59E0B]/15 to-transparent blur-xl animate-orb-3" />
+
+          {/* Glowing Golden Ring 4 - Bottom Left Floating Glow */}
+          <div className="absolute bottom-[18%] left-[10%] w-60 h-60 rounded-full bg-[#E4BA37]/20 blur-xl animate-orb-4" />
+        </div>
+      </div>
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* TOP-LEFT RETURN BUTTON: Blue square with white arrow -> Gold / Dark Blue */}
+      {/* ---------------------------------------------------------------------- */}
+      <button
+        type="button"
+        onClick={handleBackToHome}
+        aria-label="Return to Main Page"
+        className={`fixed top-4 left-4 sm:top-6 sm:left-6 z-30 w-11 h-11 flex items-center justify-center transition-all duration-200 cursor-pointer shadow-lg active:scale-95 ${
+          isNavigatingHome
+            ? "bg-[#E4BA37] text-[#0A2881] shadow-[#E4BA37]/50"
+            : "bg-[#0A2881] text-white hover:bg-[#071D60] shadow-[#0A2881]/40"
+        }`}
+      >
+        <ArrowLeft className="w-5 h-5" />
+      </button>
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* MAIN SPLIT-CONTAINER CARD (In front of everything, no outer white border)*/}
+      {/* ---------------------------------------------------------------------- */}
+      <div
+        className="bg-white/95 backdrop-blur-md w-full max-w-5xl rounded-3xl shadow-2xl
+  grid grid-cols-1 md:grid-cols-2 overflow-hidden relative z-10 min-h-[600px] animate-scaleIn"
       >
         {/* ==================================================================== */}
         {/* LEFT COLUMN: BRANDING & FEATURE HIGHLIGHTS                           */}
@@ -365,26 +499,17 @@ export default function ClientLoginPage() {
         {/* RIGHT COLUMN: LOGIN CREDENTIALS FORM                                 */}
         {/* ==================================================================== */}
         <div className="p-8 md:p-12 flex flex-col justify-between bg-white relative">
-          {/* Back to Home Link */}
-          <div className="flex justify-between items-center mb-6">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 hover:text-[#0024A8] transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Home</span>
-            </Link>
-          </div>
-
           <div className="space-y-6 my-auto">
-            {/* Header Title */}
-            <div>
-              <h3 className="text-xl font-black text-slate-900 tracking-tight leading-none">
-                Welcome Back
-              </h3>
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mt-2">
-                Client Hub Gateway
-              </span>
+            {/* ---------------------------------------------------------------- */}
+            {/* 1. HEADER SECTION: CENTERED LOG IN TITLE & SUBTEXT               */}
+            {/* ---------------------------------------------------------------- */}
+            <div className="space-y-2 text-center mb-6">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-[#0A2881] tracking-tight leading-none uppercase">
+                LOG IN
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                Please input the following credentials to procceed.
+              </p>
             </div>
 
             {/* Error Alert */}
@@ -395,77 +520,108 @@ export default function ClientLoginPage() {
               </div>
             )}
 
-            {/* Login Form */}
+            {/* ---------------------------------------------------------------- */}
+            {/* 2. LOGIN FORM                                                    */}
+            {/* ---------------------------------------------------------------- */}
             <form
               onSubmit={handleCredentialsSubmit}
-              className="space-y-4 text-xs font-semibold"
+              className="space-y-4"
             >
-              {/* Email Input */}
+              {/* Field 1: Email Address (Email Icon to its Left) */}
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
                   Email Address
                 </label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+                <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200 focus-within:border-[#0A2881] focus-within:ring-2 focus-within:ring-[#0A2881]/10 transition-all bg-slate-50">
+                  {/* Email icon positioned on the left */}
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Mail className="w-4 h-4" />
+                  </div>
                   <input
+                    ref={emailInputRef}
                     type="email"
                     required
-                    placeholder="Enter your registered email address"
+                    placeholder="Enter your registered email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:outline-none focus:border-[#0024A8]/40 focus:ring-2 focus:ring-[#0024A8]/10 rounded-xl text-slate-700 font-medium block transition-all"
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (errorMsg) setErrorMsg("");
+                    }}
+                    className="w-full pl-11 pr-4 py-3 bg-transparent focus:outline-none text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400/70"
                   />
                 </div>
               </div>
 
-              {/* Password Input */}
+              {/* Field 2: Password (Key Icon to Left, Show/Hide Eye Toggle on Right) */}
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
                   Password
                 </label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+                <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200 focus-within:border-[#0A2881] focus-within:ring-2 focus-within:ring-[#0A2881]/10 transition-all bg-slate-50">
+                  {/* Key icon positioned on the left */}
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <KeyRound className="w-4 h-4" />
+                  </div>
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     required
-                    placeholder="Enter your secure password"
+                    placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:outline-none focus:border-[#0024A8]/40 focus:ring-2 focus:ring-[#0024A8]/10 rounded-xl text-slate-700 font-medium block transition-all"
+                    className="w-full pl-11 pr-11 py-3 bg-transparent focus:outline-none text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400/70"
                   />
+                  {/* Eye toggle icon appears when there is input in the password field */}
+                  {password.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-[#0A2881] transition-colors cursor-pointer"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Access Notice */}
-              <div className="bg-slate-50 border border-slate-200/50 p-4 rounded-2xl space-y-1 text-slate-600">
-                <span className="text-[10px] font-extrabold text-[#0024A8] uppercase tracking-wider flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span>Invitation Only Access</span>
-                </span>
-                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                  New to BAI Finance? Please contact your designated Mortgage Broker to request an invitation link.
-                </p>
-              </div>
-
-              {/* Submit Button */}
+              {/* ---------------------------------------------------------------- */}
+              {/* 3. SUBMIT BUTTON: Theme Blue "Log In"                            */}
+              {/* ---------------------------------------------------------------- */}
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 bg-[#0024A8] hover:bg-[#001D85] disabled:opacity-50 text-white rounded-xl
-      text-xs font-bold shadow-md shadow-[#0024A8]/15 hover:shadow-lg transition-all uppercase tracking-wider mt-2 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3.5 px-4 bg-[#0A2881] hover:bg-[#071D60] active:scale-[0.99] disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-md shadow-[#0A2881]/20 hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
               >
                 {isLoading ? (
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
-                  <>
-                    <span>Log In to Hub</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </>
+                  <span>Log In</span>
                 )}
               </button>
+
+              {/* ---------------------------------------------------------------- */}
+              {/* 4. FORGOT PASSWORD HYPERLINK (Triggers Password Reset Modal)      */}
+              {/* ---------------------------------------------------------------- */}
+              <div className="text-center pt-2">
+                <p className="text-xs text-slate-500 font-medium">
+                  Forgot your password?{" "}
+                  <a
+                    href="#"
+                    onClick={handleOpenPasswordReset}
+                    className="text-[#0A2881] font-bold hover:underline cursor-pointer"
+                  >
+                    Click here to reset
+                  </a>
+                </p>
+              </div>
             </form>
           </div>
 
+          {/* Footer Info */}
           <div className="text-[10px] text-slate-400 font-medium text-center mt-6">
             Protected by BAI Security Systems.
           </div>
@@ -623,6 +779,103 @@ export default function ClientLoginPage() {
                 className="text-[11px] font-semibold text-slate-400 hover:text-[#0024A8] transition-colors cursor-pointer"
               >
                 Cancel and return to login
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================== */}
+      {/* 8. PASSWORD RESET POP-UP MODAL CONTAINER                               */}
+      {/* ====================================================================== */}
+      {isResetPopupOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="password-reset-title"
+        >
+          {/* Modal Container Card */}
+          <div className="bg-white w-full max-w-md rounded-3xl p-7 sm:p-9 shadow-2xl border border-slate-100 relative animate-scaleIn">
+            
+            {/* Exit Icon on the top right */}
+            <button
+              type="button"
+              onClick={() => setIsResetPopupOpen(false)}
+              className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              aria-label="Close password reset modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Header: Large Bold Centered Blue Title */}
+            <div className="text-center space-y-2 mb-6">
+              <h3
+                id="password-reset-title"
+                className="text-2xl sm:text-3xl font-black text-[#0A2881] tracking-tight"
+              >
+                Password Reset
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed max-w-sm mx-auto">
+                We sent a password reset email containing a 6-digit code to{" "}
+                <span className="font-bold text-slate-800">
+                  {email.trim() || "(user email)"}
+                </span>
+                . Please input the code below.
+              </p>
+            </div>
+
+            {/* 6-Slot Input that only accepts numbers */}
+            <div className="my-6">
+              <div className="flex justify-center items-center gap-2 sm:gap-3">
+                {resetDigits.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(el) => {
+                      resetDigitRefs.current[index] = el;
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleResetDigitChange(index, e.target.value)}
+                    onKeyDown={(e) => handleResetDigitKeyDown(index, e)}
+                    onPaste={handleResetPaste}
+                    className={`w-11 h-14 sm:w-13 sm:h-16 text-center text-xl sm:text-2xl font-bold font-mono rounded-xl sm:rounded-2xl border-2 transition-all outline-none ${
+                      digit
+                        ? "border-[#0A2881] bg-blue-50/30 text-slate-900 shadow-xs"
+                        : "border-slate-200 bg-slate-50/80 text-slate-900 hover:border-slate-300"
+                    } focus:border-[#0A2881] focus:bg-white focus:ring-4 focus:ring-[#0A2881]/10`}
+                    aria-label={`Digit ${index + 1} of 6`}
+                  />
+                ))}
+              </div>
+
+              {/* Resend message with hyperlink */}
+              <div className="mt-4 text-center">
+                <p className="text-xs text-slate-500">
+                  Didn&apos;t recieve a code?{" "}
+                  <a
+                    href="#"
+                    onClick={(e) => e.preventDefault()}
+                    className="text-[#0A2881] font-bold hover:underline cursor-pointer"
+                  >
+                    Click here to resend.
+                  </a>
+                </p>
+              </div>
+            </div>
+
+            {/* Centered Blue Submit Button */}
+            <div className="mt-6 sm:mt-8">
+              <button
+                type="button"
+                onClick={(e) => e.preventDefault()}
+                className="w-full py-3.5 px-4 bg-[#0A2881] hover:bg-[#071D60] text-white rounded-xl sm:rounded-2xl text-sm font-bold shadow-md shadow-[#0A2881]/20 hover:shadow-lg transition-all flex items-center justify-center cursor-pointer"
+              >
+                Submit
               </button>
             </div>
 

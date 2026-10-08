@@ -18,6 +18,7 @@ import {
   Eye,
   X,
 } from "lucide-react";
+import BannerBackground from "./BannerBackground";
 
 type CalcTab = "Repayments" | "Borrowing" | "InterestOnly";
 
@@ -634,37 +635,10 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
 
     return (
       <div className="w-full pb-12">
-        {/* Full-width Dynamic Edge-to-Edge Banner with officeImage background, 80% blue overlay, floating golden circles, and text on top */}
+        {/* Full-width edge-to-edge banner: officeImage background + blue overlay + blurry golden orbs (see BannerBackground) */}
         <div className="relative w-full min-w-full py-8 sm:py-10 md:py-12 lg:py-14 px-4 sm:px-6 md:px-8 lg:px-12 text-center text-white shadow-md flex flex-col items-center justify-center shrink-0 overflow-hidden bg-[#0A2881]">
-          {/* Layer 1: officeImage background */}
-          <div
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
-            style={{ backgroundImage: "url('/officeImage.jpg')" }}
-          />
-
-          {/* Layer 2: Semi-transparent blue layer (around 80%) */}
-          <div className="absolute inset-0 bg-[#0A2881]/80 pointer-events-none" />
-
-          {/* Layer 3: Semi-transparent floating golden circles moving around the background */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none z-10" aria-hidden="true">
-            {/* Golden Circle 1 - Top Left Large Atmospheric Orb */}
-            <div className="absolute -top-10 left-[6%] w-48 h-48 sm:w-60 sm:h-60 rounded-full bg-gradient-to-tr from-[#E4BA37]/25 via-[#F59E0B]/15 to-transparent blur-md border border-[#E4BA37]/30 animate-orb-1" />
-
-            {/* Golden Circle 2 - Bottom Right Large Glowing Disc */}
-            <div className="absolute -bottom-14 right-[10%] w-56 h-56 sm:w-68 sm:h-68 rounded-full bg-[#E4BA37]/20 blur-lg border border-[#E4BA37]/20 animate-orb-2" />
-
-            {/* Golden Circle 3 - Center Right Crisp Translucent Circle with Golden Border */}
-            <div className="absolute top-[22%] right-[24%] w-24 h-24 rounded-full bg-[#E4BA37]/20 border border-[#E4BA37]/45 shadow-lg shadow-[#E4BA37]/20 backdrop-blur-[2px] animate-orb-3" />
-
-            {/* Golden Circle 4 - Bottom Left Crisp Golden Disc */}
-            <div className="absolute bottom-[16%] left-[20%] w-18 h-18 rounded-full bg-[#E4BA37]/25 border border-[#E4BA37]/50 shadow-md shadow-[#E4BA37]/20 backdrop-blur-[1px] animate-orb-4" />
-
-            {/* Golden Circle 5 - Top Center Floating Golden Accent Circle */}
-            <div className="absolute -top-6 left-[48%] -translate-x-1/2 w-32 h-32 rounded-full bg-[#E4BA37]/15 blur-sm border border-[#E4BA37]/25 animate-orb-2" />
-
-            {/* Golden Circle 6 - Floating Small Golden Sparkling Circle */}
-            <div className="absolute top-[60%] left-[38%] w-12 h-12 rounded-full bg-[#E4BA37]/30 border border-[#E4BA37]/60 shadow-sm shadow-[#E4BA37]/30 backdrop-blur-[1px] animate-orb-1" />
-          </div>
+          {/* Layers 1-3: Background image, blue overlay, blurry orbs */}
+          <BannerBackground image="/officeImage.jpg" />
 
           {/* Layer 4: Text overlayed at the top of everything for crisp visibility */}
           <div className="relative z-20 flex flex-col items-center justify-center space-y-2 max-w-4xl mx-auto">
@@ -786,25 +760,27 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
             </div>
           </div>
 
-          {/* Right Container: Visual */}
-          <div className="md:col-span-6 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-inner flex flex-col justify-between min-h-[460px]">
-            <div className="h-full flex flex-col justify-between items-center text-center">
-              <div className="w-full flex-1 flex items-center justify-center p-4">
-                <img
-                  src="/calculator_illustration.jpg"
-                  alt="Ready to calculate visual"
-                  className="w-full max-w-xs md:max-w-sm max-h-72 object-contain rounded-2xl shadow-xs"
-                />
-              </div>
+          {/* ------------------------------------------------------------------ */}
+          {/* Right Container: 60% Calculator Visual + 40% Blue Theme Callout   */}
+          {/* ------------------------------------------------------------------ */}
+          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-2xl shadow-soft-xl overflow-hidden flex flex-col min-h-[480px]">
+            {/* Top 60%: calculator.jpeg image fully consuming container width & height */}
+            <div className="basis-[60%] h-[60%] w-full relative overflow-hidden shrink-0">
+              <img
+                src="/calculator.jpeg"
+                alt="Calculator illustration"
+                className="w-full h-full object-cover object-center"
+              />
+            </div>
 
-              <div className="w-full flex flex-col items-center justify-center text-center pt-4 border-t border-slate-200/60">
-                <h3 className="text-xl font-bold text-slate-800 text-center mb-1.5">
-                  Ready to calculate?
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-500 text-center max-w-sm">
-                  Enter your loan details to the left to see your estimated repayments
-                </p>
-              </div>
+            {/* Bottom 40%: Theme blue background (#0A2881) with white text overlay */}
+            <div className="basis-[40%] flex-1 w-full bg-[#0A2881] flex flex-col items-center justify-center text-center px-6 py-6 sm:px-8 space-y-2">
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                Ready to calculate?
+              </h3>
+              <p className="text-xs sm:text-sm text-white/90 font-medium max-w-sm leading-relaxed">
+                Enter your loan details to the left to see your estimated repayments
+              </p>
             </div>
           </div>
         </div>
