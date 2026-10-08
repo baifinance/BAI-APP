@@ -141,6 +141,75 @@ export default function ClientLoginPage() {
   };
 
   // ==============================================================================
+  // 1c. NEW PASSWORD POP-UP MODAL STATE & HANDLERS (Follow-up to Reset OTP)
+  // ==============================================================================
+  const [isNewPasswordPopupOpen, setIsNewPasswordPopupOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [reEnterPassword, setReEnterPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showReEnterPassword, setShowReEnterPassword] = useState(false);
+  const [passwordMatchError, setPasswordMatchError] = useState("");
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
+
+  // Transition from Password Reset OTP popup to New Password popup
+  const handleOtpSubmitToNewPassword = (e: React.MouseEvent | React.FormEvent) => {
+    e.preventDefault();
+    // Close the OTP modal container and open the New Password modal container
+    setIsResetPopupOpen(false);
+    setIsNewPasswordPopupOpen(true);
+    setNewPassword("");
+    setReEnterPassword("");
+    setPasswordMatchError("");
+    setPasswordResetSuccess(false);
+  };
+
+  // Close the New Password popup modal
+  const handleCloseNewPasswordPopup = () => {
+    setIsNewPasswordPopupOpen(false);
+    setNewPassword("");
+    setReEnterPassword("");
+    setPasswordMatchError("");
+    setPasswordResetSuccess(false);
+  };
+
+  // Password input change handlers with interactive match checker logic
+  const handleNewPasswordChange = (val: string) => {
+    setNewPassword(val);
+    if (reEnterPassword && val !== reEnterPassword) {
+      setPasswordMatchError("Passwords do not match. Please ensure both fields are identical.");
+    } else {
+      setPasswordMatchError("");
+    }
+  };
+
+  const handleReEnterPasswordChange = (val: string) => {
+    setReEnterPassword(val);
+    if (newPassword && val !== newPassword) {
+      setPasswordMatchError("Passwords do not match. Please ensure both fields are identical.");
+    } else {
+      setPasswordMatchError("");
+    }
+  };
+
+  // Password match checker submission handler (UI prototype only)
+  const handleNewPasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword.trim() || !reEnterPassword.trim()) {
+      setPasswordMatchError("Please enter both password fields.");
+      return;
+    }
+    // Checker to make sure New Password and Re-Enter Password match
+    if (newPassword !== reEnterPassword) {
+      setPasswordMatchError("Passwords do not match. Please ensure both fields are identical.");
+      return;
+    }
+
+    setPasswordMatchError("");
+    // UI Prototype success state (no backend password reset call)
+    setPasswordResetSuccess(true);
+  };
+
+  // ==============================================================================
   // 2. OTP POP-UP MODAL STATE
   // ==============================================================================
   const [isOtpPopupOpen, setIsOtpPopupOpen] = useState(false);
@@ -868,16 +937,201 @@ export default function ClientLoginPage() {
               </div>
             </div>
 
-            {/* Centered Blue Submit Button */}
+            {/* Centered Blue Submit Button (Redirects to New Password Reset Popup) */}
             <div className="mt-6 sm:mt-8">
               <button
                 type="button"
-                onClick={(e) => e.preventDefault()}
+                onClick={handleOtpSubmitToNewPassword}
                 className="w-full py-3.5 px-4 bg-[#0A2881] hover:bg-[#071D60] text-white rounded-xl sm:rounded-2xl text-sm font-bold shadow-md shadow-[#0A2881]/20 hover:shadow-lg transition-all flex items-center justify-center cursor-pointer"
               >
                 Submit
               </button>
             </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================== */}
+      {/* 9. NEW PASSWORD POP-UP MODAL CONTAINER (Follow-up to Reset OTP)       */}
+      {/*    Separate Container for entering new password & matching check       */}
+      {/* ====================================================================== */}
+      {isNewPasswordPopupOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="new-password-modal-title"
+        >
+          {/* Modal Container Card - Separate Container */}
+          <div className="bg-white w-full max-w-md rounded-3xl p-7 sm:p-9 shadow-2xl border border-slate-100 relative animate-scaleIn">
+            
+            {/* Exit / Close Icon Button */}
+            <button
+              type="button"
+              onClick={handleCloseNewPasswordPopup}
+              className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              aria-label="Close password reset modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Header: Large Bold Centered Text "Password Reset" */}
+            <div className="text-center space-y-2 mb-6">
+              <h3
+                id="new-password-modal-title"
+                className="text-2xl sm:text-3xl font-black text-[#0A2881] tracking-tight"
+              >
+                Password Reset
+              </h3>
+            </div>
+
+            {/* UI Prototype Success Notification */}
+            {passwordResetSuccess ? (
+              <div className="space-y-6 my-4 animate-fadeIn">
+                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3 text-emerald-700">
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-500 mt-0.5" />
+                  <div>
+                    <p className="text-xs sm:text-sm font-bold">Password Updated!</p>
+                    <p className="text-xs text-emerald-600 mt-0.5">
+                      Your new password has been verified and reset successfully (UI Prototype).
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCloseNewPasswordPopup}
+                  className="w-full py-3.5 px-4 bg-[#0A2881] hover:bg-[#071D60] text-white rounded-xl sm:rounded-2xl text-sm font-bold shadow-md shadow-[#0A2881]/20 hover:shadow-lg transition-all flex items-center justify-center cursor-pointer"
+                >
+                  Return to Login
+                </button>
+              </div>
+            ) : (
+              /* Password Reset Form with Match Checker */
+              <form onSubmit={handleNewPasswordSubmit} className="space-y-4">
+                
+                {/* Error Banner: Password Match Checker */}
+                {passwordMatchError && (
+                  <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-2 text-xs font-semibold text-rose-600 animate-fadeIn">
+                    <ShieldAlert className="w-4 h-4 shrink-0 text-rose-500" />
+                    <span>{passwordMatchError}</span>
+                  </div>
+                )}
+
+                {/* ------------------------------------------------------------ */}
+                {/* FIELD 1: Smaller text placed on the left "New Password"      */}
+                {/* Under that text is an input bar                              */}
+                {/* ------------------------------------------------------------ */}
+                <div className="space-y-1.5 text-left">
+                  <label
+                    htmlFor="reset-new-password"
+                    className="text-xs sm:text-sm font-semibold text-slate-700 block text-left"
+                  >
+                    New Password
+                  </label>
+                  <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200 focus-within:border-[#0A2881] focus-within:ring-2 focus-within:ring-[#0A2881]/10 transition-all bg-slate-50">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <input
+                      id="reset-new-password"
+                      type={showNewPassword ? "text" : "password"}
+                      required
+                      placeholder="Enter new password"
+                      value={newPassword}
+                      onChange={(e) => handleNewPasswordChange(e.target.value)}
+                      className="w-full pl-11 pr-11 py-3 bg-transparent focus:outline-none text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400/70"
+                    />
+                    {newPassword.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword((prev) => !prev)}
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-[#0A2881] transition-colors cursor-pointer"
+                        aria-label={showNewPassword ? "Hide password" : "Show password"}
+                      >
+                        {showNewPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* ------------------------------------------------------------ */}
+                {/* FIELD 2: Smaller text placed on the left "Re-Enter Password" */}
+                {/* Under that text is another input box                         */}
+                {/* ------------------------------------------------------------ */}
+                <div className="space-y-1.5 text-left">
+                  <label
+                    htmlFor="reset-re-enter-password"
+                    className="text-xs sm:text-sm font-semibold text-slate-700 block text-left"
+                  >
+                    Re-Enter Password
+                  </label>
+                  <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200 focus-within:border-[#0A2881] focus-within:ring-2 focus-within:ring-[#0A2881]/10 transition-all bg-slate-50">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <input
+                      id="reset-re-enter-password"
+                      type={showReEnterPassword ? "text" : "password"}
+                      required
+                      placeholder="Re-enter your new password"
+                      value={reEnterPassword}
+                      onChange={(e) => handleReEnterPasswordChange(e.target.value)}
+                      className="w-full pl-11 pr-11 py-3 bg-transparent focus:outline-none text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400/70"
+                    />
+                    {reEnterPassword.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowReEnterPassword((prev) => !prev)}
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-[#0A2881] transition-colors cursor-pointer"
+                        aria-label={showReEnterPassword ? "Hide password" : "Show password"}
+                      >
+                        {showReEnterPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Live Match Confirmation Badge (when user enters matching passwords) */}
+                {newPassword && reEnterPassword && newPassword === reEnterPassword && !passwordMatchError && (
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-2 text-xs font-semibold text-emerald-600 animate-fadeIn">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                    <span>Passwords match</span>
+                  </div>
+                )}
+
+                {/* Submit Button with Match Checker */}
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 px-4 bg-[#0A2881] hover:bg-[#071D60] active:scale-[0.99] text-white rounded-xl sm:rounded-2xl text-sm font-bold shadow-md shadow-[#0A2881]/20 hover:shadow-lg transition-all flex items-center justify-center cursor-pointer"
+                  >
+                    Submit
+                  </button>
+                </div>
+
+                {/* Cancel Link */}
+                <div className="text-center pt-2">
+                  <button
+                    type="button"
+                    onClick={handleCloseNewPasswordPopup}
+                    className="text-[11px] font-semibold text-slate-400 hover:text-[#0A2881] transition-colors cursor-pointer"
+                  >
+                    Cancel and return to login
+                  </button>
+                </div>
+
+              </form>
+            )}
 
           </div>
         </div>
