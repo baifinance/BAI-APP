@@ -14,6 +14,7 @@
  */
 
 import Link from "next/link";
+import Image from "next/image";
 import { Calendar, Mail, Phone, MapPin } from "lucide-react";
 
 export default function Footer() {
@@ -28,7 +29,7 @@ export default function Footer() {
           
           {/* Banner Heading with Underlined "friend" */}
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight max-w-2xl text-center md:text-left">
-            Ready to talk? Let's find your{" "}
+            Ready to talk? Let&apos;s find your{" "}
             <span className="underline decoration-amber-400 decoration-4 underline-offset-4">
               friend
             </span>{" "}
@@ -71,9 +72,11 @@ export default function Footer() {
             <div className="md:col-span-6 space-y-5">
               {/* Logo Emblem */}
               <Link href="/" className="inline-block group">
-                <img
+                <Image
                   src="/bai_logo_white.png"
                   alt="BAI Group of Companies"
+                  width={3383}
+                  height={1454}
                   className="h-9 sm:h-10 w-auto object-contain"
                 />
               </Link>

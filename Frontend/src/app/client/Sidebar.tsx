@@ -13,6 +13,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   User,
   Landmark,
@@ -25,7 +26,7 @@ import {
   Settings,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useClient } from "./ClientContext";
+import { useClientData, useClientNotifications } from "./ClientContext";
 
 export type ClientTabType =
   | "Profile"
@@ -44,7 +45,8 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }: SidebarProps) {
-  const { client, unreadCount } = useClient();
+  const { client } = useClientData();
+  const { unreadCount } = useClientNotifications();
 
   const menuItems = [
     { id: "Profile" as ClientTabType, label: "Profile", icon: User, href: "/client/profile" },
@@ -93,17 +95,21 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
       >
         {isCollapsed ? (
           <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-start shrink-0" title="BAI Group of Companies">
-            <img
+            <Image
               src="/bai_logo_white.png"
               alt="BAI"
+              width={3383}
+              height={1454}
               className="h-8 w-auto max-w-none object-left"
             />
           </div>
         ) : (
           <div className="flex flex-col gap-0.5 min-w-0">
-            <img
+            <Image
               src="/bai_logo_white.png"
               alt="BAI Group of Companies"
+              width={3383}
+              height={1454}
               className="h-8 w-auto object-contain"
             />
             <span className="text-[10px] text-[#E4BA37] font-bold uppercase tracking-wider block pl-0.5">

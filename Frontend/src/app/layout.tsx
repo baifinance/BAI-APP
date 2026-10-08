@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import SessionExpiryModal from "@/components/SessionExpiryModal";
+import Providers from "./providers";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -31,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${poppins.variable} scroll-smooth antialiased`}>
       <body className="min-h-screen bg-[#FAFAFA] font-sans text-slate-900 selection:bg-blue-600 selection:text-white flex flex-col">
-        {children}
+        <Providers>{children}</Providers>
         <SessionExpiryModal />
       </body>
     </html>

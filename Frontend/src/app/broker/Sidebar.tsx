@@ -11,6 +11,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Home, Users, ClipboardList, Calendar, MessageSquare, Percent, ChevronLeft, ChevronRight } from "lucide-react";
 
 export type TabType = "Dashboard" | "Clients" | "Applications" | "Bookings" | "Communication" | "Calculators" | "Notifications";
@@ -47,17 +48,21 @@ export default function Sidebar({ activeTab }: SidebarProps) {
         <div className="flex items-center gap-3 overflow-hidden">
           {isCollapsed ? (
             <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-start shrink-0" title="BAI Group of Companies">
-              <img
+              <Image
                 src="/bai_logo_blue.png"
                 alt="BAI"
+                width={3383}
+                height={1454}
                 className="h-8 w-auto max-w-none object-left"
               />
             </div>
           ) : (
             <div className="flex flex-col gap-0.5 animate-fadeIn min-w-0">
-              <img
+              <Image
                 src="/bai_logo_blue.png"
                 alt="BAI Group of Companies"
+                width={3383}
+                height={1454}
                 className="h-8 w-auto object-contain"
               />
               <span className="text-[10px] text-[#0038A8]/80 font-bold uppercase tracking-wider block whitespace-nowrap pl-0.5">
@@ -111,4 +116,3 @@ export default function Sidebar({ activeTab }: SidebarProps) {
     </aside>
   );
 }
-

@@ -17,14 +17,19 @@ import { useEffect, useState } from "react";
 export function useTimeAgo(iso?: string | null, fallback?: string): string {
   const [label, setLabel] = useState<string>(fallback ?? "");
   useEffect(() => {
+    const update = () => setLabel(iso ? timeAgo(iso) : fallback ?? "");
+
     if (!iso) {
-      setLabel(fallback ?? "");
-      return;
+      const timeoutId = window.setTimeout(update, 0);
+      return () => window.clearTimeout(timeoutId);
     }
-    const update = () => setLabel(timeAgo(iso));
-    update();
-    const id = window.setInterval(update, 30_000);
-    return () => window.clearInterval(id);
+
+    const timeoutId = window.setTimeout(update, 0);
+    const intervalId = window.setInterval(update, 30_000);
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
+    };
   }, [iso, fallback]);
   return label;
 }

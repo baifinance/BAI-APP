@@ -151,19 +151,19 @@ function applyAsanaProfile(base: ClientData, asana: AsanaProfile): ClientData {
 export function ClientProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
 
-  const [asanaProfile, setAsanaProfile] = useState<AsanaProfile | null>(null);
-  const [toasts, setToasts] = useState<PortalNotification[]>([]);
-  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
-
-  useEffect(() => {
+  const [asanaProfile] = useState<AsanaProfile | null>(() => {
+    if (typeof window === "undefined") return null;
     const raw = sessionStorage.getItem("asana_profile");
-    if (!raw) return;
+    if (!raw) return null;
     try {
-      setAsanaProfile(JSON.parse(raw) as AsanaProfile);
+      return JSON.parse(raw) as AsanaProfile;
     } catch {
       sessionStorage.removeItem("asana_profile");
+      return null;
     }
-  }, []);
+  });
+  const [toasts, setToasts] = useState<PortalNotification[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
 
   const profileQuery = useQuery({
     queryKey: clientKeys.profile,

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import useSWR from "swr";
 import { 
   SubmittedDocument, 
@@ -23,7 +23,6 @@ interface LoanProcessingContextType {
   applications: Application[];
   setApplications: React.Dispatch<React.SetStateAction<Application[]>>;
   notifications: Array<{ type: string; message: string; time: string }>;
-  setNotifications: React.Dispatch<React.SetStateAction<Array<{ type: string; message: string; time: string }>>>;
   handleLogAction: (actionText: string) => void;
 }
 
@@ -68,21 +67,21 @@ export function LoanProcessingProvider({ children }: { children: React.ReactNode
     localStorage.setItem("new_registrations", JSON.stringify(newRegs));
   }, [submittedDocs]);
 
-  const [notifications, setNotifications] = useState<PortalNotification[]>([
-    { type: "Audit Alert", message: "System audit complete for Alice Smith's folder.", time: "1 hour ago" },
-    { type: "Flagged File", message: "Flagged document: Bank statement missing page 3.", time: "2 hours ago" },
-    { type: "New Submission", message: "New application submitted by Emma Wilson.", time: "1 day ago" },
-  ]);
-
   const { data: notifData } = useSWR("notifications", () => notificationsApi.list(), {
     refreshInterval: 30_000,
   });
 
-  useEffect(() => {
-    if (notifData) setNotifications(notifData.map(mapNotification));
-  }, [notifData]);
+  const notifications = useMemo<PortalNotification[]>(
+    () =>
+      notifData?.map(mapNotification) ?? [
+        { type: "Audit Alert", message: "System audit complete for Alice Smith's folder.", time: "1 hour ago" },
+        { type: "Flagged File", message: "Flagged document: Bank statement missing page 3.", time: "2 hours ago" },
+        { type: "New Submission", message: "New application submitted by Emma Wilson.", time: "1 day ago" },
+      ],
+    [notifData],
+  );
 
-  const handleLogAction = (actionText: string) => {
+  const handleLogAction = useCallback((actionText: string) => {
     const now = new Date();
     const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const formattedTime = `${String(now.getHours() % 12 || 12).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")} ${now.getHours() >= 12 ? "PM" : "AM"}`;
@@ -95,22 +94,30 @@ export function LoanProcessingProvider({ children }: { children: React.ReactNode
     };
 
     setAuditLogs((prev) => [newLog, ...prev]);
-  };
+  }, []);
+
+  const contextValue = useMemo<LoanProcessingContextType>(() => ({
+    submittedDocs,
+    setSubmittedDocs,
+    auditLogs,
+    setAuditLogs,
+    clients,
+    setClients,
+    applications,
+    setApplications,
+    notifications,
+    handleLogAction,
+  }), [
+    submittedDocs,
+    auditLogs,
+    clients,
+    applications,
+    notifications,
+    handleLogAction,
+  ]);
 
   return (
-    <LoanProcessingContext.Provider value={{
-      submittedDocs,
-      setSubmittedDocs,
-      auditLogs,
-      setAuditLogs,
-      clients,
-      setClients,
-      applications,
-      setApplications,
-      notifications,
-      setNotifications,
-      handleLogAction
-    }}>
+    <LoanProcessingContext.Provider value={contextValue}>
       {children}
     </LoanProcessingContext.Provider>
   );

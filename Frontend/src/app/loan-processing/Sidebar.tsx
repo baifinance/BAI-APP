@@ -11,6 +11,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { LayoutDashboard, CheckSquare, ClipboardList, ShieldAlert, Percent, Bell, LogOut } from "lucide-react";
 
 export type LoanProcessingTabType = "Dashboard" | "Application" | "AuditLog" | "Calculator" | "Notifications" | "Review";
@@ -53,9 +54,11 @@ export default function Sidebar({ activeTab }: SidebarProps) {
       {/* Brand Header (Contrast logo on blue background) */}
       <div className="p-6 border-b border-white/10 flex items-center gap-3">
         <div className="flex flex-col gap-0.5 min-w-0">
-          <img
+          <Image
             src="/bai_logo_white.png"
             alt="BAI Group of Companies"
+            width={3383}
+            height={1454}
             className="h-8 w-auto object-contain"
           />
           <span className="text-[10px] text-slate-100/70 font-bold uppercase tracking-wider block pl-0.5">

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import useSWR from "swr";
 import { 
   Client,
@@ -31,7 +31,6 @@ interface BrokerContextType {
   autoCompose: boolean;
   setAutoCompose: (val: boolean) => void;
   notifications: Array<{ type: string; message: string; time: string }>;
-  setNotifications: React.Dispatch<React.SetStateAction<Array<{ type: string; message: string; time: string }>>>;
   createBooking: (data: {
     slot_time: string;
     consultation_type?: string;
@@ -88,19 +87,19 @@ export function BrokerProvider({ children }: { children: React.ReactNode }) {
   const [autoCompose, setAutoCompose] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [notifications, setNotifications] = useState<PortalNotification[]>([
-    { type: "Dossier Update", message: "Alice Smith uploaded corporate bank logs and income statement.", time: "10 mins ago" },
-    { type: "Outstanding File", message: "Emma Wilson's construction file is missing certified builder insurance.", time: "1 hour ago" },
-    { type: "Valuation Scheduled", message: "John Doe's property appraisal booking is locked for tomorrow." , time: "3 hours ago" },
-  ]);
-
   const { data: notifData } = useSWR("notifications", () => notificationsApi.list(), {
     refreshInterval: 30_000,
   });
 
-  useEffect(() => {
-    if (notifData) setNotifications(notifData.map(mapNotification));
-  }, [notifData]);
+  const notifications = useMemo<PortalNotification[]>(
+    () =>
+      notifData?.map(mapNotification) ?? [
+        { type: "Dossier Update", message: "Alice Smith uploaded corporate bank logs and income statement.", time: "10 mins ago" },
+        { type: "Outstanding File", message: "Emma Wilson's construction file is missing certified builder insurance.", time: "1 hour ago" },
+        { type: "Valuation Scheduled", message: "John Doe's property appraisal booking is locked for tomorrow.", time: "3 hours ago" },
+      ],
+    [notifData],
+  );
 
   useEffect(() => {
     bookingsApi.list()
@@ -149,27 +148,41 @@ export function BrokerProvider({ children }: { children: React.ReactNode }) {
     setPublishedSlots((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
+  const contextValue = useMemo<BrokerContextType>(() => ({
+    clients,
+    setClients,
+    applications,
+    setApplications,
+    bookings,
+    setBookings,
+    emails,
+    setEmails,
+    autoCompose,
+    setAutoCompose,
+    notifications,
+    createBooking,
+    publishedSlots,
+    createSlot,
+    deleteSlot,
+    loading,
+    submitting,
+  }), [
+    clients,
+    applications,
+    bookings,
+    emails,
+    autoCompose,
+    notifications,
+    createBooking,
+    publishedSlots,
+    createSlot,
+    deleteSlot,
+    loading,
+    submitting,
+  ]);
+
   return (
-    <BrokerContext.Provider value={{
-      clients,
-      setClients,
-      applications,
-      setApplications,
-      bookings,
-      setBookings,
-      emails,
-      setEmails,
-      autoCompose,
-      setAutoCompose,
-      notifications,
-      setNotifications,
-      createBooking,
-      publishedSlots,
-      createSlot,
-      deleteSlot,
-      loading,
-      submitting
-    }}>
+    <BrokerContext.Provider value={contextValue}>
       {children}
     </BrokerContext.Provider>
   );
