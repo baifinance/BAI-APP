@@ -135,6 +135,10 @@ export interface OtpVerifyResponse {
   verified: boolean;
 }
 
+export interface PasswordResetResponse {
+  message: string;
+}
+
 export const otpApi = {
   send: (email: string, purpose = "login_2fa") =>
     request<{ detail: string }>("/api/otp/send/", {
@@ -146,6 +150,22 @@ export const otpApi = {
     request<OtpVerifyResponse>("/api/otp/verify/", {
       method: "POST",
       json: { email, code, purpose },
+    }),
+
+  resetPassword: (
+    email: string,
+    code: string,
+    password: string,
+    passwordConfirm: string,
+  ) =>
+    request<PasswordResetResponse>("/api/otp/reset-password/", {
+      method: "POST",
+      json: {
+        email,
+        code,
+        password,
+        password_confirm: passwordConfirm,
+      },
     }),
 };
 

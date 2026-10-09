@@ -61,8 +61,10 @@ export default function ClientLoginPage() {
   const [isResetPopupOpen, setIsResetPopupOpen] = useState(false);
   const [resetDigits, setResetDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const resetDigitRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [resetSending, setResetSending] = useState(false);
+  const [resetOtpError, setResetOtpError] = useState("");
 
-  const handleOpenPasswordReset = (e: React.MouseEvent) => {
+  const handleOpenPasswordReset = async (e: React.MouseEvent) => {
     e.preventDefault();
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
@@ -79,9 +81,18 @@ export default function ClientLoginPage() {
     }
 
     setErrorMsg("");
-    setIsResetPopupOpen(true);
-    setResetDigits(["", "", "", "", "", ""]);
-    setTimeout(() => resetDigitRefs.current[0]?.focus(), 120);
+    setResetSending(true);
+    setResetOtpError("");
+    try {
+      await otpApi.send(trimmedEmail, "reset_password");
+      setResetDigits(["", "", "", "", "", ""]);
+      setIsResetPopupOpen(true);
+      setTimeout(() => resetDigitRefs.current[0]?.focus(), 120);
+    } catch (err: unknown) {
+      setErrorMsg(errMessage(err, "Unable to send a password reset code."));
+    } finally {
+      setResetSending(false);
+    }
   };
 
   const handleResetDigitChange = (index: number, val: string) => {
@@ -154,6 +165,12 @@ export default function ClientLoginPage() {
   // Transition from Password Reset OTP popup to New Password popup
   const handleOtpSubmitToNewPassword = (e: React.MouseEvent | React.FormEvent) => {
     e.preventDefault();
+    const resetCode = resetDigits.join("");
+    if (resetCode.length !== 6) {
+      setResetOtpError("Please enter the 6-digit verification code.");
+      return;
+    }
+    setResetOtpError("");
     // Close the OTP modal container and open the New Password modal container
     setIsResetPopupOpen(false);
     setIsNewPasswordPopupOpen(true);
@@ -170,6 +187,27 @@ export default function ClientLoginPage() {
     setReEnterPassword("");
     setPasswordMatchError("");
     setPasswordResetSuccess(false);
+  };
+
+  const handleResendPasswordReset = async (
+    e: React.MouseEvent<HTMLButtonElement>,
+  ) => {
+    e.preventDefault();
+    if (resetSending) return;
+
+    setResetSending(true);
+    setResetOtpError("");
+    try {
+      await otpApi.send(email.trim(), "reset_password");
+      setResetDigits(["", "", "", "", "", ""]);
+      resetDigitRefs.current[0]?.focus();
+    } catch (err: unknown) {
+      setResetOtpError(
+        errMessage(err, "Unable to resend the password reset code."),
+      );
+    } finally {
+      setResetSending(false);
+    }
   };
 
   // Password input change handlers with interactive match checker logic
@@ -205,8 +243,25 @@ export default function ClientLoginPage() {
     }
 
     setPasswordMatchError("");
-    // UI Prototype success state (no backend password reset call)
-    setPasswordResetSuccess(true);
+    setResetSending(true);
+    otpApi
+      .resetPassword(
+        email.trim(),
+        resetDigits.join(""),
+        newPassword,
+        reEnterPassword,
+      )
+      .then(() => {
+        setPasswordResetSuccess(true);
+      })
+      .catch((err: unknown) => {
+        setPasswordMatchError(
+          errMessage(err, "Unable to reset your password. Please try again."),
+        );
+      })
+      .finally(() => {
+        setResetSending(false);
+      });
   };
 
   // ==============================================================================
@@ -895,6 +950,13 @@ export default function ClientLoginPage() {
               </p>
             </div>
 
+            {resetOtpError && (
+              <div className="mb-4 p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold text-rose-600 animate-fadeIn">
+                <ShieldAlert className="w-4 h-4 shrink-0 text-rose-500" />
+                <span>{resetOtpError}</span>
+              </div>
+            )}
+
             {/* 6-Slot Input that only accepts numbers */}
             <div className="my-6">
               <div className="flex justify-center items-center gap-2 sm:gap-3">
@@ -912,6 +974,7 @@ export default function ClientLoginPage() {
                     onChange={(e) => handleResetDigitChange(index, e.target.value)}
                     onKeyDown={(e) => handleResetDigitKeyDown(index, e)}
                     onPaste={handleResetPaste}
+                    disabled={resetSending}
                     className={`w-11 h-14 sm:w-13 sm:h-16 text-center text-xl sm:text-2xl font-bold font-mono rounded-xl sm:rounded-2xl border-2 transition-all outline-none ${
                       digit
                         ? "border-[#0A2881] bg-blue-50/30 text-slate-900 shadow-xs"
@@ -925,14 +988,15 @@ export default function ClientLoginPage() {
               {/* Resend message with hyperlink */}
               <div className="mt-4 text-center">
                 <p className="text-xs text-slate-500">
-                  Didn&apos;t recieve a code?{" "}
-                  <a
-                    href="#"
-                    onClick={(e) => e.preventDefault()}
-                    className="text-[#0A2881] font-bold hover:underline cursor-pointer"
+                  Didn&apos;t receive a code?{" "}
+                  <button
+                    type="button"
+                    onClick={handleResendPasswordReset}
+                    disabled={resetSending}
+                    className="text-[#0A2881] font-bold hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Click here to resend.
-                  </a>
+                  </button>
                 </p>
               </div>
             </div>
@@ -942,9 +1006,10 @@ export default function ClientLoginPage() {
               <button
                 type="button"
                 onClick={handleOtpSubmitToNewPassword}
-                className="w-full py-3.5 px-4 bg-[#0A2881] hover:bg-[#071D60] text-white rounded-xl sm:rounded-2xl text-sm font-bold shadow-md shadow-[#0A2881]/20 hover:shadow-lg transition-all flex items-center justify-center cursor-pointer"
+                disabled={resetSending || resetDigits.join("").length !== 6}
+                className="w-full py-3.5 px-4 bg-[#0A2881] hover:bg-[#071D60] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl sm:rounded-2xl text-sm font-bold shadow-md shadow-[#0A2881]/20 hover:shadow-lg transition-all flex items-center justify-center cursor-pointer"
               >
-                Submit
+                {resetSending ? "Sending..." : "Submit"}
               </button>
             </div>
 
@@ -1113,9 +1178,10 @@ export default function ClientLoginPage() {
                 <div className="pt-2">
                   <button
                     type="submit"
+                    disabled={resetSending}
                     className="w-full py-3.5 px-4 bg-[#0A2881] hover:bg-[#071D60] active:scale-[0.99] text-white rounded-xl sm:rounded-2xl text-sm font-bold shadow-md shadow-[#0A2881]/20 hover:shadow-lg transition-all flex items-center justify-center cursor-pointer"
                   >
-                    Submit
+                    {resetSending ? "Updating..." : "Submit"}
                   </button>
                 </div>
 

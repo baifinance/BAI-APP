@@ -3,7 +3,11 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from django.conf import settings
 from users.models import User
-from .serializers import OtpSendSerializer, OtpVerifySerializer
+from .serializers import (
+    OtpSendSerializer,
+    OtpVerifySerializer,
+    PasswordResetSerializer,
+)
 from .utils import generate_otp, store_otp, verify_otp, mark_otp_verified
 from .services import send_otp_email
 
@@ -66,5 +70,43 @@ class OtpVerifyView(generics.GenericAPIView):
 
         return Response(
             {"message": message, "verified": True},
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetView(generics.GenericAPIView):
+    """
+    Verify a password-reset OTP and change the password in one operation.
+
+    POST /api/otp/reset-password/
+    """
+
+    serializer_class = PasswordResetSerializer
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [OtpVerifyThrottle]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data["email"]
+        code = serializer.validated_data["code"]
+        success, message = verify_otp(
+            email,
+            code,
+            purpose="reset_password",
+        )
+        if not success:
+            return Response(
+                {"error": message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = serializer.validated_data["user"]
+        user.set_password(serializer.validated_data["password"])
+        user.save(update_fields=["password", "updated_at"])
+
+        return Response(
+            {"message": "Password reset successfully."},
             status=status.HTTP_200_OK,
         )
