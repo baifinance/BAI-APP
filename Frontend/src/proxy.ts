@@ -11,6 +11,7 @@ const ROUTE_ROLE_MAP: Record<string, string> = {
   "/client": "client",
   "/broker": "broker",
   "/loan-processing": "loan_processing",
+  "/compliance": "compliance",
 };
 
 /**
@@ -67,6 +68,10 @@ export function proxy(request: NextRequest) {
 
       if (userRole === "loan_processing") {
         return NextResponse.redirect(new URL("/loan-processing", request.url));
+      }
+
+      if (userRole === "compliance") {
+        return NextResponse.redirect(new URL("/compliance", request.url));
       }
 
       // JWT exists but role is unknown
@@ -126,6 +131,10 @@ export function proxy(request: NextRequest) {
 
     if (userRole === "loan_processing") {
       return NextResponse.redirect(new URL("/loan-processing", request.url));
+    }
+
+    if (userRole === "compliance") {
+      return NextResponse.redirect(new URL("/compliance", request.url));
     }
 
     return NextResponse.redirect(new URL("/login", request.url));

@@ -20,13 +20,14 @@ from rest_framework.throttling import ScopedRateThrottle
 
 from django.conf import settings
 
-from users.serializers import ProfileSerializer
+from users.models import User
 from otp.utils import generate_otp, store_otp, verify_otp, mark_otp_verified
 from otp.services import send_otp_email
 from users.serializers import (
     ProfileSerializer,
     MfaEnableSerializer,
-    MfaDisableSerializer
+    MfaDisableSerializer,
+    RegisteredUserSerializer,
 )
 from notifications.choices import NotificationType
 from notifications.services import create_notification, publish_stream_notification
@@ -132,3 +133,15 @@ class MfaDisableView(generics.GenericAPIView):
         publish_stream_notification(user.id, notification)
 
         return Response({"message": "MFA disabled.", "mfa_enabled": False})
+
+
+class UserListView(generics.ListAPIView):
+    """
+    GET /api/users/ -> Returns all registered users from the database.
+    Used by the Compliance portal and user administration.
+    """
+    serializer_class = RegisteredUserSerializer
+    permission_classes = [permissions.AllowAny if settings.DEBUG else permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return User.objects.all().order_by("-date_joined", "-created_at")

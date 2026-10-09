@@ -61,3 +61,47 @@ class MfaDisableSerializer(serializers.Serializer):
     """Confirm identity with the current password before turning MFA off"""
     password = serializers.CharField(write_only=True)
 
+
+class RegisteredUserSerializer(serializers.ModelSerializer):
+    """Serializer for displaying registered users in Compliance & administrative views."""
+    full_name = serializers.SerializerMethodField()
+    registered_date = serializers.SerializerMethodField()
+    formatted_role = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "full_name",
+            "email",
+            "role",
+            "formatted_role",
+            "status",
+            "registered_date",
+            "created_at",
+        ]
+
+    def get_full_name(self, obj):
+        name = f"{obj.first_name} {obj.last_name}".strip()
+        if name:
+            return name
+        email_prefix = obj.email.split("@")[0].replace(".", " ").replace("_", " ").title()
+        return email_prefix if email_prefix else obj.email
+
+    def get_formatted_role(self, obj):
+        role_map = {
+            "client": "Client",
+            "broker": "Broker",
+            "loan_processing": "Loan Processing",
+            "compliance": "Compliance",
+        }
+        return role_map.get(str(obj.role).lower(), str(obj.role).replace("_", " ").title())
+
+    def get_registered_date(self, obj):
+        dt = getattr(obj, "created_at", None) or getattr(obj, "date_joined", None)
+        if dt:
+            return dt.strftime("%b %d, %Y")
+        return "N/A"
+

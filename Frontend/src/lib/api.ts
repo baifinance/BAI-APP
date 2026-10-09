@@ -83,7 +83,7 @@ export interface AuthUser {
   id: string;
   email: string;
   username: string;
-  role: "client" | "broker" | "loan_processing";
+  role: "client" | "broker" | "loan_processing" | "compliance";
   status: string;
   mfa_enabled: boolean;
   is_active: boolean;
@@ -178,7 +178,26 @@ export interface UserProfileResponse {
   role: string;
 }
 
+export interface RegisteredUserApiItem {
+  id: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  full_name: string;
+  role: string;
+  formatted_role?: string;
+  status?: string;
+  registered_date?: string;
+  created_at?: string;
+}
+
 export const usersApi = {
+  /**
+   * GET /api/users/
+   * Fetches all registered users from the database.
+   */
+  list: () => request<RegisteredUserApiItem[]>("/api/users/"),
+
   /**
    * GET /api/users/profile/
    * Fetches the current user's profile with computed full_name, first_name, last_name, email, and role.
@@ -334,6 +353,7 @@ export function subscribeToNotificationStream(
 export function getRoleRedirect(role: AuthUser["role"]): string {
   if (role === "client") return "/client";
   if (role === "broker") return "/broker";
+  if (role === "compliance") return "/compliance";
   return "/loan-processing";
 }
 
