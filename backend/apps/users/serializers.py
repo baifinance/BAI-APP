@@ -105,3 +105,16 @@ class RegisteredUserSerializer(serializers.ModelSerializer):
             return dt.strftime("%b %d, %Y")
         return "N/A"
 
+
+class ActiveUserSerializer(serializers.ModelSerializer):
+    """Compact representation used by staff account-management screens."""
+
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["id", "first_name", "last_name", "full_name", "email", "role"]
+
+    def get_full_name(self, obj):
+        name = f"{obj.first_name} {obj.last_name}".strip()
+        return name or obj.email

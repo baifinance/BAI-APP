@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
-import useSWR from "swr";
+import { useQuery } from "@tanstack/react-query";
 import { 
   Client,
   Application,
@@ -87,17 +87,16 @@ export function BrokerProvider({ children }: { children: React.ReactNode }) {
   const [autoCompose, setAutoCompose] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const { data: notifData } = useSWR("notifications", () => notificationsApi.list(), {
-    refreshInterval: 30_000,
+  const { data: notifData } = useQuery({
+    queryKey: ["broker", "notifications"],
+    queryFn: () => notificationsApi.list(),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    meta: { persist: false },
   });
 
   const notifications = useMemo<PortalNotification[]>(
-    () =>
-      notifData?.map(mapNotification) ?? [
-        { type: "Dossier Update", message: "Alice Smith uploaded corporate bank logs and income statement.", time: "10 mins ago" },
-        { type: "Outstanding File", message: "Emma Wilson's construction file is missing certified builder insurance.", time: "1 hour ago" },
-        { type: "Valuation Scheduled", message: "John Doe's property appraisal booking is locked for tomorrow.", time: "3 hours ago" },
-      ],
+    () => notifData?.map(mapNotification) ?? [],
     [notifData],
   );
 

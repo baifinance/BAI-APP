@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Sparkles, X, Send, Bot, User, RefreshCw } from "lucide-react";
+import { X, Send, User, RefreshCw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -14,6 +14,37 @@ interface ChatMessage {
   sources?: string[];
   timestamp: string;
   isAnimated?: boolean;
+}
+
+function BAIAssistantMark({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M8.5 12.5a7.5 7.5 0 0 1 15 0v5.25a7.5 7.5 0 0 1-15 0V12.5Z"
+        stroke="currentColor"
+        strokeWidth="2.25"
+      />
+      <path
+        d="M5.5 15.5v2.25a10.5 10.5 0 0 0 21 0V15.5M16 5V3.5"
+        stroke="currentColor"
+        strokeWidth="2.25"
+        strokeLinecap="round"
+      />
+      <circle cx="12.5" cy="15.5" r="1.5" fill="#E4BA37" />
+      <circle cx="19.5" cy="15.5" r="1.5" fill="#E4BA37" />
+      <path
+        d="M13 20h6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
 const INITIAL_MESSAGES: ChatMessage[] = [
@@ -229,14 +260,11 @@ export default function AIChatWidget() {
           <div className="bg-gradient-to-r from-[#0038A8] via-[#002F8E] to-[#0024A8] text-white p-4 flex items-center justify-between shadow-md shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-white/15 border border-white/20 flex items-center justify-center text-amber-400 shadow-inner">
-                <Sparkles className="w-5 h-5" />
+                <BAIAssistantMark className="w-5 h-5 text-white" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-sm tracking-wide text-white">BAI A.I Assistant</h3>
-                  <span className="bg-amber-400/20 text-amber-300 text-[10px] font-bold px-1.5 py-0.5 rounded border border-amber-400/30">
-                    RAG
-                  </span>
+                  <h3 className="font-bold text-sm tracking-wide text-white">BAI Assistant</h3>
                 </div>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -282,7 +310,7 @@ export default function AIChatWidget() {
                 >
                   {msg.role === "assistant" ? (
                     <div className="w-7 h-7 rounded-full bg-[#0038A8] text-white flex items-center justify-center text-xs shrink-0 mt-0.5 shadow-sm">
-                      <Bot className="w-4 h-4" />
+                      <BAIAssistantMark className="w-4 h-4" />
                     </div>
                   ) : (
                     <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs shrink-0 mt-0.5 shadow-sm">
@@ -322,10 +350,10 @@ export default function AIChatWidget() {
             {isLoading && (
               <div className="flex items-start gap-2.5 max-w-[88%] self-start animate-in fade-in duration-300">
                 <div className="w-7 h-7 rounded-full bg-[#0038A8] text-white flex items-center justify-center text-xs shrink-0 mt-0.5 shadow-sm">
-                  <Bot className="w-4 h-4" />
+                  <BAIAssistantMark className="w-4 h-4" />
                 </div>
                 <div className="bg-white px-4 py-3 rounded-2xl rounded-tl-xs shadow-sm border border-slate-100 flex items-center gap-2">
-                  <span className="text-[11px] text-slate-500 font-medium">BAI A.I is typing</span>
+                  <span className="text-[11px] text-slate-500 font-medium">BAI Assistant is typing</span>
                   <div className="flex items-center gap-1 ml-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#0038A8] animate-bounce [animation-delay:-0.3s]" />
                     <span className="w-1.5 h-1.5 rounded-full bg-[#0038A8] animate-bounce [animation-delay:-0.15s]" />
@@ -381,7 +409,7 @@ export default function AIChatWidget() {
             </div>
 
             <p className="text-[10px] text-slate-400 text-center mt-2">
-              BAI A.I is powered by Groq & Bai Finance Knowledge Base.
+              BAI Assistant is powered by Groq & BAI Finance Knowledge Base.
             </p>
           </form>
         </div>
@@ -392,23 +420,25 @@ export default function AIChatWidget() {
         onClick={() => setIsOpen(!isOpen)}
         className="group relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-[#0038A8] via-[#002F8E] to-[#0024A8] text-white shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 border-2 border-white/30 focus:outline-none focus:ring-4 focus:ring-[#0038A8]/30 cursor-pointer"
         style={{ boxShadow: "0 10px 30px rgba(0, 56, 168, 0.4)" }}
-        aria-label="Open A.I Assistant"
+        aria-label={isOpen ? "Close BAI Assistant" : "Open BAI Assistant"}
+        title={isOpen ? "Close BAI Assistant" : "Ask BAI"}
       >
         <span className="absolute inset-0 rounded-full bg-blue-400/20 animate-ping opacity-75 pointer-events-none" />
 
         {isOpen ? (
           <X className="w-7 h-7 text-white transition-transform duration-200" />
         ) : (
-          <div className="flex flex-col items-center justify-center leading-none">
-            <Sparkles className="w-4 h-4 text-amber-400 mb-0.5 group-hover:rotate-12 transition-transform duration-300" />
-            <span className="font-extrabold text-sm sm:text-base tracking-wider text-white">
-              A.I
-            </span>
-          </div>
+          <BAIAssistantMark className="w-8 h-8 text-white transition-transform duration-300 group-hover:-rotate-6" />
         )}
 
         {!isOpen && (
           <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-emerald-400 border-2 border-white rounded-full" />
+        )}
+
+        {!isOpen && (
+          <span className="pointer-events-none absolute right-full top-1/2 mr-3 -translate-y-1/2 whitespace-nowrap rounded-lg bg-[#071E63] px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+            Ask BAI
+          </span>
         )}
       </button>
     </div>

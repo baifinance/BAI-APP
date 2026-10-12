@@ -390,6 +390,11 @@ Revokes a pending invitation so the token can no longer be used.
 
 ## System Endpoints
 
+### Active Users (`GET /api/users/active/`)
+
+Returns active users and their assigned roles for staff account-management
+screens. Requires an authenticated loan-processing or compliance user.
+
 ### 11. Health Check (`GET /healthz`)
 Returns the health status of the backend API service.
 
