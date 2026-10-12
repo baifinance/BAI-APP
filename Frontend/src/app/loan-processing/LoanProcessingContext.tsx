@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
-import useSWR from "swr";
+import { useQuery } from "@tanstack/react-query";
 import { 
   SubmittedDocument, 
   AuditLogEntry 
@@ -67,17 +67,16 @@ export function LoanProcessingProvider({ children }: { children: React.ReactNode
     localStorage.setItem("new_registrations", JSON.stringify(newRegs));
   }, [submittedDocs]);
 
-  const { data: notifData } = useSWR("notifications", () => notificationsApi.list(), {
-    refreshInterval: 30_000,
+  const { data: notifData } = useQuery({
+    queryKey: ["loan-processing", "notifications"],
+    queryFn: () => notificationsApi.list(),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    meta: { persist: false },
   });
 
   const notifications = useMemo<PortalNotification[]>(
-    () =>
-      notifData?.map(mapNotification) ?? [
-        { type: "Audit Alert", message: "System audit complete for Alice Smith's folder.", time: "1 hour ago" },
-        { type: "Flagged File", message: "Flagged document: Bank statement missing page 3.", time: "2 hours ago" },
-        { type: "New Submission", message: "New application submitted by Emma Wilson.", time: "1 day ago" },
-      ],
+    () => notifData?.map(mapNotification) ?? [],
     [notifData],
   );
 

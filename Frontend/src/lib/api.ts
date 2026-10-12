@@ -122,6 +122,15 @@ export const authApi = {
     request<LoginResponse>("/api/auth/login/", { method: "POST", json: { email, password } }),
 
   me: () => request<AuthUser>("/api/auth/user/"),
+
+  sendInvitation: (data: {
+    email: string;
+    role: "client" | "broker";
+  }) =>
+    request<{ message: string }>("/api/auth/invitations/send/", {
+      method: "POST",
+      json: data,
+    }),
 };
 
 /** Instant OTP lives for 2 minutes (backend: OTP_LOGIN_EXPIRY). */
@@ -197,6 +206,12 @@ export const usersApi = {
    * Fetches all registered users from the database.
    */
   list: () => request<RegisteredUserApiItem[]>("/api/users/"),
+
+  /**
+   * GET /api/users/active/
+   * Lists active users and their assigned roles.
+   */
+  activeList: () => request<RegisteredUserApiItem[]>("/api/users/active/"),
 
   /**
    * GET /api/users/profile/

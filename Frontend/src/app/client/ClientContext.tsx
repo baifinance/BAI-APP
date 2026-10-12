@@ -169,21 +169,28 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     queryKey: clientKeys.profile,
     queryFn: usersApi.getProfile,
     staleTime: 5 * 60_000,
+    meta: { persist: false },
   });
 
   const loanQuery = useQuery({
     queryKey: clientKeys.loanStatus,
     queryFn: loansApi.getCurrentStatus,
+    staleTime: 30_000,
+    meta: { persist: false },
   });
 
   const bookingsQuery = useQuery({
     queryKey: clientKeys.bookings,
     queryFn: bookingsApi.list,
+    staleTime: 60_000,
+    meta: { persist: false },
   });
 
   const notificationsQuery = useQuery({
     queryKey: clientKeys.notifications,
     queryFn: () => notificationsApi.list(),
+    staleTime: 30_000,
+    meta: { persist: false },
   });
 
   const client = useMemo<ClientData>(() => {

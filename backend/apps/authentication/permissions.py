@@ -5,7 +5,10 @@ from otp.utils import is_otp_verified
 
 class IsLoanProcessingTeam(permissions.BasePermission):
     """
-    Only users with role = LOAN_PROCESSING.
+    Staff users allowed to manage invitations and back-office accounts.
+
+    ``compliance`` is retained for the existing Compliance portal while
+    ``loan_processing`` remains the canonical migrated role.
     """
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
@@ -13,7 +16,10 @@ class IsLoanProcessingTeam(permissions.BasePermission):
         
         return (
                 request.user.is_superuser
-                or getattr(request.user, "role", None) == UserRole.LOAN_PROCESSING
+                or getattr(request.user, "role", None) in {
+                    UserRole.LOAN_PROCESSING,
+                    UserRole.COMPLIANCE,
+                }
             )
 
 class IsOtpVerified(permissions.BasePermission):

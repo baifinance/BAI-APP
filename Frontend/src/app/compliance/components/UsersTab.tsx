@@ -6,8 +6,8 @@
  *              - Directly renders the Registered Users table without the top hero banner.
  *              - Connects to the database via /api/users/ to reflect live registered users.
  *              - Table displays Full Name on the left and Role on the right.
- *              - Features an "Invite User" button on the top right that opens a popup
- *                asking for email input (prototype without backend functionality).
+ *              - Features an "Invite User" button that sends broker/client
+ *                invitations through the backend invitation API.
  * ==============================================================================
  */
 
@@ -25,7 +25,11 @@ import {
   RefreshCw,
   AlertCircle,
 } from "lucide-react";
-import { usersApi, RegisteredUserApiItem } from "@/lib/api";
+import {
+  authApi,
+  usersApi,
+  RegisteredUserApiItem,
+} from "@/lib/api";
 
 export interface RegisteredUser {
   id: string;
@@ -34,73 +38,6 @@ export interface RegisteredUser {
   role: "Client" | "Broker" | "Loan Processing" | "Compliance";
   registeredDate: string;
 }
-
-// Database snapshot fallback matching the PostgreSQL database records
-const DATABASE_USERS_FALLBACK: RegisteredUser[] = [
-  {
-    id: "020b88ab-712b-4a99-b567-a3a5f93c79a5",
-    fullName: "Janssen Carl Amaya",
-    email: "janamaya438@gmail.com",
-    role: "Client",
-    registeredDate: "Aug 31, 2026",
-  },
-  {
-    id: "2d2a094b-2e67-4112-b158-febb6d483fb5",
-    fullName: "New Compliance",
-    email: "newcompliance@bai.finance",
-    role: "Compliance",
-    registeredDate: "Aug 24, 2026",
-  },
-  {
-    id: "15e659b9-a981-48fc-ba53-e559a3a645e0",
-    fullName: "Jake Zafra",
-    email: "jakelaurence.zafra@cit.edu",
-    role: "Compliance",
-    registeredDate: "Sep 01, 2026",
-  },
-  {
-    id: "f0758449-7706-41a7-81b9-81949aa5ce18",
-    fullName: "Carl Amaya",
-    email: "expertbake@gmail.com",
-    role: "Client",
-    registeredDate: "Aug 31, 2026",
-  },
-  {
-    id: "1613e71b-a2be-4d7a-bed8-7fe93c8f29f9",
-    fullName: "Compliance Account",
-    email: "compliance@bai.finance",
-    role: "Loan Processing",
-    registeredDate: "Sep 09, 2026",
-  },
-  {
-    id: "d272fa80-f27c-4b34-a659-b835dd78958e",
-    fullName: "Test Client",
-    email: "testclient@bai.finance",
-    role: "Client",
-    registeredDate: "Sep 09, 2026",
-  },
-  {
-    id: "61b51c93-1124-47e8-a2dd-416f99cc3641",
-    fullName: "Test Loan Processing",
-    email: "testlp@bai.finance",
-    role: "Loan Processing",
-    registeredDate: "Sep 09, 2026",
-  },
-  {
-    id: "3b3dbbd2-8a80-4b7d-8d49-6ec2a34fb1cf",
-    fullName: "Broker Account",
-    email: "broker@bai.finance",
-    role: "Broker",
-    registeredDate: "Sep 09, 2026",
-  },
-  {
-    id: "cfe8c515-fce1-4100-8e5a-d9a59f3ee52a",
-    fullName: "Peter Richards",
-    email: "peterrichards357@gmail.com",
-    role: "Client",
-    registeredDate: "Sep 01, 2026",
-  },
-];
 
 // Map backend role string to standard display role
 function mapRoleToDisplay(rawRole: string): RegisteredUser["role"] {
@@ -113,7 +50,7 @@ function mapRoleToDisplay(rawRole: string): RegisteredUser["role"] {
 }
 
 export default function UsersTab() {
-  const [users, setUsers] = useState<RegisteredUser[]>(DATABASE_USERS_FALLBACK);
+  const [users, setUsers] = useState<RegisteredUser[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -124,6 +61,11 @@ export default function UsersTab() {
   // ============================================================================
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"client" | "broker">("client");
+  const [inviteStatus, setInviteStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [inviteError, setInviteError] = useState("");
   const [inviteSuccessFeedback, setInviteSuccessFeedback] = useState(false);
 
   // Fetch registered users from backend database
@@ -131,7 +73,7 @@ export default function UsersTab() {
     setLoading(true);
     setFetchError(null);
     try {
-      const data: RegisteredUserApiItem[] = await usersApi.list();
+      const data: RegisteredUserApiItem[] = await usersApi.activeList();
       if (Array.isArray(data) && data.length > 0) {
         const mappedUsers: RegisteredUser[] = data.map((item) => ({
           id: item.id,
@@ -145,14 +87,10 @@ export default function UsersTab() {
           registeredDate: item.registered_date || (item.created_at ? new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"),
         }));
         setUsers(mappedUsers);
-      } else {
-        // Fallback to verified database snapshot
-        setUsers(DATABASE_USERS_FALLBACK);
       }
     } catch (err: unknown) {
-      console.warn("Could not load from /api/users/, using database snapshot fallback:", err);
-      // Keep verified database snapshot on network glitch
-      setUsers(DATABASE_USERS_FALLBACK);
+      console.warn("Could not load active users:", err);
+      setFetchError("Unable to load active users.");
     } finally {
       setLoading(false);
     }
@@ -165,6 +103,9 @@ export default function UsersTab() {
   // Open the invite pop-up modal
   const handleOpenInviteModal = () => {
     setInviteEmail("");
+    setInviteRole("client");
+    setInviteStatus("idle");
+    setInviteError("");
     setInviteSuccessFeedback(false);
     setIsInviteModalOpen(true);
   };
@@ -173,18 +114,31 @@ export default function UsersTab() {
   const handleCloseInviteModal = () => {
     setIsInviteModalOpen(false);
     setInviteEmail("");
+    setInviteRole("client");
+    setInviteStatus("idle");
+    setInviteError("");
     setInviteSuccessFeedback(false);
   };
 
-  // Prototype submission: does not call backend functionality
-  const handleInviteSubmit = (e: React.FormEvent) => {
+  const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
 
-    setInviteSuccessFeedback(true);
-    setTimeout(() => {
-      handleCloseInviteModal();
-    }, 1500);
+    setInviteStatus("loading");
+    setInviteError("");
+
+    try {
+      await authApi.sendInvitation({
+        email: inviteEmail.trim(),
+        role: inviteRole,
+      });
+      setInviteStatus("success");
+      setInviteSuccessFeedback(true);
+      await fetchRegisteredUsers();
+    } catch (error: unknown) {
+      setInviteStatus("error");
+      setInviteError(error instanceof Error ? error.message : "Failed to send invitation.");
+    }
   };
 
   // Filtered users calculation
@@ -322,13 +276,27 @@ export default function UsersTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {loading && users.length === 0 ? (
+              {loading ? (
+                Array.from({ length: 6 }).map((_, index) => (
+                  <tr key={`user-skeleton-${index}`} className="animate-pulse">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-slate-200 shrink-0" />
+                        <div className="space-y-2">
+                          <div className="h-3.5 w-36 rounded bg-slate-200" />
+                          <div className="h-3 w-48 rounded bg-slate-100" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="ml-auto h-6 w-24 rounded-full bg-slate-200" />
+                    </td>
+                  </tr>
+                ))
+              ) : fetchError ? (
                 <tr>
-                  <td colSpan={2} className="py-12 px-6 text-center text-slate-400">
-                    <div className="flex items-center justify-center gap-2">
-                      <RefreshCw className="w-4 h-4 animate-spin text-[#0A2881]" />
-                      <span className="text-xs font-semibold">Connecting to database...</span>
-                    </div>
+                  <td colSpan={2} className="py-12 px-6 text-center text-rose-500 text-xs sm:text-sm font-medium">
+                    {fetchError}
                   </td>
                 </tr>
               ) : filteredUsers.length > 0 ? (
@@ -392,14 +360,10 @@ export default function UsersTab() {
         </div>
 
         {/* Table Footer Count */}
-        <div className="p-4 sm:px-6 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-semibold">
+        <div className="p-4 sm:px-6 bg-slate-50/70 border-t border-slate-100 text-xs text-slate-500 font-semibold">
           <span>
             Showing <strong className="text-slate-800">{filteredUsers.length}</strong> of{" "}
             <strong className="text-slate-800">{users.length}</strong> database users
-          </span>
-          <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-            Live Database Synced
           </span>
         </div>
 
@@ -446,14 +410,14 @@ export default function UsersTab() {
               </p>
             </div>
 
-            {/* Prototype Success State */}
+            {/* Backend response state */}
             {inviteSuccessFeedback ? (
               <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-center gap-2.5 text-emerald-700 text-xs sm:text-sm font-bold animate-fadeIn">
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                <span>Invitation prepared for {inviteEmail} (UI Prototype)</span>
+                <span>Invitation sent to {inviteEmail}.</span>
               </div>
             ) : (
-              /* Invite Form Asking for Email Input */
+                  /* Invite Form */
               <form onSubmit={handleInviteSubmit} className="space-y-5">
                 <div className="space-y-1.5 text-left">
                   <label
@@ -478,14 +442,47 @@ export default function UsersTab() {
                   </div>
                 </div>
 
+                <div className="space-y-1.5 text-left">
+                  <label
+                    htmlFor="invite-role-input"
+                    className="text-xs font-extrabold uppercase tracking-wider text-slate-400 block"
+                  >
+                    Account Role
+                  </label>
+                  <select
+                    id="invite-role-input"
+                    value={inviteRole}
+                    onChange={(e) => {
+                      const role = e.target.value as "client" | "broker";
+                      setInviteRole(role);
+                    }}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:border-[#0A2881] focus:ring-2 focus:ring-[#0A2881]/10"
+                  >
+                    <option value="client">Client</option>
+                    <option value="broker">Broker</option>
+                  </select>
+                </div>
+
+                {inviteStatus === "error" && (
+                  <div className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50 p-3 text-xs font-semibold text-rose-700">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{inviteError}</span>
+                  </div>
+                )}
+
                 {/* Action Buttons */}
                 <div className="space-y-2 pt-2">
                   <button
                     type="submit"
+                    disabled={inviteStatus === "loading"}
                     className="w-full py-3.5 px-4 bg-[#0A2881] hover:bg-[#071D60] active:scale-[0.99] text-white rounded-xl sm:rounded-2xl text-sm font-bold shadow-md shadow-[#0A2881]/20 hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <UserPlus className="w-4 h-4" />
-                    <span>Send Invitation</span>
+                    {inviteStatus === "loading" ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <UserPlus className="w-4 h-4" />
+                    )}
+                    <span>{inviteStatus === "loading" ? "Sending..." : "Send Invitation"}</span>
                   </button>
 
                   <button

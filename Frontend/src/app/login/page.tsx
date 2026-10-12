@@ -14,21 +14,16 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Lock,
   Mail,
   ArrowLeft,
-  ShieldCheck,
   ShieldAlert,
   Sparkles,
   CheckCircle2,
   FileText,
   UserCheck,
   KeyRound,
-  Timer,
   RotateCcw,
-  Inbox,
   X,
-  ArrowRight,
   Eye,
   EyeOff,
 } from "lucide-react";
@@ -55,213 +50,11 @@ export default function ClientLoginPage() {
   const [isNavigatingHome, setIsNavigatingHome] = useState(false);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
 
-  // ==============================================================================
-  // 1b. PASSWORD RESET POP-UP MODAL STATE & HANDLERS
-  // ==============================================================================
-  const [isResetPopupOpen, setIsResetPopupOpen] = useState(false);
-  const [resetDigits, setResetDigits] = useState<string[]>(["", "", "", "", "", ""]);
-  const resetDigitRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const [resetSending, setResetSending] = useState(false);
-  const [resetOtpError, setResetOtpError] = useState("");
-
-  const handleOpenPasswordReset = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      setErrorMsg("Please enter your registered email address first to reset your password.");
-      emailInputRef.current?.focus();
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      setErrorMsg("Please enter a valid email address format (e.g., name@example.com).");
-      emailInputRef.current?.focus();
-      return;
-    }
-
-    setErrorMsg("");
-    setResetSending(true);
-    setResetOtpError("");
-    try {
-      await otpApi.send(trimmedEmail, "reset_password");
-      setResetDigits(["", "", "", "", "", ""]);
-      setIsResetPopupOpen(true);
-      setTimeout(() => resetDigitRefs.current[0]?.focus(), 120);
-    } catch (err: unknown) {
-      setErrorMsg(errMessage(err, "Unable to send a password reset code."));
-    } finally {
-      setResetSending(false);
-    }
-  };
-
-  const handleResetDigitChange = (index: number, val: string) => {
-    const clean = val.replace(/\D/g, "");
-    if (!clean && val !== "") return;
-
-    const char = clean.slice(-1);
-    const nextDigits = [...resetDigits];
-    nextDigits[index] = char;
-    setResetDigits(nextDigits);
-
-    if (char && index < 5) {
-      resetDigitRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleResetDigitKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace") {
-      if (!resetDigits[index] && index > 0) {
-        const nextDigits = [...resetDigits];
-        nextDigits[index - 1] = "";
-        setResetDigits(nextDigits);
-        resetDigitRefs.current[index - 1]?.focus();
-        e.preventDefault();
-      } else if (resetDigits[index]) {
-        const nextDigits = [...resetDigits];
-        nextDigits[index] = "";
-        setResetDigits(nextDigits);
-      }
-    } else if (e.key === "ArrowLeft" && index > 0) {
-      resetDigitRefs.current[index - 1]?.focus();
-    } else if (e.key === "ArrowRight" && index < 5) {
-      resetDigitRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleResetPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-    if (!pastedData) return;
-
-    const nextDigits = [...resetDigits];
-    for (let i = 0; i < 6; i++) {
-      nextDigits[i] = pastedData[i] || "";
-    }
-    setResetDigits(nextDigits);
-
-    const nextFocusIndex = Math.min(pastedData.length, 5);
-    resetDigitRefs.current[nextFocusIndex]?.focus();
-  };
-
   const handleBackToHome = () => {
     setIsNavigatingHome(true);
     setTimeout(() => {
       router.push("/");
     }, 250);
-  };
-
-  // ==============================================================================
-  // 1c. NEW PASSWORD POP-UP MODAL STATE & HANDLERS (Follow-up to Reset OTP)
-  // ==============================================================================
-  const [isNewPasswordPopupOpen, setIsNewPasswordPopupOpen] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [reEnterPassword, setReEnterPassword] = useState("");
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showReEnterPassword, setShowReEnterPassword] = useState(false);
-  const [passwordMatchError, setPasswordMatchError] = useState("");
-  const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
-
-  // Transition from Password Reset OTP popup to New Password popup
-  const handleOtpSubmitToNewPassword = (e: React.MouseEvent | React.FormEvent) => {
-    e.preventDefault();
-    const resetCode = resetDigits.join("");
-    if (resetCode.length !== 6) {
-      setResetOtpError("Please enter the 6-digit verification code.");
-      return;
-    }
-    setResetOtpError("");
-    // Close the OTP modal container and open the New Password modal container
-    setIsResetPopupOpen(false);
-    setIsNewPasswordPopupOpen(true);
-    setNewPassword("");
-    setReEnterPassword("");
-    setPasswordMatchError("");
-    setPasswordResetSuccess(false);
-  };
-
-  // Close the New Password popup modal
-  const handleCloseNewPasswordPopup = () => {
-    setIsNewPasswordPopupOpen(false);
-    setNewPassword("");
-    setReEnterPassword("");
-    setPasswordMatchError("");
-    setPasswordResetSuccess(false);
-  };
-
-  const handleResendPasswordReset = async (
-    e: React.MouseEvent<HTMLButtonElement>,
-  ) => {
-    e.preventDefault();
-    if (resetSending) return;
-
-    setResetSending(true);
-    setResetOtpError("");
-    try {
-      await otpApi.send(email.trim(), "reset_password");
-      setResetDigits(["", "", "", "", "", ""]);
-      resetDigitRefs.current[0]?.focus();
-    } catch (err: unknown) {
-      setResetOtpError(
-        errMessage(err, "Unable to resend the password reset code."),
-      );
-    } finally {
-      setResetSending(false);
-    }
-  };
-
-  // Password input change handlers with interactive match checker logic
-  const handleNewPasswordChange = (val: string) => {
-    setNewPassword(val);
-    if (reEnterPassword && val !== reEnterPassword) {
-      setPasswordMatchError("Passwords do not match. Please ensure both fields are identical.");
-    } else {
-      setPasswordMatchError("");
-    }
-  };
-
-  const handleReEnterPasswordChange = (val: string) => {
-    setReEnterPassword(val);
-    if (newPassword && val !== newPassword) {
-      setPasswordMatchError("Passwords do not match. Please ensure both fields are identical.");
-    } else {
-      setPasswordMatchError("");
-    }
-  };
-
-  // Password match checker submission handler (UI prototype only)
-  const handleNewPasswordSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPassword.trim() || !reEnterPassword.trim()) {
-      setPasswordMatchError("Please enter both password fields.");
-      return;
-    }
-    // Checker to make sure New Password and Re-Enter Password match
-    if (newPassword !== reEnterPassword) {
-      setPasswordMatchError("Passwords do not match. Please ensure both fields are identical.");
-      return;
-    }
-
-    setPasswordMatchError("");
-    setResetSending(true);
-    otpApi
-      .resetPassword(
-        email.trim(),
-        resetDigits.join(""),
-        newPassword,
-        reEnterPassword,
-      )
-      .then(() => {
-        setPasswordResetSuccess(true);
-      })
-      .catch((err: unknown) => {
-        setPasswordMatchError(
-          errMessage(err, "Unable to reset your password. Please try again."),
-        );
-      })
-      .finally(() => {
-        setResetSending(false);
-      });
   };
 
   // ==============================================================================
@@ -519,22 +312,6 @@ export default function ClientLoginPage() {
       </div>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* TOP-LEFT RETURN BUTTON: Blue square with white arrow -> Gold / Dark Blue */}
-      {/* ---------------------------------------------------------------------- */}
-      <button
-        type="button"
-        onClick={handleBackToHome}
-        aria-label="Return to Main Page"
-        className={`fixed top-4 left-4 sm:top-6 sm:left-6 z-30 w-11 h-11 flex items-center justify-center transition-all duration-200 cursor-pointer shadow-lg active:scale-95 ${
-          isNavigatingHome
-            ? "bg-[#E4BA37] text-[#0A2881] shadow-[#E4BA37]/50"
-            : "bg-[#0A2881] text-white hover:bg-[#071D60] shadow-[#0A2881]/40"
-        }`}
-      >
-        <ArrowLeft className="w-5 h-5" />
-      </button>
-
-      {/* ---------------------------------------------------------------------- */}
       {/* MAIN SPLIT-CONTAINER CARD (In front of everything, no outer white border)*/}
       {/* ---------------------------------------------------------------------- */}
       <div
@@ -624,6 +401,19 @@ export default function ClientLoginPage() {
         {/* ==================================================================== */}
         <div className="p-8 md:p-12 flex flex-col justify-between bg-white relative">
           <div className="space-y-6 my-auto">
+            <button
+              type="button"
+              onClick={handleBackToHome}
+              className={`inline-flex items-center gap-2 text-sm font-bold transition-colors duration-200 cursor-pointer ${
+                isNavigatingHome
+                  ? "text-[#E4BA37]"
+                  : "text-[#0A2881] hover:text-[#071D60]"
+              }`}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back to home</span>
+            </button>
+
             {/* ---------------------------------------------------------------- */}
             {/* 1. HEADER SECTION: CENTERED LOG IN TITLE & SUBTEXT               */}
             {/* ---------------------------------------------------------------- */}
@@ -733,13 +523,12 @@ export default function ClientLoginPage() {
               <div className="text-center pt-2">
                 <p className="text-xs text-slate-500 font-medium">
                   Forgot your password?{" "}
-                  <a
-                    href="#"
-                    onClick={handleOpenPasswordReset}
+                  <Link
+                    href="/forgot-password"
                     className="text-[#0A2881] font-bold hover:underline cursor-pointer"
                   >
                     Click here to reset
-                  </a>
+                  </Link>
                 </p>
               </div>
             </form>
@@ -905,299 +694,6 @@ export default function ClientLoginPage() {
                 Cancel and return to login
               </button>
             </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* ====================================================================== */}
-      {/* 8. PASSWORD RESET POP-UP MODAL CONTAINER                               */}
-      {/* ====================================================================== */}
-      {isResetPopupOpen && (
-        <div
-          className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="password-reset-title"
-        >
-          {/* Modal Container Card */}
-          <div className="bg-white w-full max-w-md rounded-3xl p-7 sm:p-9 shadow-2xl border border-slate-100 relative animate-scaleIn">
-            
-            {/* Exit Icon on the top right */}
-            <button
-              type="button"
-              onClick={() => setIsResetPopupOpen(false)}
-              className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-              aria-label="Close password reset modal"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Header: Large Bold Centered Blue Title */}
-            <div className="text-center space-y-2 mb-6">
-              <h3
-                id="password-reset-title"
-                className="text-2xl sm:text-3xl font-black text-[#0A2881] tracking-tight"
-              >
-                Password Reset
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed max-w-sm mx-auto">
-                We sent a password reset email containing a 6-digit code to{" "}
-                <span className="font-bold text-slate-800">
-                  {email.trim() || "(user email)"}
-                </span>
-                . Please input the code below.
-              </p>
-            </div>
-
-            {resetOtpError && (
-              <div className="mb-4 p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold text-rose-600 animate-fadeIn">
-                <ShieldAlert className="w-4 h-4 shrink-0 text-rose-500" />
-                <span>{resetOtpError}</span>
-              </div>
-            )}
-
-            {/* 6-Slot Input that only accepts numbers */}
-            <div className="my-6">
-              <div className="flex justify-center items-center gap-2 sm:gap-3">
-                {resetDigits.map((digit, index) => (
-                  <input
-                    key={index}
-                    ref={(el) => {
-                      resetDigitRefs.current[index] = el;
-                    }}
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleResetDigitChange(index, e.target.value)}
-                    onKeyDown={(e) => handleResetDigitKeyDown(index, e)}
-                    onPaste={handleResetPaste}
-                    disabled={resetSending}
-                    className={`w-11 h-14 sm:w-13 sm:h-16 text-center text-xl sm:text-2xl font-bold font-mono rounded-xl sm:rounded-2xl border-2 transition-all outline-none ${
-                      digit
-                        ? "border-[#0A2881] bg-blue-50/30 text-slate-900 shadow-xs"
-                        : "border-slate-200 bg-slate-50/80 text-slate-900 hover:border-slate-300"
-                    } focus:border-[#0A2881] focus:bg-white focus:ring-4 focus:ring-[#0A2881]/10`}
-                    aria-label={`Digit ${index + 1} of 6`}
-                  />
-                ))}
-              </div>
-
-              {/* Resend message with hyperlink */}
-              <div className="mt-4 text-center">
-                <p className="text-xs text-slate-500">
-                  Didn&apos;t receive a code?{" "}
-                  <button
-                    type="button"
-                    onClick={handleResendPasswordReset}
-                    disabled={resetSending}
-                    className="text-[#0A2881] font-bold hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Click here to resend.
-                  </button>
-                </p>
-              </div>
-            </div>
-
-            {/* Centered Blue Submit Button (Redirects to New Password Reset Popup) */}
-            <div className="mt-6 sm:mt-8">
-              <button
-                type="button"
-                onClick={handleOtpSubmitToNewPassword}
-                disabled={resetSending || resetDigits.join("").length !== 6}
-                className="w-full py-3.5 px-4 bg-[#0A2881] hover:bg-[#071D60] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl sm:rounded-2xl text-sm font-bold shadow-md shadow-[#0A2881]/20 hover:shadow-lg transition-all flex items-center justify-center cursor-pointer"
-              >
-                {resetSending ? "Sending..." : "Submit"}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* ====================================================================== */}
-      {/* 9. NEW PASSWORD POP-UP MODAL CONTAINER (Follow-up to Reset OTP)       */}
-      {/*    Separate Container for entering new password & matching check       */}
-      {/* ====================================================================== */}
-      {isNewPasswordPopupOpen && (
-        <div
-          className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="new-password-modal-title"
-        >
-          {/* Modal Container Card - Separate Container */}
-          <div className="bg-white w-full max-w-md rounded-3xl p-7 sm:p-9 shadow-2xl border border-slate-100 relative animate-scaleIn">
-            
-            {/* Exit / Close Icon Button */}
-            <button
-              type="button"
-              onClick={handleCloseNewPasswordPopup}
-              className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-              aria-label="Close password reset modal"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Header: Large Bold Centered Text "Password Reset" */}
-            <div className="text-center space-y-2 mb-6">
-              <h3
-                id="new-password-modal-title"
-                className="text-2xl sm:text-3xl font-black text-[#0A2881] tracking-tight"
-              >
-                Password Reset
-              </h3>
-            </div>
-
-            {/* UI Prototype Success Notification */}
-            {passwordResetSuccess ? (
-              <div className="space-y-6 my-4 animate-fadeIn">
-                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3 text-emerald-700">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-500 mt-0.5" />
-                  <div>
-                    <p className="text-xs sm:text-sm font-bold">Password Updated!</p>
-                    <p className="text-xs text-emerald-600 mt-0.5">
-                      Your new password has been verified and reset successfully (UI Prototype).
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleCloseNewPasswordPopup}
-                  className="w-full py-3.5 px-4 bg-[#0A2881] hover:bg-[#071D60] text-white rounded-xl sm:rounded-2xl text-sm font-bold shadow-md shadow-[#0A2881]/20 hover:shadow-lg transition-all flex items-center justify-center cursor-pointer"
-                >
-                  Return to Login
-                </button>
-              </div>
-            ) : (
-              /* Password Reset Form with Match Checker */
-              <form onSubmit={handleNewPasswordSubmit} className="space-y-4">
-                
-                {/* Error Banner: Password Match Checker */}
-                {passwordMatchError && (
-                  <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-2 text-xs font-semibold text-rose-600 animate-fadeIn">
-                    <ShieldAlert className="w-4 h-4 shrink-0 text-rose-500" />
-                    <span>{passwordMatchError}</span>
-                  </div>
-                )}
-
-                {/* ------------------------------------------------------------ */}
-                {/* FIELD 1: Smaller text placed on the left "New Password"      */}
-                {/* Under that text is an input bar                              */}
-                {/* ------------------------------------------------------------ */}
-                <div className="space-y-1.5 text-left">
-                  <label
-                    htmlFor="reset-new-password"
-                    className="text-xs sm:text-sm font-semibold text-slate-700 block text-left"
-                  >
-                    New Password
-                  </label>
-                  <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200 focus-within:border-[#0A2881] focus-within:ring-2 focus-within:ring-[#0A2881]/10 transition-all bg-slate-50">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                      <Lock className="w-4 h-4" />
-                    </div>
-                    <input
-                      id="reset-new-password"
-                      type={showNewPassword ? "text" : "password"}
-                      required
-                      placeholder="Enter new password"
-                      value={newPassword}
-                      onChange={(e) => handleNewPasswordChange(e.target.value)}
-                      className="w-full pl-11 pr-11 py-3 bg-transparent focus:outline-none text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400/70"
-                    />
-                    {newPassword.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPassword((prev) => !prev)}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-[#0A2881] transition-colors cursor-pointer"
-                        aria-label={showNewPassword ? "Hide password" : "Show password"}
-                      >
-                        {showNewPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* ------------------------------------------------------------ */}
-                {/* FIELD 2: Smaller text placed on the left "Re-Enter Password" */}
-                {/* Under that text is another input box                         */}
-                {/* ------------------------------------------------------------ */}
-                <div className="space-y-1.5 text-left">
-                  <label
-                    htmlFor="reset-re-enter-password"
-                    className="text-xs sm:text-sm font-semibold text-slate-700 block text-left"
-                  >
-                    Re-Enter Password
-                  </label>
-                  <div className="relative rounded-xl overflow-hidden shadow-2xs border border-slate-200 focus-within:border-[#0A2881] focus-within:ring-2 focus-within:ring-[#0A2881]/10 transition-all bg-slate-50">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                      <Lock className="w-4 h-4" />
-                    </div>
-                    <input
-                      id="reset-re-enter-password"
-                      type={showReEnterPassword ? "text" : "password"}
-                      required
-                      placeholder="Re-enter your new password"
-                      value={reEnterPassword}
-                      onChange={(e) => handleReEnterPasswordChange(e.target.value)}
-                      className="w-full pl-11 pr-11 py-3 bg-transparent focus:outline-none text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400/70"
-                    />
-                    {reEnterPassword.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setShowReEnterPassword((prev) => !prev)}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-[#0A2881] transition-colors cursor-pointer"
-                        aria-label={showReEnterPassword ? "Hide password" : "Show password"}
-                      >
-                        {showReEnterPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Live Match Confirmation Badge (when user enters matching passwords) */}
-                {newPassword && reEnterPassword && newPassword === reEnterPassword && !passwordMatchError && (
-                  <div className="p-2.5 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-2 text-xs font-semibold text-emerald-600 animate-fadeIn">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
-                    <span>Passwords match</span>
-                  </div>
-                )}
-
-                {/* Submit Button with Match Checker */}
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={resetSending}
-                    className="w-full py-3.5 px-4 bg-[#0A2881] hover:bg-[#071D60] active:scale-[0.99] text-white rounded-xl sm:rounded-2xl text-sm font-bold shadow-md shadow-[#0A2881]/20 hover:shadow-lg transition-all flex items-center justify-center cursor-pointer"
-                  >
-                    {resetSending ? "Updating..." : "Submit"}
-                  </button>
-                </div>
-
-                {/* Cancel Link */}
-                <div className="text-center pt-2">
-                  <button
-                    type="button"
-                    onClick={handleCloseNewPasswordPopup}
-                    className="text-[11px] font-semibold text-slate-400 hover:text-[#0A2881] transition-colors cursor-pointer"
-                  >
-                    Cancel and return to login
-                  </button>
-                </div>
-
-              </form>
-            )}
 
           </div>
         </div>
