@@ -57,7 +57,8 @@ class OtpVerifyView(generics.GenericAPIView):
         email = serializer.validated_data["email"]
         code = serializer.validated_data["code"]
 
-        success, message = verify_otp(email, code, purpose=purpose)
+        consume = purpose != "reset_password"
+        success, message = verify_otp(email, code, purpose=purpose, consume=consume)
         if not success:
             return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
 

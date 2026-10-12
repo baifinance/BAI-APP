@@ -37,7 +37,7 @@ def store_otp(email, code, purpose="login", ttl=settings.OTP_TTL):
     )
     return key
 
-def verify_otp(email, code, purpose="login"):
+def verify_otp(email, code, purpose="login", consume=True):
     """Verify OTP against Redis. Returns (success, error_message)"""
     key = f"otp:{purpose}:{email.lower()}"
     stored = get_redis_client().get(key)
@@ -57,8 +57,9 @@ def verify_otp(email, code, purpose="login"):
             return False, "Account locked. Too many failed attempts."
         return False, f"Invalid OTP. {3 - payload['attempts']} attempts remaining."
 
-    # Success - consume OTP
-    get_redis_client().delete(key)
+    # Success - consume OTP if requested
+    if consume:
+        get_redis_client().delete(key)
     return True, "OTP Verified"
 
 def create_login_challenge(email):

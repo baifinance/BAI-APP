@@ -131,10 +131,18 @@ export default function ClientLoginPage() {
   // ==============================================================================
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setErrorMsg("");
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setErrorMsg("Please enter a valid email.");
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      const data = await authApi.login(email, password);
+      const data = await authApi.login(email.trim(), password);
       
       // If server demands OTP verification, trigger the OTP Pop-up Container
       if (data.otp_required) {
@@ -275,8 +283,27 @@ export default function ClientLoginPage() {
   return (
     <div
       className="min-h-screen bg-[#0A2881] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans
-  selection:bg-[#0024A8] selection:text-white antialiased relative overflow-hidden"
+  selection:bg-[#0024A8] selection:text-white antialiased relative overflow-hidden pt-16 sm:pt-6"
     >
+      {/* ====================================================================== */}
+      {/* TOP-LEFT NAVIGATION: BACK TO HOME                                      */}
+      {/* Positioned at the top-left of the page instead of inside the card      */}
+      {/* ====================================================================== */}
+      <div className="absolute top-4 left-4 sm:top-6 sm:left-6 lg:top-8 lg:left-8 z-30">
+        <button
+          type="button"
+          onClick={handleBackToHome}
+          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl backdrop-blur-md bg-white/10 hover:bg-white/20 border border-white/20 text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer shadow-sm ${
+            isNavigatingHome
+              ? "text-[#E4BA37] border-[#E4BA37]/40"
+              : "text-white hover:text-white"
+          }`}
+          aria-label="Back to home"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back to home</span>
+        </button>
+      </div>
       {/* ---------------------------------------------------------------------- */}
       {/* FARTHEST BACKGROUND: loginImage.jpeg (blurry) + 65% Blue Layer         */}
       {/* + Moving Blurry Glowing Gold Rings                                     */}
@@ -401,19 +428,6 @@ export default function ClientLoginPage() {
         {/* ==================================================================== */}
         <div className="p-8 md:p-12 flex flex-col justify-between bg-white relative">
           <div className="space-y-6 my-auto">
-            <button
-              type="button"
-              onClick={handleBackToHome}
-              className={`inline-flex items-center gap-2 text-sm font-bold transition-colors duration-200 cursor-pointer ${
-                isNavigatingHome
-                  ? "text-[#E4BA37]"
-                  : "text-[#0A2881] hover:text-[#071D60]"
-              }`}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Back to home</span>
-            </button>
-
             {/* ---------------------------------------------------------------- */}
             {/* 1. HEADER SECTION: CENTERED LOG IN TITLE & SUBTEXT               */}
             {/* ---------------------------------------------------------------- */}
@@ -461,7 +475,13 @@ export default function ClientLoginPage() {
                       setEmail(e.target.value);
                       if (errorMsg) setErrorMsg("");
                     }}
-                    className="w-full pl-11 pr-4 py-3 bg-transparent focus:outline-none text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400/70"
+                    onInvalid={(e) => {
+                      e.currentTarget.setCustomValidity("Please enter a valid email.");
+                    }}
+                    onInput={(e) => {
+                      e.currentTarget.setCustomValidity("");
+                    }}
+                    className="w-full pl-11 pr-4 py-3 bg-transparent focus:outline-none text-xs sm:text-sm font-normal text-slate-800 placeholder:text-slate-400/70"
                   />
                 </div>
               </div>

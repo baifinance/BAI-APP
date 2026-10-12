@@ -52,6 +52,14 @@ export default function ForgotPasswordPage() {
   const sendResetCode = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError("Please enter a valid email.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await otpApi.send(email.trim(), "reset_password");
@@ -94,6 +102,25 @@ export default function ForgotPasswordPage() {
     });
     setDigits(next);
     inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
+  };
+
+  const handleVerifyCode = async (event?: FormEvent) => {
+    if (event) event.preventDefault();
+    if (code.length !== OTP_LENGTH || isSubmitting) {
+      setError("Invalid OTP");
+      return;
+    }
+
+    setError("");
+    setIsSubmitting(true);
+    try {
+      await otpApi.verify(email.trim(), code, "reset_password");
+      setStep("password");
+    } catch {
+      setError("Invalid OTP");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetPassword = async (event: FormEvent) => {
@@ -140,14 +167,66 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0A2881] flex items-center justify-center p-4 sm:p-6 font-sans">
-      <div className="w-full max-w-xl rounded-3xl bg-white p-6 sm:p-10 shadow-2xl">
-        <Link href="/login" className="inline-flex items-center gap-2 text-sm font-bold text-[#0A2881] hover:underline">
-          <ArrowLeft className="h-4 w-4" />
-          Back to login
-        </Link>
+    <main
+      className="min-h-screen bg-[#0A2881] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans
+  selection:bg-[#0024A8] selection:text-white antialiased relative overflow-hidden pt-16 sm:pt-6"
+    >
+      {/* ====================================================================== */}
+      {/* 1. BACKGROUND LAYERS (COPIED FROM LOGIN PAGE):                         */}
+      {/* loginImage.jpeg (blurry) + 65% Blue Layer + Moving Blurry Gold Rings   */}
+      {/* ====================================================================== */}
+      <div
+        className="fixed inset-0 pointer-events-none overflow-hidden select-none z-0"
+        aria-hidden="true"
+      >
+        {/* Layer 0a: loginImage background, expanded slightly and blurred */}
+        <img
+          src="/loginImage.jpeg"
+          alt=""
+          className="absolute -inset-6 w-[calc(100%+3rem)] h-[calc(100%+3rem)] object-cover object-center filter blur-md scale-105 pointer-events-none"
+        />
 
-        <div className="mt-8 text-center">
+        {/* Layer 0b: Theme blue layer on top with 65% opacity */}
+        <div className="absolute inset-0 bg-[#0A2881]/65 pointer-events-none" />
+
+        {/* Layer 0c: Moving blurry glowing golden rings */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* Glowing Golden Ring 1 - Top Left Large Atmospheric Orb */}
+          <div className="absolute -top-16 -left-16 w-80 h-80 sm:w-96 sm:h-96 rounded-full bg-gradient-to-tr from-[#E4BA37]/35 via-[#F59E0B]/20 to-transparent blur-2xl animate-orb-1" />
+
+          {/* Glowing Golden Ring 2 - Bottom Right Large Glowing Disc */}
+          <div className="absolute -bottom-24 -right-24 w-96 h-96 sm:w-[28rem] sm:h-[28rem] rounded-full bg-[#E4BA37]/25 blur-3xl animate-orb-2" />
+
+          {/* Glowing Golden Ring 3 - Center Right Soft Floating Accent Ring */}
+          <div className="absolute top-[20%] right-[14%] w-64 h-64 rounded-full bg-gradient-to-br from-[#E4BA37]/25 via-[#F59E0B]/15 to-transparent blur-xl animate-orb-3" />
+
+          {/* Glowing Golden Ring 4 - Bottom Left Floating Glow */}
+          <div className="absolute bottom-[18%] left-[10%] w-60 h-60 rounded-full bg-[#E4BA37]/20 blur-xl animate-orb-4" />
+        </div>
+      </div>
+
+      {/* ====================================================================== */}
+      {/* 2. TOP-LEFT NAVIGATION: BACK TO LOGIN                                  */}
+      {/* Positioned at the top-left of the page instead of inside the card      */}
+      {/* ====================================================================== */}
+      <div className="absolute top-4 left-4 sm:top-6 sm:left-6 lg:top-8 lg:left-8 z-30">
+        <Link
+          href="/login"
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl backdrop-blur-md bg-white/10 hover:bg-white/20 border border-white/20 text-xs sm:text-sm font-bold text-white transition-all duration-200 shadow-sm"
+          aria-label="Back to login"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back to login</span>
+        </Link>
+      </div>
+
+      {/* ====================================================================== */}
+      {/* 3. RESET PASSWORD MAIN CARD CONTAINER                                  */}
+      {/* Glassmorphic white container matching login card aesthetics            */}
+      {/* ====================================================================== */}
+      <div className="w-full max-w-xl rounded-3xl bg-white/95 backdrop-blur-md p-6 sm:p-10 shadow-2xl relative z-10 animate-scaleIn">
+        {/* Header Icon & Title */}
+        <div className="text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-[#0A2881]">
             <KeyRound className="h-7 w-7" />
           </div>
@@ -186,30 +265,61 @@ export default function ForgotPasswordPage() {
           </div>
         )}
 
+        {/* ------------------------------------------------------------------ */}
+        {/* 4. STEP 1: EMAIL ENTRY FORM                                        */}
+        {/* Features non-bold font on email input and customized validation     */}
+        {/* ------------------------------------------------------------------ */}
         {step === "email" && (
           <form onSubmit={sendResetCode} className="mt-8 space-y-5">
-            <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-400">
-              Email address
-              <div className="relative mt-1.5">
-                <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            {/* Field: Email Address (separate label to keep input font non-bold) */}
+            <div className="space-y-1.5">
+              <label
+                htmlFor="reset-email"
+                className="block text-xs font-extrabold uppercase tracking-wider text-slate-400"
+              >
+                Email address
+              </label>
+              <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50 focus-within:border-[#0A2881] focus-within:ring-2 focus-within:ring-[#0A2881]/10 transition-all">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <Mail className="w-4 h-4" />
+                </div>
                 <input
+                  id="reset-email"
                   type="email"
                   required
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    if (error) setError("");
+                  }}
+                  onInvalid={(e) => {
+                    e.currentTarget.setCustomValidity("Please enter a valid email.");
+                  }}
+                  onInput={(e) => {
+                    e.currentTarget.setCustomValidity("");
+                  }}
                   placeholder="Enter your registered email"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-800 outline-none focus:border-[#0A2881] focus:ring-2 focus:ring-[#0A2881]/10"
+                  className="w-full py-3 pl-11 pr-4 text-sm font-normal text-slate-800 placeholder:text-slate-400/70 placeholder:font-normal outline-none bg-transparent"
                 />
               </div>
-            </label>
-            <button type="submit" disabled={isSubmitting} className="w-full rounded-xl bg-[#0A2881] py-3.5 text-sm font-bold text-white transition hover:bg-[#071D60] disabled:opacity-50">
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full rounded-xl bg-[#0A2881] py-3.5 text-sm font-bold text-white transition hover:bg-[#071D60] disabled:opacity-50 cursor-pointer"
+            >
               {isSubmitting ? "Sending code..." : "Send reset code"}
             </button>
           </form>
         )}
 
+        {/* ------------------------------------------------------------------ */}
+        {/* 5. STEP 2: OTP VERIFICATION CODE FORM                              */}
+        {/* Validates the 6-digit code against server before proceeding        */}
+        {/* ------------------------------------------------------------------ */}
         {step === "code" && (
-          <div className="mt-8 space-y-5">
+          <form onSubmit={handleVerifyCode} className="mt-8 space-y-5">
             <div className="flex justify-center gap-2 sm:gap-3">
               {digits.map((digit, index) => (
                 <input
@@ -227,20 +337,19 @@ export default function ForgotPasswordPage() {
               ))}
             </div>
             <button
-              type="button"
-              disabled={code.length !== OTP_LENGTH}
-              onClick={() => { setError(""); setStep("password"); }}
-              className="w-full rounded-xl bg-[#0A2881] py-3.5 text-sm font-bold text-white transition hover:bg-[#071D60] disabled:opacity-50"
+              type="submit"
+              disabled={code.length !== OTP_LENGTH || isSubmitting}
+              className="w-full rounded-xl bg-[#0A2881] py-3.5 text-sm font-bold text-white transition hover:bg-[#071D60] disabled:opacity-50 cursor-pointer"
             >
-              Continue
+              {isSubmitting ? "Verifying code..." : "Continue"}
             </button>
             <div className="text-center text-sm text-slate-500">
               Didn’t receive the code?{" "}
-              <button type="button" onClick={resendCode} disabled={resendIn > 0 || isSubmitting} className="font-bold text-[#0A2881] disabled:text-slate-400">
+              <button type="button" onClick={resendCode} disabled={resendIn > 0 || isSubmitting} className="font-bold text-[#0A2881] disabled:text-slate-400 cursor-pointer">
                 {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend code"}
               </button>
             </div>
-          </div>
+          </form>
         )}
 
         {step === "password" && (
