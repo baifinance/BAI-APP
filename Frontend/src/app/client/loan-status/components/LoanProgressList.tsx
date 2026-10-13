@@ -35,6 +35,83 @@ interface LoanProgressListProps {
   onUploadDocument?: (docTitle: string) => void;
 }
 
+function getStatusBadgeStyle(status: ProgressDocumentItem["status"]) {
+  switch (status) {
+    case "Approved":
+      return {
+        bgClass: "bg-emerald-600/75",
+        label: "Approved"
+      };
+    case "Uploaded":
+    case "Pending":
+      return {
+        bgClass: "bg-amber-500/75",
+        label: status
+      };
+    case "Declined":
+    case "Needs Attention":
+    case "Not Uploaded":
+    default:
+      return {
+        bgClass: "bg-rose-600/75",
+        label: status === "Not Uploaded" ? "Needs Attention" : status
+      };
+  }
+}
+
+const DocumentRow = React.memo(function DocumentRow({
+  doc,
+  onSelect,
+}: {
+  doc: ProgressDocumentItem;
+  onSelect: (doc: ProgressDocumentItem) => void;
+}) {
+  const badgeStyle = getStatusBadgeStyle(doc.status);
+
+  return (
+    <div
+      onClick={() => onSelect(doc)}
+      className="grid grid-cols-12 gap-4 items-center px-5 py-3.5 bg-white hover:bg-blue-50/30 transition-colors cursor-pointer group"
+    >
+      {/* -------------------------------------------------------------- */}
+      {/* LEFT: Document Title & Category                                */}
+      {/* -------------------------------------------------------------- */}
+      <div className="col-span-6 sm:col-span-5 flex items-center gap-2.5 min-w-0">
+        <FileText className="w-4 h-4 text-[#0024A8] shrink-0" />
+        <div className="min-w-0">
+          <span className="font-extrabold text-xs sm:text-sm text-slate-800 group-hover:text-[#0024A8] transition-colors block truncate">
+            {doc.title}
+          </span>
+          {doc.category && (
+            <span className="text-[10px] text-slate-400 font-medium block truncate">
+              {doc.category}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* -------------------------------------------------------------- */}
+      {/* CENTER: Recent Status Date                                     */}
+      {/* -------------------------------------------------------------- */}
+      <div className="col-span-3 sm:col-span-4 flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-600">
+        <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0 hidden sm:inline-block" />
+        <span>{doc.statusChangeDate}</span>
+      </div>
+
+      {/* -------------------------------------------------------------- */}
+      {/* RIGHT: Document Status Badge (Square, 5 radius, 75% opacity)  */}
+      {/* -------------------------------------------------------------- */}
+      <div className="col-span-3 flex items-center justify-end">
+        <span
+          className={`${badgeStyle.bgClass} text-white text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider py-1.5 px-3 rounded-[5px] text-center min-w-[95px] sm:min-w-[110px]`}
+        >
+          {badgeStyle.label}
+        </span>
+      </div>
+    </div>
+  );
+});
+
 export default function LoanProgressList({
   documents,
   clientDocuments,
@@ -98,32 +175,9 @@ export default function LoanProgressList({
   // Resolve documents list
   const docList = documents || defaultDocuments;
 
-  // ----------------------------------------------------------------------------
-  // 1. STATUS BADGE STYLING HELPER: 5px radius, 75% opacity, white text
-  // ----------------------------------------------------------------------------
-  const getStatusBadgeStyle = (status: ProgressDocumentItem["status"]) => {
-    switch (status) {
-      case "Approved":
-        return {
-          bgClass: "bg-emerald-600/75",
-          label: "Approved"
-        };
-      case "Uploaded":
-      case "Pending":
-        return {
-          bgClass: "bg-amber-500/75",
-          label: status
-        };
-      case "Declined":
-      case "Needs Attention":
-      case "Not Uploaded":
-      default:
-        return {
-          bgClass: "bg-rose-600/75",
-          label: status === "Not Uploaded" ? "Needs Attention" : status
-        };
-    }
-  };
+  const handleSelect = React.useCallback((doc: ProgressDocumentItem) => {
+    setSelectedDoc(doc);
+  }, []);
 
   return (
     /* ------------------------------------------------------------------------ */
@@ -155,53 +209,9 @@ export default function LoanProgressList({
       {/* 4. DOCUMENT LIST: Connected rows, close to each other, no shadow       */}
       {/* ---------------------------------------------------------------------- */}
       <div className="divide-y divide-slate-100">
-        {docList.map((doc) => {
-          const badgeStyle = getStatusBadgeStyle(doc.status);
-
-          return (
-            <div
-              key={doc.id}
-              onClick={() => setSelectedDoc(doc)}
-              className="grid grid-cols-12 gap-4 items-center px-5 py-3.5 bg-white hover:bg-blue-50/30 transition-colors cursor-pointer group"
-            >
-              {/* -------------------------------------------------------------- */}
-              {/* LEFT: Document Title & Category                                */}
-              {/* -------------------------------------------------------------- */}
-              <div className="col-span-6 sm:col-span-5 flex items-center gap-2.5 min-w-0">
-                <FileText className="w-4 h-4 text-[#0024A8] shrink-0" />
-                <div className="min-w-0">
-                  <span className="font-extrabold text-xs sm:text-sm text-slate-800 group-hover:text-[#0024A8] transition-colors block truncate">
-                    {doc.title}
-                  </span>
-                  {doc.category && (
-                    <span className="text-[10px] text-slate-400 font-medium block truncate">
-                      {doc.category}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* -------------------------------------------------------------- */}
-              {/* CENTER: Recent Status Date                                     */}
-              {/* -------------------------------------------------------------- */}
-              <div className="col-span-3 sm:col-span-4 flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-600">
-                <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0 hidden sm:inline-block" />
-                <span>{doc.statusChangeDate}</span>
-              </div>
-
-              {/* -------------------------------------------------------------- */}
-              {/* RIGHT: Document Status Badge (Square, 5 radius, 75% opacity)  */}
-              {/* -------------------------------------------------------------- */}
-              <div className="col-span-3 flex items-center justify-end">
-                <span
-                  className={`${badgeStyle.bgClass} text-white text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider py-1.5 px-3 rounded-[5px] text-center min-w-[95px] sm:min-w-[110px]`}
-                >
-                  {badgeStyle.label}
-                </span>
-              </div>
-            </div>
-          );
-        })}
+        {docList.map((doc) => (
+          <DocumentRow key={doc.id} doc={doc} onSelect={handleSelect} />
+        ))}
       </div>
 
       {/* ---------------------------------------------------------------------- */}

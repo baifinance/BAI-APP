@@ -123,6 +123,8 @@ export const authApi = {
 
   me: () => request<AuthUser>("/api/auth/user/"),
 
+  logout: () => request<void>("/api/auth/logout/", { method: "POST" }),
+
   sendInvitation: (data: {
     email: string;
     role: "client" | "broker";

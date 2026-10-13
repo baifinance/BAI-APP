@@ -22,6 +22,7 @@ import {
   LogOut,
   ShieldCheck,
 } from "lucide-react";
+import { authApi, AuthUser } from "@/lib/api";
 
 interface ComplianceSidebarProps {
   isCollapsed: boolean;
@@ -32,17 +33,18 @@ export default function ComplianceSidebar({
   isCollapsed,
   onToggle,
 }: ComplianceSidebarProps) {
+  const [user, setUser] = React.useState<AuthUser | null>(null);
+
+  React.useEffect(() => {
+    authApi
+      .me()
+      .then(setUser)
+      .catch(() => {});
+  }, []);
+
   const handleLogout = async () => {
     try {
-      await fetch(
-        (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") +
-          "/api/auth/logout/",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        }
-      );
+      await authApi.logout();
     } catch (err) {
       console.error("Failed to log out from backend:", err);
     }
@@ -54,6 +56,16 @@ export default function ComplianceSidebar({
       "user-role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     window.location.href = "/";
   };
+
+  const displayEmail = user?.email ?? "compliance@bai.finance";
+  const displayInitials =
+    ((user?.username || user?.email || "CO")
+      .split(/[\s._@-]+/)
+      .filter(Boolean)
+      .map((w) => w[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase()) || "CO";
 
   return (
     <aside
@@ -125,7 +137,7 @@ export default function ComplianceSidebar({
       {/* ------------------------------------------------------------------ */}
       {/* Sidebar Collapse / Expand Toggle Button                            */}
       {/* ------------------------------------------------------------------ */}
-      <div className="p-3 border-t border-white/10 flex justify-center">
+      <div className="p-3 border-t border-white/10 hidden lg:flex justify-center">
         <button
           type="button"
           onClick={onToggle}
@@ -151,7 +163,7 @@ export default function ComplianceSidebar({
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#E4BA37] to-[#F59E0B] text-[#0A2881] font-black text-xs flex items-center justify-center shrink-0 shadow-sm">
-                CO
+                {displayInitials}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-white truncate flex items-center gap-1">
@@ -159,7 +171,7 @@ export default function ComplianceSidebar({
                 </p>
                 <div className="flex items-center gap-1 text-[10px] text-amber-300 font-medium">
                   <ShieldCheck className="w-3 h-3 text-[#E4BA37]" />
-                  <span>compliance@bai.finance</span>
+                  <span>{displayEmail}</span>
                 </div>
               </div>
             </div>
@@ -178,9 +190,9 @@ export default function ComplianceSidebar({
           <div className="flex flex-col items-center gap-2">
             <div
               className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E4BA37] to-[#F59E0B] text-[#0A2881] font-black text-[11px] flex items-center justify-center shadow-sm"
-              title="Compliance Officer (compliance@bai.finance)"
+              title={`Compliance Officer (${displayEmail})`}
             >
-              CO
+              {displayInitials}
             </div>
             <button
               type="button"

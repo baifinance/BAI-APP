@@ -13,7 +13,8 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Users,
   UserPlus,
@@ -49,10 +50,77 @@ function mapRoleToDisplay(rawRole: string): RegisteredUser["role"] {
   return "Client";
 }
 
+function mapUser(item: RegisteredUserApiItem): RegisteredUser {
+  return {
+    id: item.id,
+    fullName:
+      item.full_name ||
+      (item.first_name && item.last_name
+        ? `${item.first_name} ${item.last_name}`.trim()
+        : item.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())),
+    email: item.email,
+    role: mapRoleToDisplay(item.role),
+    registeredDate: item.registered_date || (item.created_at ? new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"),
+  };
+}
+
+function getRoleBadgeClasses(role: RegisteredUser["role"]) {
+  switch (role) {
+    case "Compliance":
+      return "bg-indigo-50 text-indigo-700 border-indigo-200/80 ring-1 ring-indigo-500/10";
+    case "Broker":
+      return "bg-blue-50 text-[#0024A8] border-blue-200/80 ring-1 ring-blue-500/10";
+    case "Loan Processing":
+      return "bg-amber-50 text-amber-800 border-amber-200/80 ring-1 ring-amber-500/10";
+    case "Client":
+      return "bg-emerald-50 text-emerald-700 border-emerald-200/80 ring-1 ring-emerald-500/10";
+    default:
+      return "bg-slate-50 text-slate-700 border-slate-200";
+  }
+}
+
+const UserRow = React.memo(function UserRow({ user }: { user: RegisteredUser }) {
+  const initials = user.fullName
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return (
+    <tr className="hover:bg-blue-50/20 transition-colors group">
+      <td className="py-4 px-6 text-left">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 text-[#0A2881] font-bold text-xs flex items-center justify-center shrink-0 group-hover:border-[#0A2881]/30 transition-colors shadow-2xs">
+            {initials || "U"}
+          </div>
+          <div>
+            <span className="font-extrabold text-slate-900 block text-sm">
+              {user.fullName}
+            </span>
+            <span className="text-xs text-slate-500 font-medium">
+              {user.email}
+            </span>
+          </div>
+        </div>
+      </td>
+
+      <td className="py-4 px-6 text-right">
+        <span
+          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${getRoleBadgeClasses(
+            user.role
+          )}`}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
+          <span>{user.role}</span>
+        </span>
+      </td>
+    </tr>
+  );
+});
+
 export default function UsersTab() {
-  const [users, setUsers] = useState<RegisteredUser[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("All");
 
@@ -68,37 +136,23 @@ export default function UsersTab() {
   const [inviteError, setInviteError] = useState("");
   const [inviteSuccessFeedback, setInviteSuccessFeedback] = useState(false);
 
-  // Fetch registered users from backend database
-  const fetchRegisteredUsers = useCallback(async () => {
-    setLoading(true);
-    setFetchError(null);
-    try {
+  // Fetch registered users from backend database (cached + deduped)
+  const {
+    data: users = [],
+    isLoading: loading,
+    isFetching,
+    isError,
+    refetch: fetchRegisteredUsers,
+  } = useQuery({
+    queryKey: ["compliance", "active-users"],
+    queryFn: async () => {
       const data: RegisteredUserApiItem[] = await usersApi.activeList();
-      if (Array.isArray(data) && data.length > 0) {
-        const mappedUsers: RegisteredUser[] = data.map((item) => ({
-          id: item.id,
-          fullName:
-            item.full_name ||
-            (item.first_name && item.last_name
-              ? `${item.first_name} ${item.last_name}`.trim()
-              : item.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())),
-          email: item.email,
-          role: mapRoleToDisplay(item.role),
-          registeredDate: item.registered_date || (item.created_at ? new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"),
-        }));
-        setUsers(mappedUsers);
-      }
-    } catch (err: unknown) {
-      console.warn("Could not load active users:", err);
-      setFetchError("Unable to load active users.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return Array.isArray(data) ? data.map(mapUser) : [];
+    },
+    staleTime: 60_000,
+  });
 
-  useEffect(() => {
-    fetchRegisteredUsers();
-  }, [fetchRegisteredUsers]);
+  const fetchError = isError ? "Unable to load active users." : null;
 
   // Open the invite pop-up modal
   const handleOpenInviteModal = () => {
@@ -157,22 +211,6 @@ export default function UsersTab() {
     });
   }, [users, searchQuery, roleFilter]);
 
-  // Role pill styling helper
-  const getRoleBadgeClasses = (role: RegisteredUser["role"]) => {
-    switch (role) {
-      case "Compliance":
-        return "bg-indigo-50 text-indigo-700 border-indigo-200/80 ring-1 ring-indigo-500/10";
-      case "Broker":
-        return "bg-blue-50 text-[#0024A8] border-blue-200/80 ring-1 ring-blue-500/10";
-      case "Loan Processing":
-        return "bg-amber-50 text-amber-800 border-amber-200/80 ring-1 ring-amber-500/10";
-      case "Client":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200/80 ring-1 ring-emerald-500/10";
-      default:
-        return "bg-slate-50 text-slate-700 border-slate-200";
-    }
-  };
-
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* ==================================================================== */}
@@ -201,13 +239,15 @@ export default function UsersTab() {
             {/* Refresh button */}
             <button
               type="button"
-              onClick={fetchRegisteredUsers}
-              disabled={loading}
+              onClick={() => {
+                void fetchRegisteredUsers();
+              }}
+              disabled={loading || isFetching}
               className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white transition-all cursor-pointer"
               title="Refresh users from database"
               aria-label="Refresh database users"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${loading || isFetching ? "animate-spin" : ""}`} />
             </button>
 
             {/* Button on the top right that says "invite user" */}
@@ -300,51 +340,9 @@ export default function UsersTab() {
                   </td>
                 </tr>
               ) : filteredUsers.length > 0 ? (
-                filteredUsers.map((registeredUser) => {
-                  const initials = registeredUser.fullName
-                    .split(" ")
-                    .filter(Boolean)
-                    .map((w) => w[0])
-                    .join("")
-                    .slice(0, 2)
-                    .toUpperCase();
-
-                  return (
-                    <tr
-                      key={registeredUser.id}
-                      className="hover:bg-blue-50/20 transition-colors group"
-                    >
-                      {/* Left Column: Full Name */}
-                      <td className="py-4 px-6 text-left">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 text-[#0A2881] font-bold text-xs flex items-center justify-center shrink-0 group-hover:border-[#0A2881]/30 transition-colors shadow-2xs">
-                            {initials || "U"}
-                          </div>
-                          <div>
-                            <span className="font-extrabold text-slate-900 block text-sm">
-                              {registeredUser.fullName}
-                            </span>
-                            <span className="text-xs text-slate-500 font-medium">
-                              {registeredUser.email}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Right Column: Role */}
-                      <td className="py-4 px-6 text-right">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${getRoleBadgeClasses(
-                            registeredUser.role
-                          )}`}
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
-                          <span>{registeredUser.role}</span>
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
+                filteredUsers.map((registeredUser) => (
+                  <UserRow key={registeredUser.id} user={registeredUser} />
+                ))
               ) : (
                 <tr>
                   <td
@@ -436,8 +434,9 @@ export default function UsersTab() {
                       required
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
+                      disabled={inviteStatus === "loading"}
                       placeholder="e.g. name@example.com"
-                      className="w-full pl-11 pr-4 py-3 bg-transparent focus:outline-none text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400"
+                      className="w-full pl-11 pr-4 py-3 bg-transparent focus:outline-none text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100/70"
                     />
                   </div>
                 </div>
@@ -456,7 +455,8 @@ export default function UsersTab() {
                       const role = e.target.value as "client" | "broker";
                       setInviteRole(role);
                     }}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:border-[#0A2881] focus:ring-2 focus:ring-[#0A2881]/10"
+                    disabled={inviteStatus === "loading"}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:border-[#0A2881] focus:ring-2 focus:ring-[#0A2881]/10 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100/70"
                   >
                     <option value="client">Client</option>
                     <option value="broker">Broker</option>

@@ -673,8 +673,9 @@ export default function ProfileSettingsTab({
                     setDisablePassword(e.target.value);
                     if (mfaError) setMfaError("");
                   }}
+                  disabled={mfaActionLoading}
                   placeholder="Enter current password"
-                  className="w-full py-3.5 pl-11 pr-11 bg-slate-50 border-2 border-slate-200 focus:border-[#0024A8] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#0024A8]/10 rounded-xl sm:rounded-2xl text-sm font-medium text-slate-900 placeholder:text-slate-400 placeholder:opacity-60 transition-all"
+                  className="w-full py-3.5 pl-11 pr-11 bg-slate-50 border-2 border-slate-200 focus:border-[#0024A8] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#0024A8]/10 rounded-xl sm:rounded-2xl text-sm font-medium text-slate-900 placeholder:text-slate-400 placeholder:opacity-60 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100/70"
                   autoFocus
                   required
                 />

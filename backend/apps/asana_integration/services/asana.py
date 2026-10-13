@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import inspect
+import json
 import logging
+import os
 import re
 
 import asana
@@ -71,6 +74,29 @@ class AsanaProfileService:
         configuration.access_token = access_token
 
         self.api_client = asana.ApiClient(configuration)
+
+        self._request_timeout = float(os.getenv("ASANA_REQUEST_TIMEOUT", "10"))
+        _call_api = self.api_client.call_api
+        _timeout_index = list(
+            inspect.signature(_call_api).parameters
+        ).index("_request_timeout")
+
+        def _call_api_with_timeout(*args, **kwargs):
+            if "_request_timeout" in kwargs:
+                if kwargs["_request_timeout"] is None:
+                    kwargs["_request_timeout"] = self._request_timeout
+            elif len(args) <= _timeout_index:
+                kwargs["_request_timeout"] = self._request_timeout
+            elif args[_timeout_index] is None:
+                args = (
+                    args[:_timeout_index]
+                    + (self._request_timeout,)
+                    + args[_timeout_index + 1:]
+                )
+            return _call_api(*args, **kwargs)
+
+        self.api_client.call_api = _call_api_with_timeout
+
         self.tasks_api = asana.TasksApi(self.api_client)
         self.sections_api = asana.SectionsApi(self.api_client)
         self.project_gid = project_gid
@@ -364,9 +390,15 @@ class AsanaProfileService:
             if profile.get(key)
         }
 
+_ASANA_PROFILE_CACHE_TTL = 60
+
+
 def get_client_asana_profile(email):
     """
     Return a client profile from Asana when feature is enabled.
+
+    Results are cached in Redis briefly so the blocking Asana lookup does
+    not run on every login for the same client.
     """
 
     enabled = getattr(
@@ -378,8 +410,21 @@ def get_client_asana_profile(email):
     if not enabled:
         return None
 
+    cache_key = f"asana_profile:{email.lower()}"
+    cached = get_redis_client().get(cache_key)
+    if cached is not None:
+        try:
+            return json.loads(cached)
+        except (TypeError, ValueError):
+            return None
+
     service = AsanaProfileService()
-    return service.find_profile_by_email(email)
+    profile = service.find_profile_by_email(email)
+    if profile is not None:
+        get_redis_client().setex(
+            cache_key, _ASANA_PROFILE_CACHE_TTL, json.dumps(profile)
+        )
+    return profile
 
 
 _TASK_EMAIL_CACHE_TTL = 60 * 60 * 24

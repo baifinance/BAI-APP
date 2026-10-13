@@ -12,7 +12,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { LayoutDashboard, CheckSquare, ClipboardList, ShieldAlert, Percent, Bell, LogOut } from "lucide-react";
+import { LayoutDashboard, ClipboardList, ShieldAlert, Percent } from "lucide-react";
 
 export type LoanProcessingTabType = "Dashboard" | "Application" | "AuditLog" | "Calculator" | "Notifications" | "Review";
 

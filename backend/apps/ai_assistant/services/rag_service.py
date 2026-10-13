@@ -1,6 +1,7 @@
 import os
 import hashlib
 import logging
+import threading
 from typing import List, Dict, Optional, Any
 
 import requests
@@ -159,3 +160,17 @@ class RAGService:
             )
             
         return len(documents)
+
+
+_service_instance: Optional["RAGService"] = None
+_service_lock = threading.Lock()
+
+
+def get_rag_service() -> "RAGService":
+    """Process-wide singleton so Groq/Chroma/HTTP clients are built once."""
+    global _service_instance
+    if _service_instance is None:
+        with _service_lock:
+            if _service_instance is None:
+                _service_instance = RAGService()
+    return _service_instance

@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { Bell, LogOut } from "lucide-react";
 import Link from "next/link";
 import { API_BASE } from "@/lib/api";
+import MobileNavRail from "@/components/MobileNavRail";
 
 const getActiveTab = (pathname: string) => {
   if (pathname.includes("/broker/dashboard")) return "Dashboard";
@@ -25,7 +26,9 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
   
   // Profile dropdown state
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Mobile sidebar is open only for the path it was opened on, so navigating closes it
+  const [mobileNavPath, setMobileNavPath] = useState<string | null>(null);
+  const mobileNavOpen = mobileNavPath === pathname;
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Click outside to close dropdown menu
@@ -66,18 +69,24 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
       {/* Wrapper with solid #FAFAFA background */}
       <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-blue-600 selection:text-white antialiased">
         
-        <button
-          className="fixed top-4 left-4 z-50 md:hidden p-2 rounded-md bg-white/80 border border-slate-200 text-[#0038A8]"
-          onClick={() => setSidebarOpen(true)}
-          aria-label="Open menu"
-        >
-          &#9776;
-        </button>
-        {/* Sidebar Navigation */}
-        <div className={`fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 md:static md:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        {/* Desktop sidebar (full, collapsible) */}
+        <div className="hidden md:block shrink-0">
           <Sidebar activeTab={activeTab} />
         </div>
-        {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />}
+
+        {/* Mobile: fixed out-of-flow rail + overlay panel (no layout impact) */}
+        <div className="md:hidden">
+          <MobileNavRail
+            open={mobileNavOpen}
+            onToggle={() => setMobileNavPath((prev) => (prev === pathname ? null : pathname))}
+            className="bg-white border-[#0038A8]/20 text-[#0038A8] hover:bg-[#0038A8]/10"
+          />
+          {mobileNavOpen && (
+            <div className="fixed inset-y-0 left-8 z-40 w-64 overflow-y-auto">
+              <Sidebar activeTab={activeTab} />
+            </div>
+          )}
+        </div>
 
         {/* Content Wrapper */}
         <div className="flex-1 flex flex-col min-w-0">

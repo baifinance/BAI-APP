@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useClientData, useClientNotifications } from "./ClientContext";
+import { authApi } from "@/lib/api";
 
 export type ClientTabType =
   | "Profile"
@@ -58,11 +59,7 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
 
   const handleLogout = async () => {
     try {
-      await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") + "/api/auth/logout/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      });
+      await authApi.logout();
     } catch (err) {
       console.error("Failed to log out from backend:", err);
     }
@@ -218,7 +215,7 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
             <div className="flex justify-end">
               <button
                 onClick={handleLogout}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-rose-300 hover:text-white hover:bg-rose-600/30 rounded-lg transition-colors cursor-pointer group"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-rose-300 hover:text-white hover:bg-rose-600/30 rounded-lg transition-colors cursor-pointer group"
                 title="Log Out"
               >
                 <span>Log Out</span>
@@ -267,7 +264,7 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
       <button
         type="button"
         onClick={onToggle}
-        className="absolute top-0 bottom-0 -right-5 w-5 z-30 flex items-center justify-center bg-[#071E63] hover:bg-[#E4BA37] text-white/70 hover:text-[#0A2881] border-r border-[#001D85] transition-all cursor-pointer group focus:outline-none rounded-none shadow-2xs"
+        className="absolute top-0 bottom-0 -right-5 w-5 z-30 hidden lg:flex items-center justify-center bg-[#071E63] hover:bg-[#E4BA37] text-white/70 hover:text-[#0A2881] border-r border-[#001D85] transition-all cursor-pointer group focus:outline-none rounded-none shadow-2xs"
         title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
