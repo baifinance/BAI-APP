@@ -54,7 +54,7 @@ export default function ComplianceSidebar({
       "jwt-refresh-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     document.cookie =
       "user-role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    window.location.href = "/";
+    window.location.href = "/login";
   };
 
   const displayEmail = user?.email ?? "compliance@bai.finance";

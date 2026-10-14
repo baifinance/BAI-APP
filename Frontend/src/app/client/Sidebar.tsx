@@ -66,7 +66,7 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
     document.cookie = "jwt-access-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     document.cookie = "jwt-refresh-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     document.cookie = "user-role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    window.location.href = "/";
+    window.location.href = "/login";
   };
 
   const displayName = client?.name || clientName || "Emma Wilson";

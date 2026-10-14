@@ -60,8 +60,8 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
     document.cookie = "jwt-refresh-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     document.cookie = "user-role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     
-    // Redirect to landing page
-    window.location.href = "/";
+    // Redirect to login page
+    window.location.href = "/login";
   };
 
   return (

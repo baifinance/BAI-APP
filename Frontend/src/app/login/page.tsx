@@ -15,7 +15,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Mail,
-  ArrowLeft,
   ShieldAlert,
   Sparkles,
   CheckCircle2,
@@ -47,15 +46,7 @@ export default function ClientLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isNavigatingHome, setIsNavigatingHome] = useState(false);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
-
-  const handleBackToHome = () => {
-    setIsNavigatingHome(true);
-    setTimeout(() => {
-      router.push("/");
-    }, 250);
-  };
 
   // ==============================================================================
   // 2. OTP POP-UP MODAL STATE
@@ -285,25 +276,6 @@ export default function ClientLoginPage() {
       className="min-h-screen bg-[#0A2881] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans
   selection:bg-[#0024A8] selection:text-white antialiased relative overflow-hidden pt-16 sm:pt-6"
     >
-      {/* ====================================================================== */}
-      {/* TOP-LEFT NAVIGATION: BACK TO HOME                                      */}
-      {/* Positioned at the top-left of the page instead of inside the card      */}
-      {/* ====================================================================== */}
-      <div className="absolute top-4 left-4 sm:top-6 sm:left-6 lg:top-8 lg:left-8 z-30">
-        <button
-          type="button"
-          onClick={handleBackToHome}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl backdrop-blur-md bg-white/10 hover:bg-white/20 border border-white/20 text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer shadow-sm ${
-            isNavigatingHome
-              ? "text-[#E4BA37] border-[#E4BA37]/40"
-              : "text-white hover:text-white"
-          }`}
-          aria-label="Back to home"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Back to home</span>
-        </button>
-      </div>
       {/* ---------------------------------------------------------------------- */}
       {/* FARTHEST BACKGROUND: loginImage.jpeg (blurry) + 65% Blue Layer         */}
       {/* + Moving Blurry Glowing Gold Rings                                     */}
@@ -358,7 +330,7 @@ export default function ClientLoginPage() {
 
           {/* Logo / Header */}
           <div className="flex items-center gap-3 relative z-10">
-            <Link href="/" className="inline-block hover:opacity-90 transition-opacity">
+            <Link href="/login" className="inline-block hover:opacity-90 transition-opacity">
               <img
                 src="/bai_logo_white.png"
                 alt="BAI Group of Companies"

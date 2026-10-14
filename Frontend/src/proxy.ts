@@ -40,6 +40,33 @@ export function proxy(request: NextRequest) {
   const accessToken = request.cookies.get("jwt-access-token")?.value;
 
   // ==========================================
+  // ROOT ROUTE (LANDING PAGE REMOVED)
+  // ==========================================
+  if (pathname === "/") {
+    if (accessToken && !isAccessTokenExpired(accessToken)) {
+      const userRole = request.cookies.get("user-role")?.value;
+
+      if (userRole === "client") {
+        return NextResponse.redirect(new URL("/client", request.url));
+      }
+
+      if (userRole === "broker") {
+        return NextResponse.redirect(new URL("/broker", request.url));
+      }
+
+      if (userRole === "loan_processing") {
+        return NextResponse.redirect(new URL("/loan-processing", request.url));
+      }
+
+      if (userRole === "compliance") {
+        return NextResponse.redirect(new URL("/compliance", request.url));
+      }
+    }
+
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // ==========================================
   // LOGIN ROUTE
   // ==========================================
   if (pathname === "/login") {
