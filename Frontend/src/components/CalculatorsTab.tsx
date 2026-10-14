@@ -659,7 +659,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           {/* 2-Container Layout (Top Section) */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
           {/* Left Container: Calculator */}
-          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-2xl shadow-soft-xl overflow-hidden flex flex-col justify-between">
+          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-[15px] shadow-soft-xl overflow-hidden flex flex-col justify-between">
             {/* Full-width Blue Header with #E4BA37 Text */}
             <div className="bg-[#0A2881] px-6 py-4 flex items-center gap-3 shrink-0">
               <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-[#E4BA37]">
@@ -763,7 +763,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           {/* ------------------------------------------------------------------ */}
           {/* Right Container: 60% Calculator Visual + 40% Blue Theme Callout   */}
           {/* ------------------------------------------------------------------ */}
-          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-2xl shadow-soft-xl overflow-hidden flex flex-col min-h-[480px]">
+          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-[15px] shadow-soft-xl overflow-hidden flex flex-col min-h-[480px]">
             {/* Top 60%: calculator.jpeg image fully consuming container width & height */}
             <div className="basis-[60%] h-[60%] w-full relative overflow-hidden shrink-0">
               <img
@@ -786,7 +786,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
         </div>
 
         {/* Bottom Container: Calculation Results & Loan Balance Chart (inside max-w-7xl with space-y-8 spacing) */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-soft-xl overflow-hidden">
+        <div className="bg-white border border-slate-200/80 rounded-[15px] shadow-soft-xl overflow-hidden">
           {/* Full-width Blue Header with #E4BA37 Text and 'Calculation Results' only */}
           <div className="bg-[#0A2881] px-6 py-4 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
@@ -884,10 +884,10 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
               {/* ---------------------------------------------------------------- */}
               {/* RIGHT SIDE: Loan Balance Chart (Inline / Moved to Floating View) */}
               {/* ---------------------------------------------------------------- */}
-              <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-center">
+              <div className="lg:col-span-7 bg-white rounded-[15px] border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-center">
                 {isGraphExpanded ? (
                   /* Placeholder displayed in the page when graph view is moved to the floating window */
-                  <div className="flex flex-col items-center justify-center py-20 px-4 text-center border-2 border-dashed border-blue-200/80 rounded-2xl bg-blue-50/25">
+                  <div className="flex flex-col items-center justify-center py-20 px-4 text-center border-2 border-dashed border-blue-200/80 rounded-[15px] bg-blue-50/25">
                     <div className="w-12 h-12 rounded-2xl bg-blue-100 text-[#0A2881] flex items-center justify-center mb-3 shadow-inner">
                       <Eye className="w-6 h-6" />
                     </div>
