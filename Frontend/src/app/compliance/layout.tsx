@@ -13,7 +13,9 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ShieldAlert, ArrowLeft, Lock } from "lucide-react";
+import { ArrowLeft, Lock } from "lucide-react";
+import { usePathname } from "next/navigation";
+import MobileNavRail from "@/components/MobileNavRail";
 import ComplianceSidebar from "./components/ComplianceSidebar";
 
 export default function ComplianceLayout({
@@ -24,6 +26,10 @@ export default function ComplianceLayout({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [checkingRole, setCheckingRole] = useState(true);
+  const pathname = usePathname();
+  // Mobile sidebar is open only for the path it was opened on, so navigating closes it
+  const [mobileNavPath, setMobileNavPath] = useState<string | null>(null);
+  const mobileNavOpen = mobileNavPath === pathname;
 
   // Client-side role validation check (reinforcing proxy.ts middleware)
   useEffect(() => {
@@ -90,15 +96,31 @@ export default function ComplianceLayout({
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-[#0024A8] selection:text-white antialiased">
-      {/* Sidebar Navigation */}
-      <ComplianceSidebar
-        isCollapsed={isSidebarCollapsed}
-        onToggle={() => setIsSidebarCollapsed((prev) => !prev)}
-      />
+      {/* Desktop sidebar (full, collapsible) */}
+      <div className="hidden lg:block shrink-0">
+        <ComplianceSidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggle={() => setIsSidebarCollapsed((prev) => !prev)}
+        />
+      </div>
+
+      {/* Mobile: fixed out-of-flow rail + overlay panel (no layout impact) */}
+      <div className="lg:hidden">
+        <MobileNavRail
+          open={mobileNavOpen}
+          onToggle={() => setMobileNavPath((prev) => (prev === pathname ? null : pathname))}
+          className="bg-[#0A2881] border-[#001D85] text-white hover:bg-[#071D60]"
+        />
+        {mobileNavOpen && (
+          <div className="fixed inset-y-0 left-8 z-40 w-64 overflow-y-auto">
+            <ComplianceSidebar isCollapsed={false} onToggle={() => {}} />
+          </div>
+        )}
+      </div>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 w-full">
-        <main className="flex-1 overflow-y-auto w-full p-6 sm:p-8 max-w-[1600px] mx-auto">
+        <main className="flex-1 overflow-y-auto w-full p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
           {children}
         </main>
       </div>

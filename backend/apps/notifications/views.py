@@ -1,4 +1,5 @@
 import json
+import time
 
 from django.http import StreamingHttpResponse
 from django.utils import timezone
@@ -12,6 +13,10 @@ from authentication.permissions import IsOtpVerified
 from notifications.models import Notification
 from notifications.serializers import NotificationSerializer
 from otp.utils import get_redis_client
+
+
+NOTIFICATION_HISTORY_LIMIT = 100
+STREAM_MAX_LIFETIME_SECONDS = 1800
 
 
 class EventStreamRenderer(BaseRenderer):
@@ -34,13 +39,13 @@ class NotificationListView(generics.ListAPIView):
     def get_queryset(self):
         queryset = Notification.objects.filter(
             recipient=self.request.user
-        )
+        ).order_by("-created_at")
 
         unread_only = self.request.query_params.get("unread")
         if unread_only == "true":
             queryset = queryset.filter(is_read=False)
 
-        return queryset
+        return queryset[:NOTIFICATION_HISTORY_LIMIT]
 
 class NotificationMarkReadView(APIView):
     permission_classes = [
@@ -105,7 +110,8 @@ class NotificationStreamView(APIView):
             try:
                 yield "retry: 3000\n\n"
                 yield f"event: snapshot\ndata: {json.dumps({'ok': True})}\n\n"
-                while True:
+                deadline = time.monotonic() + STREAM_MAX_LIFETIME_SECONDS
+                while time.monotonic() < deadline:
                     message = pubsub.get_message(
                         ignore_subscribe_messages=True,
                         timeout=25,

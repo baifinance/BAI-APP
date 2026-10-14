@@ -115,7 +115,7 @@ export default function ProfileTab({ client }: ProfileTabProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pl-6 lg:pl-0">
 
       {/* ==================================================================== */}
       {/* SECTION 1: CLIENT PROFILE HERO CARD                                  */}

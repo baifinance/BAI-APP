@@ -73,7 +73,7 @@ export default function Sidebar({ activeTab }: SidebarProps) {
         </div>
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1.5 rounded-[5px] bg-slate-100 hover:bg-[#0038A8]/10 text-[#0038A8] transition-colors cursor-pointer shrink-0 border border-[#0038A8]/20"
+          className="hidden md:flex p-1.5 rounded-[5px] bg-slate-100 hover:bg-[#0038A8]/10 text-[#0038A8] transition-colors cursor-pointer shrink-0 border border-[#0038A8]/20 items-center justify-center"
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {isCollapsed ? (

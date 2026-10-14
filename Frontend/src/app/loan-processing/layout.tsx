@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { Bell, LogOut } from "lucide-react";
 import Link from "next/link";
 import { API_BASE } from "@/lib/api";
+import MobileNavRail from "@/components/MobileNavRail";
 
 const getActiveTab = (pathname: string) => {
   if (pathname.includes("/loan-processing/dashboard")) return "Dashboard";
@@ -22,7 +23,9 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
   const pathname = usePathname();
   const activeTab = getActiveTab(pathname);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Mobile sidebar is open only for the path it was opened on, so navigating closes it
+  const [mobileNavPath, setMobileNavPath] = useState<string | null>(null);
+  const mobileNavOpen = mobileNavPath === pathname;
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -67,26 +70,32 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
     <LoanProcessingProvider>
       <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-[#1429A9] selection:text-white antialiased loan-processing-portal-wrap">
         
-        <button
-          className="fixed top-4 left-4 z-50 md:hidden p-2 rounded-md bg-white/80 border border-slate-200 text-[#1429A9]"
-          onClick={() => setSidebarOpen(true)}
-          aria-label="Open menu"
-        >
-          &#9776;
-        </button>
-        {/* Sidebar Navigation */}
-        <div className={`fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 md:static md:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        {/* Desktop sidebar (full) */}
+        <div className="hidden md:block shrink-0">
           <Sidebar activeTab={activeTab} />
         </div>
-        {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />}
+
+        {/* Mobile: fixed out-of-flow rail + overlay panel (no layout impact) */}
+        <div className="md:hidden">
+          <MobileNavRail
+            open={mobileNavOpen}
+            onToggle={() => setMobileNavPath((prev) => (prev === pathname ? null : pathname))}
+            className="bg-[#1429A9] border-black/10 text-white hover:bg-[#0F1F87]"
+          />
+          {mobileNavOpen && (
+            <div className="fixed inset-y-0 left-8 z-40 w-64 overflow-y-auto">
+              <Sidebar activeTab={activeTab} />
+            </div>
+          )}
+        </div>
 
         {/* Content Wrapper */}
         <div className="flex-1 flex flex-col min-w-0">
           
           {/* Top header bar */}
-          <header className="h-16 bg-white border-b border-slate-200/80 px-8 flex items-center justify-between shrink-0 select-none">
-            <div>
-              <h1 className="text-sm font-extrabold text-slate-800 tracking-tight">
+          <header className="h-16 bg-white border-b border-slate-200/80 px-4 md:px-8 flex items-center justify-between gap-3 shrink-0 select-none">
+            <div className="min-w-0">
+              <h1 className="text-sm font-extrabold text-slate-800 tracking-tight truncate">
                 Loan Processing Overview — {getHeaderTitle()}
               </h1>
             </div>

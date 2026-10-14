@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.throttling import UserRateThrottle
 
 from .serializers import RAGChatRequestSerializer, RAGChatResponseSerializer
-from .services.rag_service import RAGService
+from .services.rag_service import get_rag_service
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +26,6 @@ class RAGChatView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [AiUserThrottle]
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.rag_service = RAGService()
-
     def post(self, request):
         serializer = RAGChatRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -39,7 +35,7 @@ class RAGChatView(APIView):
         top_k = serializer.validated_data.get("top_k", 3)
 
         try:
-            result = self.rag_service.query(
+            result = get_rag_service().query(
                 question=question,
                 domain_filter=domain_filter,
                 top_k=top_k,

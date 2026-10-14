@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useSyncExternalStore,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -75,6 +76,42 @@ const clientKeys = {
   availableSlots: (date: string, brokerId?: string) =>
     ["client", "available-slots", date, brokerId ?? null] as const,
 };
+
+let asanaProfileCache: AsanaProfile | null = null;
+let asanaProfileRawCache: string | null | undefined = undefined;
+
+function readAsanaProfileSnapshot(): AsanaProfile | null {
+  const raw =
+    typeof window === "undefined"
+      ? null
+      : sessionStorage.getItem("asana_profile");
+
+  if (raw === asanaProfileRawCache) return asanaProfileCache;
+  asanaProfileRawCache = raw;
+
+  if (!raw) {
+    asanaProfileCache = null;
+    return null;
+  }
+
+  try {
+    asanaProfileCache = JSON.parse(raw) as AsanaProfile;
+  } catch {
+    sessionStorage.removeItem("asana_profile");
+    asanaProfileRawCache = undefined;
+    asanaProfileCache = null;
+  }
+  return asanaProfileCache;
+}
+
+function subscribeAsanaProfile(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  return () => window.removeEventListener("storage", onStoreChange);
+}
+
+function getAsanaProfileServerSnapshot(): AsanaProfile | null {
+  return null;
+}
 
 function mapNotification(notification: NotificationApiResponse): PortalNotification {
   return {
@@ -151,17 +188,11 @@ function applyAsanaProfile(base: ClientData, asana: AsanaProfile): ClientData {
 export function ClientProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
 
-  const [asanaProfile] = useState<AsanaProfile | null>(() => {
-    if (typeof window === "undefined") return null;
-    const raw = sessionStorage.getItem("asana_profile");
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw) as AsanaProfile;
-    } catch {
-      sessionStorage.removeItem("asana_profile");
-      return null;
-    }
-  });
+  const asanaProfile = useSyncExternalStore(
+    subscribeAsanaProfile,
+    readAsanaProfileSnapshot,
+    getAsanaProfileServerSnapshot,
+  );
   const [toasts, setToasts] = useState<PortalNotification[]>([]);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
 
@@ -256,18 +287,11 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   );
 
   // Live updates arrive over SSE; refetch-on-focus comes from React Query.
+  // Bursts of events are coalesced into a single list refresh.
   useEffect(() => {
-    return subscribeToNotificationStream(async (push, event) => {
-      if (push.loan_status) {
-        queryClient.setQueryData(clientKeys.loanStatus, {
-          loan_status: push.loan_status,
-        });
-      }
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
-      // `snapshot` is the synthetic "connected" frame sent on every (re)connect;
-      // it carries no notification content, so don't fetch or toast on it.
-      if (event === "snapshot") return;
-
+    const flushNotifications = async () => {
       try {
         const previous =
           queryClient.getQueryData<NotificationApiResponse[]>(clientKeys.notifications);
@@ -286,7 +310,27 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error("Failed to refresh notifications:", error);
       }
+    };
+
+    const unsubscribe = subscribeToNotificationStream((push, event) => {
+      if (push.loan_status) {
+        queryClient.setQueryData(clientKeys.loanStatus, {
+          loan_status: push.loan_status,
+        });
+      }
+
+      // `snapshot` is the synthetic "connected" frame sent on every (re)connect;
+      // it carries no notification content, so don't fetch or toast on it.
+      if (event === "snapshot") return;
+
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(flushNotifications, 400);
     });
+
+    return () => {
+      unsubscribe();
+      if (refreshTimer) clearTimeout(refreshTimer);
+    };
   }, [queryClient]);
 
   const fetchAvailableSlots = useCallback(

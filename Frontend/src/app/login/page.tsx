@@ -471,6 +471,7 @@ export default function ClientLoginPage() {
                     required
                     placeholder="Enter your registered email"
                     value={email}
+                    disabled={isLoading}
                     onChange={(e) => {
                       setEmail(e.target.value);
                       if (errorMsg) setErrorMsg("");
@@ -481,7 +482,7 @@ export default function ClientLoginPage() {
                     onInput={(e) => {
                       e.currentTarget.setCustomValidity("");
                     }}
-                    className="w-full pl-11 pr-4 py-3 bg-transparent focus:outline-none text-xs sm:text-sm font-normal text-slate-800 placeholder:text-slate-400/70"
+                    className="w-full pl-11 pr-4 py-3 bg-transparent focus:outline-none text-xs sm:text-sm font-normal text-slate-800 placeholder:text-slate-400/70 disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -501,8 +502,9 @@ export default function ClientLoginPage() {
                     required
                     placeholder="Enter your password"
                     value={password}
+                    disabled={isLoading}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-11 pr-11 py-3 bg-transparent focus:outline-none text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400/70"
+                    className="w-full pl-11 pr-11 py-3 bg-transparent focus:outline-none text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400/70 disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                   {/* Eye toggle icon appears when there is input in the password field */}
                   {password.length > 0 && (
