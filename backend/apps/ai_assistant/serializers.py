@@ -8,12 +8,22 @@ class RAGChatRequestSerializer(serializers.Serializer):
         max_length=2000,
         help_text="User query for the Bai Finance AI assistant."
     )
-    domain_filter = serializers.CharField(
+    domain_filter = serializers.ChoiceField(
         required=False,
         allow_null=True,
         allow_blank=True,
         default=None,
-        help_text="Optional domain metadata filter (e.g. corporate_overview, mortgage_lending, legal_migration, customer_support)."
+        choices=[
+            "corporate_overview",
+            "leadership",
+            "mortgage_lending",
+            "legal_migration",
+            "remittance",
+            "offshore",
+            "customer_support",
+            "operations_compliance",
+        ],
+        help_text="Optional domain metadata filter.",
     )
     top_k = serializers.IntegerField(
         required=False,
@@ -22,6 +32,21 @@ class RAGChatRequestSerializer(serializers.Serializer):
         max_value=10,
         help_text="Number of knowledge base document chunks to retrieve."
     )
+    conversation_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Open conversation code (CONV-#####) for transcript persistence."
+    )
+
+
+class ConversationSessionResponseSerializer(serializers.Serializer):
+    conversation_id = serializers.CharField()
+
+
+class ConversationEndRequestSerializer(serializers.Serializer):
+    conversation_id = serializers.CharField()
+    reason = serializers.ChoiceField(choices=["manual", "idle"], default="manual")
 
 
 class RAGChatResponseSerializer(serializers.Serializer):

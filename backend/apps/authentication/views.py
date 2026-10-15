@@ -33,6 +33,15 @@ from users.choices import UserStatus
 from users.choices import UserRole
 from authentication.models import Invitation
 from authentication.choices import InviteStatus
+from rest_framework.throttling import ScopedRateThrottle
+
+
+class LoginThrottle(ScopedRateThrottle):
+    scope = "login"
+
+
+class InviteThrottle(ScopedRateThrottle):
+    scope = "invite"
 from authentication.serializers import SendInviteSerializer, InvitationAcceptSerializer
 
 from otp.services import send_otp_email
@@ -83,9 +92,26 @@ class LoginView(DjRestAuthLoginView):
     The refresh token is never included in the JSON response.
     The access token is returned only in development to simplify
     local API testing; production keeps both tokens cookie-only.
+    Requires a Cloudflare Turnstile token (fail-closed) unless disabled.
     """
     authentication_classes = ()  # Ignores stale headers/cookies
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [LoginThrottle]
+    throttle_scope = "login"
+
+    def post(self, request, *args, **kwargs):
+        if getattr(settings, "TURNSTILE_ENABLED", True):
+            from authentication.turnstile import TURNSTILE_ERROR_MESSAGES, verify_turnstile
+
+            token = (request.data.get("turnstile_token") or "").strip()
+            xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
+            remoteip = (xff.split(",")[0].strip() if xff else "") or request.META.get("REMOTE_ADDR")
+            ok, codes = verify_turnstile(token or None, remoteip or None)
+            if not ok:
+                code = (codes or ["invalid-input-response"])[0]
+                msg = TURNSTILE_ERROR_MESSAGES.get(code, "Verification failed, please retry.")
+                return Response({"turnstile": [msg]}, status=status.HTTP_400_BAD_REQUEST)
+        return super().post(request, *args, **kwargs)
 
     def get_response(self):
         response = super().get_response()
@@ -231,6 +257,7 @@ class InvitationValidateView(generics.GenericAPIView):
     GET /api/auth/invitations/validate/?token=<token>
     """
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [InviteThrottle]
     serializer_class = serializers.Serializer # dummy - test
 
     def get(self, request, *args, **kwargs):
@@ -263,6 +290,7 @@ class InvitationAcceptView(generics.GenericAPIView):
     POST /api/auth/invitations/accept/
     """
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [InviteThrottle]
     serializer_class = InvitationAcceptSerializer
 
     def post(self, request, *args, **kwargs):

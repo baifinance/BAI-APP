@@ -43,9 +43,10 @@ interface SidebarProps {
   clientName?: string;
   isCollapsed: boolean;
   onToggle: () => void;
+  compact?: boolean;
 }
 
-export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }: SidebarProps) {
+export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle, compact = false }: SidebarProps) {
   const { client } = useClientData();
   const { unreadCount } = useClientNotifications();
 
@@ -80,14 +81,14 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
 
   return (
     <aside
-      className={`sticky top-0 h-screen bg-[#0A2881] text-white border-r border-[#001D85] flex flex-col shrink-0 transition-all duration-300 ease-in-out z-40 select-none shadow-xl ${isCollapsed ? "w-16" : "w-64"
+      className={`sticky top-0 h-screen bg-[#0A2881] text-white border-r border-[#001D85] flex flex-col shrink-0 transition-all duration-300 ease-in-out z-40 select-none shadow-xl ${compact ? "w-full" : isCollapsed ? "w-16" : "w-64"
         }`}
     >
       {/* ------------------------------------------------------------------ */}
       {/* Brand Header                                                       */}
       {/* ------------------------------------------------------------------ */}
       <div
-        className={`p-4 border-b border-white/10 flex items-center min-h-[69px] overflow-hidden ${isCollapsed ? "justify-center" : "gap-3"
+        className={`${compact ? "p-3 min-h-14" : "p-4 min-h-[69px]"} border-b border-white/10 flex items-center overflow-hidden ${isCollapsed ? "justify-center" : "gap-3"
           }`}
       >
         {isCollapsed ? (
@@ -119,7 +120,7 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
       {/* ------------------------------------------------------------------ */}
       {/* Navigation Menu                                                    */}
       {/* ------------------------------------------------------------------ */}
-      <nav className="flex-1 py-4 space-y-1.5 px-2 overflow-y-auto">
+      <nav className={`flex-1 space-y-1.5 overflow-y-auto ${compact ? "py-3 px-2" : "py-4 px-2"}`}>
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -128,7 +129,7 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
             <div key={item.id} className="relative group">
               <Link
                 href={item.href}
-                className={`w-full flex items-center gap-3.5 px-3 py-3 rounded-xl text-left text-sm font-extrabold transition-all relative ${isCollapsed ? "justify-center" : ""
+                className={`w-full flex items-center ${compact ? "gap-3 px-2.5 py-2.5 text-[13px]" : "gap-3.5 px-3 py-3 text-sm"} rounded-xl text-left font-extrabold transition-all relative ${isCollapsed && !compact ? "justify-center" : ""
                   } ${isActive
                     ? "bg-[#E4BA37] text-[#0A2881] shadow-lg shadow-[#E4BA37]/20"
                     : "text-white/85 hover:text-white hover:bg-white/10"
@@ -173,7 +174,7 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
       {/* ------------------------------------------------------------------ */}
       <div className="mt-auto border-t border-white/10 bg-[#071E63]">
         {!isCollapsed ? (
-          <div className="p-3.5 space-y-2.5">
+          <div className={`${compact ? "p-3 space-y-2" : "p-3.5 space-y-2.5"}`}>
             {/* Profile Row with Settings Icon on the Top Right */}
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-3 min-w-0">
@@ -187,9 +188,11 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle }
                   <span className="text-[9px] font-extrabold uppercase tracking-wider text-[#E4BA37]">
                     CLIENT PROFILE
                   </span>
-                  <span className="text-[11px] font-medium text-white/70 truncate">
-                    {displayEmail}
-                  </span>
+                  {!compact && (
+                    <span className="text-[11px] font-medium text-white/70 truncate">
+                      {displayEmail}
+                    </span>
+                  )}
                 </div>
               </div>
 

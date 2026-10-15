@@ -75,7 +75,11 @@ class AsanaProfileService:
 
         self.api_client = asana.ApiClient(configuration)
 
-        self._request_timeout = float(os.getenv("ASANA_REQUEST_TIMEOUT", "10"))
+        try:
+            self._request_timeout = float(os.getenv("ASANA_REQUEST_TIMEOUT", "10"))
+        except (TypeError, ValueError):
+            self._request_timeout = 10.0
+        self._request_timeout = min(max(self._request_timeout, 2.0), 30.0)
         _call_api = self.api_client.call_api
         _timeout_index = list(
             inspect.signature(_call_api).parameters

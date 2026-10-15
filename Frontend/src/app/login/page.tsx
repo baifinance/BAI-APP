@@ -34,6 +34,9 @@ import {
   LoginResponse,
   SESSION_EXPIRED_EVENT,
 } from "@/lib/api";
+import TurnstileWidget, { TurnstileWidgetRef } from "@/components/TurnstileWidget";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 export default function ClientLoginPage() {
   const router = useRouter();
@@ -47,6 +50,8 @@ export default function ClientLoginPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<TurnstileWidgetRef>(null);
 
   // ==============================================================================
   // 2. OTP POP-UP MODAL STATE
@@ -131,9 +136,19 @@ export default function ClientLoginPage() {
       return;
     }
 
+    // Turnstile token required when the widget is configured (single-use tokens)
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setErrorMsg("Please complete the verification challenge.");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const data = await authApi.login(email.trim(), password);
+      const data = await authApi.login(
+        email.trim(),
+        password,
+        TURNSTILE_SITE_KEY ? turnstileToken : undefined
+      );
       
       // If server demands OTP verification, trigger the OTP Pop-up Container
       if (data.otp_required) {
@@ -151,6 +166,9 @@ export default function ClientLoginPage() {
       finalizeLogin(data);
     } catch (err: unknown) {
       setErrorMsg(errMessage(err, "Invalid email or password. Please try again."));
+      // Tokens are single-use — always refresh the challenge after an attempt.
+      setTurnstileToken("");
+      turnstileRef.current?.reset();
     } finally {
       setIsLoading(false);
     }
@@ -497,7 +515,20 @@ export default function ClientLoginPage() {
               </div>
 
               {/* ---------------------------------------------------------------- */}
-              {/* 3. SUBMIT BUTTON: Theme Blue "Log In"                            */}
+              {/* 3. TURNSTILE CHALLENGE (managed, invisible unless suspicious)   */}
+              {/* ---------------------------------------------------------------- */}
+              {TURNSTILE_SITE_KEY && (
+                <TurnstileWidget
+                  ref={turnstileRef}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onToken={setTurnstileToken}
+                  onExpire={() => setTurnstileToken("")}
+                  onError={() => setTurnstileToken("")}
+                />
+              )}
+
+              {/* ---------------------------------------------------------------- */}
+              {/* 4. SUBMIT BUTTON: Theme Blue "Log In"                            */}
               {/* ---------------------------------------------------------------- */}
               <button
                 type="submit"
@@ -512,7 +543,7 @@ export default function ClientLoginPage() {
               </button>
 
               {/* ---------------------------------------------------------------- */}
-              {/* 4. FORGOT PASSWORD HYPERLINK (Triggers Password Reset Modal)      */}
+              {/* 5. FORGOT PASSWORD HYPERLINK (Triggers Password Reset Modal)      */}
               {/* ---------------------------------------------------------------- */}
               <div className="text-center pt-2">
                 <p className="text-xs text-slate-500 font-medium">

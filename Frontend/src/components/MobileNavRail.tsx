@@ -29,7 +29,7 @@ export default function MobileNavRail({ open, onToggle, className = "" }: Mobile
         onClick={onToggle}
         aria-label={open ? "Collapse navigation menu" : "Expand navigation menu"}
         aria-expanded={open}
-        className="w-full py-4 flex items-center justify-center transition-colors cursor-pointer"
+        className="w-full min-h-11 px-2 py-3 flex items-center justify-center transition-colors cursor-pointer"
       >
         {open ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
       </button>

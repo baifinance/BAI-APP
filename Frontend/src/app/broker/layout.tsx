@@ -89,7 +89,7 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
         </div>
 
         {/* Content Wrapper */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 pl-8 md:pl-0">
           
           {/* Portal Top Header with Account Section & Notifications */}
           <header className="h-16 bg-white/70 backdrop-blur-md border-b border-slate-200/80 px-4 md:px-8 flex justify-between items-center z-30 select-none shrink-0">

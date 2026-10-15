@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import json
 import logging
 
@@ -9,6 +11,17 @@ from rest_framework.permissions import AllowAny
 from asana_integration.services.asana import handle_task_moved_event
 
 logger = logging.getLogger(__name__)
+
+
+def _verify_webhook_signature(raw_body: bytes, signature: str | None) -> bool:
+    secret = getattr(settings, "ASANA_WEBHOOK_SECRET", "")
+    if not secret:
+        logger.warning("ASANA_WEBHOOK_SECRET missing — webhook signature check skipped in dev only")
+        return settings.DEBUG
+    if not signature:
+        return False
+    expected = hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)
 
 class AsanaWebhookReceiver(APIView):
     """
@@ -28,6 +41,9 @@ class AsanaWebhookReceiver(APIView):
             response = HttpResponse(status=200)
             response["X-Hook-Secret"] = secret
             return response
+
+        if not _verify_webhook_signature(request.body or b"", request.headers.get("X-Asana-Signature")):
+            return HttpResponse(status=403)
 
         if not getattr(settings, "ASANA_WEBHOOK_ENABLED", False):
             return HttpResponse(status=200)

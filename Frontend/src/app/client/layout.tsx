@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import NotificationToasts from "@/components/NotificationToasts";
 import MobileNavRail from "@/components/MobileNavRail";
@@ -25,10 +25,27 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
   // Mobile sidebar is open only for the path it was opened on, so navigating closes it
   const [mobileNavPath, setMobileNavPath] = useState<string | null>(null);
   const mobileNavOpen = mobileNavPath === pathname;
+  const closeMobileNav = () => setMobileNavPath(null);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeMobileNav();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileNavOpen]);
 
   const isLoanStatus = activeTab === "LoanStatus";
   const isCalculator = activeTab === "Calculator";
+  const isCommunication = activeTab === "Communication";
   const isFullWidthPage = isLoanStatus || isCalculator;
+  // Chat: full-bleed on mobile, padded like other pages on sm+ screens.
+  const mainPadding = isFullWidthPage
+    ? "p-0"
+    : isCommunication
+      ? "p-0 sm:p-4 md:p-6 lg:p-8 sm:max-w-[1600px] sm:mx-auto"
+      : "p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto";
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-[#0024A8] selection:text-white antialiased client-portal-wrap">
@@ -50,20 +67,29 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
           className="bg-[#0A2881] border-[#001D85] text-white hover:bg-[#071D60]"
         />
         {mobileNavOpen && (
-          <div className="fixed inset-y-0 left-8 z-40 w-64 overflow-y-auto">
-            <Sidebar
-              activeTab={activeTab}
-              isCollapsed={false}
-              onToggle={() => {}}
+          <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
+            <button
+              type="button"
+              onClick={closeMobileNav}
+              aria-label="Close navigation menu"
+              className="absolute inset-0 bg-slate-900/60 cursor-pointer"
             />
+            <div className="absolute inset-y-0 left-8 w-[78vw] max-w-[280px] overflow-y-auto shadow-2xl">
+              <Sidebar
+                activeTab={activeTab}
+                isCollapsed={false}
+                onToggle={() => {}}
+                compact
+              />
+            </div>
           </div>
         )}
       </div>
 
       {/* Content Wrapper (remains stable and still during page transfers) */}
-      <div className="flex-1 flex flex-col min-w-0 w-full">
+      <div className="flex-1 flex flex-col min-w-0 w-full pl-8 lg:pl-0">
         {/* Scrollable page body */}
-        <main className={`flex-1 overflow-y-auto w-full ${isFullWidthPage ? "p-0" : "p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto"}`}>
+        <main className={`flex-1 overflow-y-auto w-full ${mainPadding}`}>
           {children}
         </main>
       </div>

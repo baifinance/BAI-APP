@@ -120,6 +120,7 @@ class NotificationStreamView(APIView):
                         data = message["data"]
                         if isinstance(data, bytes):
                             data = data.decode()
+                        data = data.replace("\r", "").replace("\n", "")
                         yield f"event: notification\ndata: {data}\n\n"
                     else:
                         yield ": keepalive\n\n" # keep proxies/NAT alive

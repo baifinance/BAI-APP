@@ -8,8 +8,8 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Lock, ShieldAlert, Award } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Lock, ShieldAlert, Award, Check, X } from "lucide-react";
 
 interface RegistrationFormProps {
   token: string;
@@ -30,10 +30,11 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
   const [role, setRole] = useState<"client" | "broker">("client");
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState(""); // optional, shown as initial e.g. Trazona → T.
   const [lastName, setLastName] = useState("");
   const [licenseNo, setLicenseNo] = useState(""); // broker only
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [tokenError, setTokenError] = useState("");
   const [isValidating, setIsValidating] = useState(true);
@@ -104,11 +105,31 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
   // ------------------------------------------------------------------------------
   // SUBMISSION HANDLER
   // ------------------------------------------------------------------------------
+  const toDisplayName = (first: string, middle: string, last: string) => {
+    const tokens = middle.trim().split(/\s+/).filter(Boolean);
+    const initial = tokens.length ? ` ${tokens[tokens.length - 1].charAt(0).toUpperCase()}.` : "";
+    return `${first.trim()}${initial} ${last.trim()}`.replace(/\s+/g, " ").trim();
+  };
+
+  const pwChecks = useMemo(() => {
+    const checks = {
+      length: password.length >= 12,
+      upper: /[A-Z]/.test(password),
+      lower: /[a-z]/.test(password),
+      number: /[0-9]/.test(password),
+      special: /[^A-Za-z0-9]/.test(password),
+    };
+    const score = Object.values(checks).filter(Boolean).length;
+    const label = score <= 2 ? "Weak" : score === 3 ? "Fair" : score === 4 ? "Good" : "Strong";
+    const barColor = score <= 2 ? "bg-rose-500" : score === 3 ? "bg-amber-500" : score === 4 ? "bg-blue-500" : "bg-emerald-500";
+    return { ...checks, score, label, barColor, allPass: score === 5 };
+  }, [password]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
 
-    if (!firstName.trim() || !lastName.trim()) {
+    if (!isBroker && (!firstName.trim() || !lastName.trim())) {
       setErrorMsg("First name and last name are required.");
       return;
     }
@@ -118,31 +139,30 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
       return;
     }
 
-    if (!password.trim() || !confirmPassword.trim()) {
-      setErrorMsg("Password fields are required.");
+    if (!password.trim()) {
+      setErrorMsg("Password is required.");
       return;
     }
 
-    if (password !== confirmPassword) {
-      setErrorMsg("Passwords do not match.");
-      return;
-    }
-
-    if (password.length < 12) {
-      setErrorMsg("Password must be at least 12 characters.");
+    if (!pwChecks.allPass) {
+      setErrorMsg("Password must be 12+ chars with upper, lower, number, and special character.");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const payload: Record<string, string> = {
-        token,
-        first_name: firstName,
-        last_name: lastName,
-        password,
-        password_confirm: confirmPassword,
-      };
+      const payload: Record<string, string> = { token, password };
+
+      if (!isBroker) {
+        payload.first_name = firstName.trim();
+        if (middleName.trim()) payload.middle_name = middleName.trim();
+        payload.last_name = lastName.trim();
+      } else {
+        if (firstName.trim()) payload.first_name = firstName.trim();
+        if (middleName.trim()) payload.middle_name = middleName.trim();
+        if (lastName.trim()) payload.last_name = lastName.trim();
+      }
 
       if (role === "broker") {
         payload.license_no = licenseNo;
@@ -163,30 +183,22 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
           data.token?.[0] ||
           data.password?.[0] ||
           data.first_name?.[0] ||
+          data.middle_name?.[0] ||
           data.last_name?.[0] ||
+          data.email?.[0] ||
           data.non_field_errors?.[0] ||
           "Registration failed. Please try again.";
         throw new Error(backendError);
       }
 
-      // Local storage record for demo compliance portal
-      const newReg = {
-        id: `reg-${Date.now()}`,
-        clientName: `${firstName} ${lastName}`,
-        loanType: role === "broker" ? "Broker Identity Audit" : "Client Registration",
-        documentName: role === "broker" ? `License: ${licenseNo}` : "Self-Registered Client Profile",
-        dateSubmitted: new Date().toISOString().split("T")[0],
-        status: "To Be Reviewed",
-        fileSize: "N/A",
-        fileType: "Signup Creds",
-      };
-      const existingStr = localStorage.getItem("new_registrations");
-      const existing = existingStr ? JSON.parse(existingStr) : [];
-      localStorage.setItem("new_registrations", JSON.stringify([...existing, newReg]));
+      // Account is active in Supabase now — go straight to login.
+      const displayName = !isBroker
+        ? toDisplayName(firstName, middleName, lastName)
+        : email.split("@")[0].replace(/[._]/g, " ");
 
       setTimeout(() => {
         setIsSubmitting(false);
-        onSuccess(`${firstName} ${lastName}`, role);
+        onSuccess(displayName, role);
       }, 1000);
     } catch (err: any) {
       setErrorMsg(err.message || "Something went wrong.");
@@ -261,32 +273,57 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* First Name & Last Name */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">First Name</label>
-              <input
-                type="text"
-                placeholder="Emma"
-                value={firstName}
-                required
-                onChange={(e) => setFirstName(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-[#0024A8] focus:bg-white transition-all font-medium"
-              />
+          {!isBroker ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">First Name</label>
+                  <input
+                    type="text"
+                    placeholder="Emma"
+                    value={firstName}
+                    required
+                    maxLength={150}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-[#0024A8] focus:bg-white transition-all font-medium"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Last Name</label>
+                  <input
+                    type="text"
+                    placeholder="Wilson"
+                    value={lastName}
+                    required
+                    maxLength={150}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-[#0024A8] focus:bg-white transition-all font-medium"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                  Middle Name <span className="text-slate-400 normal-case">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Trazona"
+                  value={middleName}
+                  maxLength={150}
+                  onChange={(e) => setMiddleName(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-[#0024A8] focus:bg-white transition-all font-medium"
+                />
+                {middleName.trim() && (
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Will appear as: <span className="font-bold text-slate-800">{toDisplayName(firstName || "First", middleName, lastName || "Last")}</span>
+                  </p>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium text-center bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
+                Contact details are auto-filled from Asana. Just confirm your name + set a password.
+              </p>
             </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Last Name</label>
-              <input
-                type="text"
-                placeholder="Wilson"
-                value={lastName}
-                required
-                onChange={(e) => setLastName(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-[#0024A8] focus:bg-white transition-all font-medium"
-              />
-            </div>
-          </div>
+          ) : null}
 
           {/* Broker-only: License Number */}
           {isBroker && (
@@ -333,43 +370,67 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
             </div>
           )}
 
-          {/* Password & Confirm Password */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Password</label>
-              <div className="relative">
-                <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3 pointer-events-none" />
-                <input
-                  type="password"
-                  placeholder="••••••"
-                  value={password}
-                  required
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-[#0024A8] focus:bg-white transition-all font-medium"
-                />
-              </div>
+          {/* Password + strength meter */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+              <span>Password (min 12 chars)</span>
+              {password && (
+                <span className={`text-[10px] font-extrabold uppercase ${pwChecks.score <= 2 ? "text-rose-600" : pwChecks.score === 3 ? "text-amber-600" : pwChecks.score === 4 ? "text-blue-600" : "text-emerald-600"}`}>
+                  {pwChecks.label}
+                </span>
+              )}
+            </label>
+            <div className="relative">
+              <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••"
+                value={password}
+                required
+                minLength={12}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-16 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-[#0024A8] focus:bg-white transition-all font-medium"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-2.5 text-[10px] font-bold text-slate-500 hover:text-slate-800"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
             </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Confirm</label>
-              <div className="relative">
-                <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3 pointer-events-none" />
-                <input
-                  type="password"
-                  placeholder="••••••"
-                  value={confirmPassword}
-                  required
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-[#0024A8] focus:bg-white transition-all font-medium"
-                />
+            {password && (
+              <div className="space-y-2">
+                <div className="flex gap-1">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className={`h-1.5 flex-1 rounded-full transition-all ${i < Math.ceil((pwChecks.score / 5) * 4) ? pwChecks.barColor : "bg-slate-200"}`}
+                    />
+                  ))}
+                </div>
+                <ul className="grid grid-cols-1 gap-1 text-[11px] font-medium">
+                  {[
+                    { ok: pwChecks.length, text: "At least 12 characters" },
+                    { ok: pwChecks.upper, text: "Uppercase letter (A-Z)" },
+                    { ok: pwChecks.lower, text: "Lowercase letter (a-z)" },
+                    { ok: pwChecks.number, text: "Number (0-9)" },
+                    { ok: pwChecks.special, text: "Special character (!@#$%)" },
+                  ].map((r) => (
+                    <li key={r.text} className={`flex items-center gap-1.5 ${r.ok ? "text-emerald-600" : "text-slate-400"}`}>
+                      {r.ok ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+                      <span>{r.text}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || (password.length > 0 && !pwChecks.allPass)}
             className="w-full py-3 bg-[#0024A8] hover:bg-[#001D85] disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-[#0024A8]/10 transition-all uppercase tracking-wider mt-2 flex items-center justify-center gap-2 cursor-pointer"
           >
             {isSubmitting ? (

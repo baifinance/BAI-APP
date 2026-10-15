@@ -42,7 +42,7 @@ The database migrations include an initial administrator/compliance account seed
 | Field | Value |
 | :--- | :--- |
 | **Email** | `compliance@bai.finance` |
-| **Password** | `SuperSecretPassword123!` |
+| **Password** | `SuperSecretPassword123!` (**EXAMPLE ONLY — rotate before any deploy**) |
 | **Role** | `compliance` |
 | **Status** | `active` |
 | **Permissions** | `is_staff=True`, `is_superuser=True` |
@@ -289,27 +289,25 @@ Public registration endpoint. Sets the user's password, activates their account,
 - **Method**: `POST`
 - **Authentication**: Public (`AllowAny`)
 
-#### Request Body (Client)
+#### Request Body (Client — names + password, contact auto-filled from Asana)
 ```json
 {
   "token": "4vT7Z-d7_W9lB69a3K1yZ...",
-  "first_name": "Alice",
-  "last_name": "Smith",
-  "password": "SecurePassword123!",
-  "password_confirm": "SecurePassword123!"
+  "first_name": "Emma",
+  "middle_name": "Trazona",
+  "last_name": "Wilson",
+  "password": "SecurePassword123!"
 }
 ```
+`first_name/last_name` required, `middle_name` optional (stored full, shown as `T.`). Password must be 12+ chars with upper, lower, number, special (backend `StrongPasswordValidator`, same rule on password-reset). `mobile/address/dob/visa*/loan_amount/goal/source/inquiry/loan_status` filled from Asana into `client_profiles`. Non-Asana email → `400 Must exist in Asana`.
 
 #### Request Body (Broker)
 *Note: `license_no` is mandatory for brokers.*
 ```json
 {
   "token": "4vT7Z-d7_W9lB69a3K1yZ...",
-  "first_name": "John",
-  "last_name": "Broker",
-  "license_no": "BROKER-NSW-8921",
   "password": "SecurePassword123!",
-  "password_confirm": "SecurePassword123!"
+  "license_no": "BROKER-NSW-8921"
 }
 ```
 
@@ -356,11 +354,11 @@ Public registration endpoint. Sets the user's password, activates their account,
 
 ---
 
-### 9. Resend Invitation (`GET /api/auth/invitations/<id>/resend/`)
+### 9. Resend Invitation (`POST /api/auth/invitations/<id>/resend/`)
 Extends the invitation expiration by another 7 days and resends the activation email.
 
 - **URL**: `/api/auth/invitations/<uuid:id>/resend/`
-- **Method**: `GET`
+- **Method**: `POST` (`GET` returns `405 Use POST`)
 - **Authentication**: `IsAuthenticated` (Compliance)
 
 #### Success Response (`200 OK`)
@@ -372,11 +370,11 @@ Extends the invitation expiration by another 7 days and resends the activation e
 
 ---
 
-### 10. Revoke Invitation (`GET /api/auth/invitations/<id>/revoke/`)
+### 10. Revoke Invitation (`POST /api/auth/invitations/<id>/revoke/`)
 Revokes a pending invitation so the token can no longer be used.
 
 - **URL**: `/api/auth/invitations/<uuid:id>/revoke/`
-- **Method**: `GET`
+- **Method**: `POST` (`GET` returns `405 Use POST`)
 - **Authentication**: `IsAuthenticated` (Compliance)
 
 #### Success Response (`200 OK`)
@@ -406,7 +404,7 @@ Returns the health status of the backend API service.
 ```json
 {
   "status": "ok",
-  "service": "bai-backend",
+  "service": "BAI-APP",
   "timestamp": "2026-08-27T03:35:00Z"
 }
 ```

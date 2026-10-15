@@ -91,7 +91,7 @@ class RAGService:
             
         return all_embeddings
 
-    def query(self, question: str, domain_filter: Optional[str] = None, top_k: int = 3) -> Dict[str, Any]:
+    def query(self, question: str, domain_filter: Optional[str] = None, top_k: int = 3, profile_context: Optional[str] = None) -> Dict[str, Any]:
         """Query knowledge base and synthesize response via Groq."""
         if not self.groq_client:
             raise ValueError("GROQ_API_KEY is not configured.")
@@ -114,16 +114,20 @@ class RAGService:
             "Answer user queries accurately relying strictly on the retrieved context below. "
             "Format your output cleanly using standard Markdown (e.g., ### for headers, * for bullet points, **bold** for emphasis). "
             "Do NOT use HTML tags. "
-            "If the answer cannot be determined from context, politely state: "
+            "If a verified Client profile block is provided, you may use it to answer questions about the user's own loan, visa, and contact details. "
+            "Never reveal another person's profile. "
+            "If the answer cannot be determined from context or the user's own profile, politely state: "
             "'I can only answer questions related to Bai Finance\'s services, home loans, legal advisory, and operations. Feel free to ask me anything about those!'"
         )
+
+        profile_block = f"\n\nVerified Client profile (user's own, Asana-sourced):\n{profile_context}" if profile_context else ""
 
         groq_model = os.getenv("GROQ_MODEL", DEFAULT_GROQ_MODEL)
         completion = self.groq_client.chat.completions.create(
             model=groq_model,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Retrieved Context:\n{context}\n\nUser Question: {question}"},
+                {"role": "user", "content": f"Retrieved Context:\n{context}{profile_block}\n\nUser Question: {question}"},
             ],
             temperature=0.1,
         )

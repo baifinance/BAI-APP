@@ -90,7 +90,7 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
         </div>
 
         {/* Content Wrapper */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 pl-8 md:pl-0">
           
           {/* Top header bar */}
           <header className="h-16 bg-white border-b border-slate-200/80 px-4 md:px-8 flex items-center justify-between gap-3 shrink-0 select-none">

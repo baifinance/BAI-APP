@@ -405,6 +405,11 @@ export default function UsersTab() {
               </h3>
               <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed max-w-xs mx-auto">
                 Enter the email address of the person you want to invite to the platform.
+                {inviteRole === "client" && (
+                  <span className="mt-1 block text-[11px] font-bold text-amber-700">
+                    Client must exist in Asana — otherwise the invite is blocked.
+                  </span>
+                )}
               </p>
             </div>
 

@@ -24,14 +24,12 @@ function ActivatePageContent() {
   // Registration feedback state managers
   const [isRegistered, setIsRegistered] = useState(false);
   const [registrantName, setRegistrantName] = useState("");
-  const [registrantDetails, setRegistrantDetails] = useState("");
 
   // ------------------------------------------------------------------------------
   // EVENT HANDLER: SUCCESSFUL SIGNUP
   // ------------------------------------------------------------------------------
   const handleRegistrationSuccess = (name: string, role: string) => {
     setRegistrantName(name);
-    setRegistrantDetails(`Role: ${role.toUpperCase()}`);
     setIsRegistered(true);
   };
 
@@ -49,14 +47,13 @@ function ActivatePageContent() {
     );
   }
 
-  // Case B: Registration complete, waiting for Loan Processing auditing
+  // Case B: Registration complete — account is active, go log in.
   if (isRegistered) {
     return (
       <StatusScreen
         type="success"
-        title="Registration Submitted"
-        message={`Thank you ${registrantName}. Your credentials (${registrantDetails}) have been uploaded to our Loan Processing Portal for review and audit.`}
-        token={token}
+        title="Account Activated"
+        message={`Thank you ${registrantName}. Your account is ready — please log in to continue.`}
       />
     );
   }

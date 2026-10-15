@@ -12,8 +12,11 @@ _redis_client = None
 def get_redis_client():
     global _redis_client
     if _redis_client is None:
-        _redis_client = redis.from_url(REDIS_URL)
-    
+        # rediss:// already negotiates TLS with default cert validation.
+        _redis_client = redis.from_url(
+            REDIS_URL, socket_connect_timeout=5, socket_timeout=5
+        )
+
     return _redis_client
 
 def generate_otp(size=6):

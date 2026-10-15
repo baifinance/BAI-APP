@@ -29,9 +29,6 @@ body {
   .moving-gradient-bg [class*="rounded-3xl"],
   .moving-gradient-bg [class*="rounded-2xl"],
   .moving-gradient-bg [class*="rounded-xl"],
-  .client-portal-wrap [class*="rounded-3xl"],
-  .client-portal-wrap [class*="rounded-2xl"],
-  .client-portal-wrap [class*="rounded-xl"],
   .loan-processing-portal-wrap [class*="rounded-3xl"],
   .loan-processing-portal-wrap [class*="rounded-2xl"],
   .loan-processing-portal-wrap [class*="rounded-xl"] {

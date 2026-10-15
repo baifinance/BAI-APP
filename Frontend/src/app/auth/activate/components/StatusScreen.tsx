@@ -8,7 +8,7 @@
  */
 
 import React from "react";
-import { AlertCircle, CheckCircle, ArrowRight, ShieldCheck } from "lucide-react";
+import { AlertCircle, CheckCircle, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 interface StatusScreenProps {
@@ -69,19 +69,14 @@ export default function StatusScreen({ type, title, message, token }: StatusScre
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Proceed to Loan Processing button */}
+              {/* Proceed to Login button */}
               <Link
-                href="/loan-processing"
+                href="/login"
                 className="w-full py-3 px-4 bg-[#071644] hover:bg-[#163691] active:bg-[#071644] text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
               >
-                <span>Proceed to Loan Processing Portal</span>
+                <span>Proceed to Login</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
-              
-              <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Sent for Auditing</span>
-              </div>
             </div>
           )}
         </div>

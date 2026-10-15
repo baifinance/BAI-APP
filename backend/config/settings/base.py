@@ -55,6 +55,15 @@ CORS_ALLOWED_ORIGINS = env.list(
 )
 CORS_ALLOW_CREDENTIALS = True
 
+CSRF_TRUSTED_ORIGINS = env.list(
+    "CSRF_TRUSTED_ORIGINS",
+    default=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -156,6 +165,12 @@ REST_FRAMEWORK = {
         "otp_verify": "10/hour",
         "ai": "30/hour",
         "mfa_send": "10/hour",
+        "login": "10/minute",
+        "dj_rest_auth": "10/minute",
+        "mfa_disable": "5/hour",
+        "invite": "20/hour",
+        "session": "10/hour",
+        "transcript": "5/hour",
     },
 }
 
@@ -180,6 +195,10 @@ SIMPLE_JWT = {
 # Redis configuration
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
+TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "").strip()
+
+TURNSTILE_ENABLED = env.bool("TURNSTILE_ENABLED", default=True)
+
 ASANA_PROFILE_LOOKUP_ENABLED = env.bool(
     "ASANA_PROFILE_LOOKUP_ENABLED",
     default=False
@@ -200,6 +219,8 @@ ASANA_WEBHOOK_ENABLED = env.bool(
     default=False
 )
 
+ASANA_WEBHOOK_SECRET = os.getenv("ASANA_WEBHOOK_SECRET", "").strip()
+
 # OTP configuration
 OTP_SIZE = int(os.getenv("OTP_SIZE", 6))
 OTP_TTL = int(os.getenv("OTP_TTL", 180))  # 3 minutes
@@ -215,6 +236,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 12}},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {"NAME": "authentication.validators.StrongPasswordValidator"},
 ]
 
 SECURE_BROWSER_XSS_FILTER = True

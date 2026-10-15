@@ -118,8 +118,13 @@ export interface LoginResponse {
 }
 
 export const authApi = {
-  login: (email: string, password: string) =>
-    request<LoginResponse>("/api/auth/login/", { method: "POST", json: { email, password } }),
+  login: (email: string, password: string, turnstileToken?: string) =>
+    request<LoginResponse>("/api/auth/login/", {
+      method: "POST",
+      json: turnstileToken
+        ? { email, password, turnstile_token: turnstileToken }
+        : { email, password },
+    }),
 
   me: () => request<AuthUser>("/api/auth/user/"),
 
@@ -468,18 +473,27 @@ export const loansApi = {
 export interface AIChatResponse {
   answer: string;
   sources: string[];
+  conversation_id?: string;
 }
 
 export const aiApi = {
-  chat: (question: string, domainFilter?: string, topK?: number) =>
+  chat: (question: string, conversationId?: string, domainFilter?: string, topK?: number) =>
     request<AIChatResponse>("/api/ai/chat/", {
       method: "POST",
       json: {
         question,
+        conversation_id: conversationId,
         domain_filter: domainFilter,
         top_k: topK,
       },
     }),
+  startSession: () =>
+    request<{ conversation_id: string }>("/api/ai/chat/session/start/", { method: "POST", json: {} }),
+  endSession: (conversationId: string, reason: "manual" | "idle") =>
+    request<{ conversation_id: string; emailed: boolean; to?: string }>(
+      "/api/ai/chat/session/end/",
+      { method: "POST", json: { conversation_id: conversationId, reason } },
+    ),
 };
 
 export function parseSlotTime(slotTime: string): { date: string; time: string } {

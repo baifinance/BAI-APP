@@ -15,7 +15,7 @@
 
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from authentication.permissions import IsOtpVerified
+from authentication.permissions import IsOtpVerified, IsLoanProcessingTeam
 from rest_framework.throttling import ScopedRateThrottle
 
 from django.conf import settings
@@ -46,6 +46,10 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
 class MfaSendThrottle(ScopedRateThrottle):
     scope = "mfa_send"
+
+
+class MfaDisableThrottle(ScopedRateThrottle):
+    scope = "mfa_disable"
 
 class MfaEnableSendView(generics.GenericAPIView):
     """
@@ -107,6 +111,7 @@ class MfaDisableView(generics.GenericAPIView):
     """
     serializer_class = MfaDisableSerializer
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [MfaDisableThrottle]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -141,7 +146,7 @@ class UserListView(generics.ListAPIView):
     Used by the Compliance portal and user administration.
     """
     serializer_class = RegisteredUserSerializer
-    permission_classes = [permissions.AllowAny if settings.DEBUG else permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsLoanProcessingTeam]
 
     def get_queryset(self):
         return User.objects.all().order_by("-date_joined", "-created_at")

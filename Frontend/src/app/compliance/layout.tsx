@@ -119,7 +119,7 @@ export default function ComplianceLayout({
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 w-full">
+      <div className="flex-1 flex flex-col min-w-0 w-full pl-8 lg:pl-0">
         <main className="flex-1 overflow-y-auto w-full p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
           {children}
         </main>
