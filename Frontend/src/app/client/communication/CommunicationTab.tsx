@@ -121,7 +121,7 @@ export default function CommunicationTab() {
     const ta = inputRef.current;
     if (!ta) return;
     ta.style.height = "auto";
-    ta.style.height = Math.min(ta.scrollHeight, 120) + "px";
+    ta.style.height = `${Math.min(Math.max(ta.scrollHeight, 44), 180)}px`;
   }, [input]);
 
   const send = async (question: string) => {
@@ -200,18 +200,18 @@ export default function CommunicationTab() {
   const started = messages.length > 0;
 
   return (
-    <div className="w-full flex flex-col h-[calc(100dvh-7rem)] md:h-[calc(100vh-7.5rem)] min-h-[480px] max-h-[880px] bg-white border-0 sm:border sm:border-blue-100 rounded-none sm:rounded-3xl shadow-soft-xl overflow-hidden">
-      <header className="px-4 sm:px-6 py-3.5 bg-white border-b border-blue-100/90 flex items-center justify-between gap-3 shrink-0">
+    <div className="w-full h-full flex-1 flex flex-col min-h-0 bg-white border-0 sm:border sm:border-blue-100 rounded-none sm:rounded-3xl shadow-soft-xl overflow-hidden">
+      <header className="px-4 sm:px-6 py-3.5 bg-[#0A2881] border-b border-[#001D85] flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-2xl bg-[#0024A8] text-white flex items-center justify-center shadow-sm shadow-[#0024A8]/20 shrink-0">
-            <Headphones className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-2xl bg-[#E4BA37] text-[#0A2881] flex items-center justify-center shadow-sm shrink-0">
+            <Headphones className="w-5 h-5 text-[#0A2881]" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-lg md:text-xl font-extrabold text-[#0024A8] tracking-tight leading-tight">
+            <h1 className="text-lg md:text-xl font-extrabold text-white tracking-tight leading-tight">
               BAI-SUPPORT
             </h1>
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <div className="flex items-center gap-1.5 text-xs text-blue-100/80 font-medium">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
               <span className="truncate">
                 {convId ? `${convId} · knows your profile` : "Customer Support"}
               </span>
@@ -223,10 +223,10 @@ export default function CommunicationTab() {
             type="button"
             onClick={() => setShowConfirm(true)}
             disabled={ending}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-rose-50 border border-rose-100 text-[11px] font-bold text-rose-700 hover:bg-rose-100 transition-colors shrink-0 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-bold text-white transition-colors shrink-0 disabled:opacity-50 cursor-pointer"
             aria-label="End chat and email transcript"
           >
-            <PhoneOff className="w-3.5 h-3.5" />
+            <PhoneOff className="w-3.5 h-3.5 text-white" />
             <span className="hidden sm:inline">{ending ? "Ending…" : "End chat"}</span>
           </button>
         )}
@@ -253,7 +253,7 @@ export default function CommunicationTab() {
         </div>
       )}
 
-      <div ref={scrollRef} role="log" aria-live="polite" className="flex-1 overflow-y-auto bg-gradient-to-b from-white via-white to-blue-50/20">
+      <div ref={scrollRef} role="log" aria-live="polite" className="flex-1 min-h-0 overflow-y-auto bg-gradient-to-b from-white via-white to-blue-50/20">
         {ended ? (
           <EmptyPanel
             title="Chat ended"
@@ -337,9 +337,9 @@ export default function CommunicationTab() {
 
       {!ended && (
       <div className="px-3 sm:px-6 pt-3 shrink-0">
-        <div className="bg-blue-50/70 border border-blue-100 rounded-2xl px-3 py-2.5 flex items-center gap-2 overflow-x-auto snap-x">
-          <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#0024A8]/70 shrink-0">
-            <Sparkles className="w-3.5 h-3.5 text-[#0024A8]" />
+        <div className="bg-[#0A2881] border border-[#001D85] rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5 overflow-x-auto snap-x shadow-xs">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#E4BA37] shrink-0">
+            <Sparkles className="w-3.5 h-3.5 text-[#E4BA37]" />
             <span>Suggested</span>
           </div>
           {SUGGESTED.map((q) => (
@@ -348,7 +348,7 @@ export default function CommunicationTab() {
               type="button"
               disabled={loading || !!ended}
               onClick={() => void send(q)}
-              className="shrink-0 snap-start px-3 py-2.5 rounded-xl bg-white border border-blue-200/80 text-xs font-semibold text-[#0024A8] hover:bg-blue-50 hover:border-[#0024A8]/40 transition-all cursor-pointer disabled:opacity-50"
+              className="shrink-0 snap-start px-3.5 py-2 rounded-xl bg-[#E4BA37] hover:bg-[#d4ac30] border border-[#E4BA37] text-xs font-bold text-[#0A2881] shadow-xs transition-all cursor-pointer disabled:opacity-50 active:scale-95"
             >
               {q}
             </button>
@@ -384,7 +384,7 @@ export default function CommunicationTab() {
             placeholder={convId ? "Type your question… (Enter to send, Shift+Enter for newline)" : "Starting chat session…"}
             maxLength={MAX_LEN}
             disabled={loading || !convId}
-            className="flex-1 bg-transparent px-3 py-2 text-[13px] sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none disabled:opacity-60 resize-none leading-6 max-h-[120px]"
+            className="flex-1 bg-transparent px-3.5 py-2.5 text-[13px] sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none disabled:opacity-60 resize-none leading-6 min-h-[44px] max-h-[180px]"
           />
           <div className="flex flex-col items-end gap-1 shrink-0">
             <button

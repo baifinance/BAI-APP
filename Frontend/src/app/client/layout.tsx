@@ -48,7 +48,11 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
       : "p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto";
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-[#0024A8] selection:text-white antialiased client-portal-wrap">
+    <div
+      className={`bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-[#0024A8] selection:text-white antialiased client-portal-wrap ${
+        isCommunication ? "h-screen h-[100dvh] overflow-hidden" : "min-h-screen"
+      }`}
+    >
 
       {/* Desktop sidebar (full, collapsible) */}
       <div className="hidden lg:block shrink-0">
@@ -87,9 +91,19 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Content Wrapper (remains stable and still during page transfers) */}
-      <div className="flex-1 flex flex-col min-w-0 w-full pl-8 lg:pl-0">
+      <div
+        className={`flex-1 flex flex-col min-w-0 w-full pl-8 lg:pl-0 ${
+          isCommunication ? "h-full min-h-0 overflow-hidden" : ""
+        }`}
+      >
         {/* Scrollable page body */}
-        <main className={`flex-1 overflow-y-auto w-full ${mainPadding}`}>
+        <main
+          className={`flex-1 w-full ${
+            isCommunication
+              ? "h-full min-h-0 flex flex-col overflow-hidden p-0 sm:p-3 md:p-4 lg:p-5 max-w-[1600px] mx-auto"
+              : `overflow-y-auto ${mainPadding}`
+          }`}
+        >
           {children}
         </main>
       </div>
