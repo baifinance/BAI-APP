@@ -13,7 +13,6 @@ import {
   DollarSign,
   Calendar,
   Info,
-  Printer,
   BarChart3,
   Eye,
   X,
@@ -144,39 +143,25 @@ function LoanBalanceChart({
   return (
     <div className="space-y-4">
       {/* ---------------------------------------------------------------------- */}
-      {/* CHART HEADER: Title, Legends, Eye Expand Icon / Exit 'X' Icon          */}
+      {/* CHART TOP CONTROLS: Floating badge & Eye/Close action button           */}
+      {/* (Sentence 'Loan Balance Chart' removed as requested)                   */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2.5">
-          <h4 className={`${isExpanded ? "text-base sm:text-lg font-black" : "text-sm font-extrabold"} text-slate-800`}>
-            Loan Balance Chart
-          </h4>
-          {isExpanded && (
+      {(onExpand || isExpanded) && (
+        <div className="flex items-center justify-between pb-1">
+          {isExpanded ? (
             <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0A2881] border border-blue-200/60 tracking-wider">
               Floating View
             </span>
+          ) : (
+            <div />
           )}
-        </div>
-
-        <div className="flex items-center gap-4 text-xs font-bold">
-          {/* Chart Legends */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <span className="w-3.5 h-3.5 rounded-xs bg-[#0B2369]" />
-              <span className="text-slate-700">Loan Balance</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3.5 h-3.5 rounded-xs bg-[#16A34A]" />
-              <span className="text-slate-700">Total Payment</span>
-            </div>
-          </div>
 
           {/* Action Button: Eye Icon to Expand when normal, 'X' Exit Button when in floating window */}
           {isExpanded ? (
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:bg-slate-200 rounded-lg transition-colors cursor-pointer border border-slate-200/80 shadow-2xs flex items-center justify-center ml-1"
+              className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:bg-slate-200 rounded-lg transition-colors cursor-pointer border border-slate-200/80 shadow-2xs flex items-center justify-center"
               title="Exit floating window"
               aria-label="Exit floating window"
             >
@@ -187,7 +172,7 @@ function LoanBalanceChart({
               <button
                 type="button"
                 onClick={onExpand}
-                className="p-1.5 text-slate-400 hover:text-[#0A2881] hover:bg-blue-50/80 active:bg-blue-100 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-blue-100 flex items-center justify-center ml-1"
+                className="p-1.5 text-slate-400 hover:text-[#0A2881] hover:bg-blue-50/80 active:bg-blue-100 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-blue-100 flex items-center justify-center"
                 title="View graph in floating window"
                 aria-label="View graph in floating window"
               >
@@ -196,7 +181,7 @@ function LoanBalanceChart({
             )
           )}
         </div>
-      </div>
+      )}
 
       {/* ---------------------------------------------------------------------- */}
       {/* SVG INTERACTIVE CHART                                                  */}
@@ -403,30 +388,18 @@ function LoanBalanceChart({
       </div>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* CHART FOOTER: Accreditation Badge, Print Button, Amortisation Tag     */}
+      {/* CHART FOOTER: Legends positioned on the bottom left of the container   */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
-        <div className="flex items-center gap-2">
-          {/* MFAA Accredited Badge */}
-          <div className="bg-[#0B2369] text-white px-3 py-1 rounded-md text-[11px] font-black tracking-wider flex items-center gap-1 shadow-2xs">
-            <span>mfaa</span>
-            <span className="text-[9px] font-medium text-slate-300">accredited</span>
-          </div>
+      <div className="flex items-center justify-start gap-4 text-xs font-bold pt-3 border-t border-slate-100">
+        {/* Legend 1: Loan Balance */}
+        <div className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded-xs bg-[#0B2369]" />
+          <span className="text-slate-700">Loan Balance</span>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            Print
-          </button>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg">
-            <Info className="w-3.5 h-3.5 text-slate-400" />
-            Standard Amortisation
-          </div>
+        {/* Legend 2: Total Payment */}
+        <div className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded-xs bg-[#16A34A]" />
+          <span className="text-slate-700">Total Payment</span>
         </div>
       </div>
     </div>
@@ -785,10 +758,11 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           </div>
         </div>
 
-        {/* Bottom Container: Calculation Results & Loan Balance Chart (inside max-w-7xl with space-y-8 spacing) */}
-        <div className="bg-white border border-slate-200/80 rounded-[15px] shadow-soft-xl overflow-hidden">
-          {/* Full-width Blue Header with #E4BA37 Text and 'Calculation Results' only */}
-          <div className="bg-[#0A2881] px-6 py-4 flex items-center justify-between shrink-0">
+        {/* Bottom Container: Calculation Results & Loan Balance Chart */}
+        {/* Blue background similar to theme (#0A2881) for the main container */}
+        <div className="bg-[#0A2881] border border-[#001D85] rounded-[15px] shadow-soft-xl overflow-hidden">
+          {/* Full-width Blue Header with #E4BA37 Text and 'Calculation Results' */}
+          <div className="bg-[#0A2881] px-6 py-4 flex items-center justify-between shrink-0 border-b border-[#001D85]">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-[#E4BA37]">
                 <BarChart3 className="w-4 h-4 text-[#E4BA37]" />
@@ -804,45 +778,50 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
             )}
           </div>
 
-          {/* Body Content */}
-          <div className="p-6 sm:p-8">
+          {/* Body Content: Theme blue background */}
+          <div className="p-6 sm:p-8 bg-[#0A2881]">
 
           {!isCalculatedClient ? (
             <div className="py-12 flex flex-col items-center justify-center text-center space-y-2">
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-2">
-                <Info className="w-6 h-6" />
+              <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white/60 mb-2">
+                <Info className="w-6 h-6 text-white" />
               </div>
-              <p className="text-sm font-bold text-slate-600">
+              <p className="text-sm font-bold text-white">
                 No calculations are being performed.
               </p>
-              <p className="text-xs text-slate-400 max-w-sm">
-                Enter your loan amount, interest rate, and term above, then click &quot;Calculate Repayments&quot; to view results and chart.
+              <p className="text-xs text-white/70 max-w-sm">
+                Enter your loan details to the left to see your estimated repayments
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               {/* Left side: Results in list form */}
               <div className="lg:col-span-5 space-y-6">
-                {/* Input details list (in order: Loan Amount, Interest Rate, Loan Term) */}
+                {/* ------------------------------------------------------------ */}
+                {/* SECTION 1: Input Details (Heading in Gold #E4BA37)           */}
+                {/* ------------------------------------------------------------ */}
                 <div>
-                  <h4 className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider mb-3">
+                  <h4 className="text-[11px] font-extrabold uppercase text-[#E4BA37] tracking-wider mb-3">
                     Input Details
                   </h4>
                   <ul className="space-y-3">
-                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
-                      <span className="font-semibold text-slate-600">Loan Amount</span>
+                    {/* Item 1: Loan Amount (White container, Left text Theme Blue) */}
+                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
+                      <span className="font-bold text-[#0A2881]">Loan Amount</span>
                       <span className="font-extrabold text-slate-900">
                         ${numLoanAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </li>
-                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
-                      <span className="font-semibold text-slate-600">Interest Rate</span>
+                    {/* Item 2: Interest Rate (White container, Left text Theme Blue) */}
+                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
+                      <span className="font-bold text-[#0A2881]">Interest Rate</span>
                       <span className="font-extrabold text-slate-900">
                         {numInterestRate}%
                       </span>
                     </li>
-                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
-                      <span className="font-semibold text-slate-600">Loan Term</span>
+                    {/* Item 3: Loan Term (White container, Left text Theme Blue) */}
+                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
+                      <span className="font-bold text-[#0A2881]">Loan Term</span>
                       <span className="font-extrabold text-slate-900">
                         {clientLoanTerm} {clientLoanTerm === 1 ? "year" : "years"}
                       </span>
@@ -850,29 +829,34 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                   </ul>
                 </div>
 
-                {/* Line divider */}
-                <div className="border-t border-slate-200/80 my-4" />
+                {/* Divider separating Input Details and Repayment Results */}
+                <div className="border-t border-white/15 my-4" />
 
-                {/* Results list (in order: Monthly Repayments, Total Payments, Total Interest) */}
+                {/* ------------------------------------------------------------ */}
+                {/* SECTION 2: Repayment Results (Heading in Gold #E4BA37)       */}
+                {/* ------------------------------------------------------------ */}
                 <div>
-                  <h4 className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider mb-3">
+                  <h4 className="text-[11px] font-extrabold uppercase text-[#E4BA37] tracking-wider mb-3">
                     Repayment Results
                   </h4>
                   <ul className="space-y-3">
-                    <li className="flex justify-between items-center py-3 px-4 rounded-xl bg-blue-50/70 border border-blue-200/50 text-xs sm:text-sm">
-                      <span className="font-bold text-[#0024A8]">Monthly Repayments</span>
-                      <span className="text-base sm:text-lg font-black text-[#0024A8]">
+                    {/* Result 1: Monthly Repayments (White container, Left text Theme Blue) */}
+                    <li className="flex justify-between items-center py-3 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
+                      <span className="font-bold text-[#0A2881]">Monthly Repayments</span>
+                      <span className="text-base sm:text-lg font-black text-[#0A2881]">
                         ${monthlyRepayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </li>
-                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
-                      <span className="font-semibold text-slate-600">Total Payments</span>
+                    {/* Result 2: Total Payments (White container, Left text Theme Blue) */}
+                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
+                      <span className="font-bold text-[#0A2881]">Total Payments</span>
                       <span className="font-extrabold text-slate-900">
                         ${Math.round(totalCostOfLoan).toLocaleString()}
                       </span>
                     </li>
-                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
-                      <span className="font-semibold text-slate-600">Total Interest</span>
+                    {/* Result 3: Total Interest (White container, Left text Theme Blue) */}
+                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
+                      <span className="font-bold text-[#0A2881]">Total Interest</span>
                       <span className="font-extrabold text-slate-900">
                         ${Math.round(totalInterestPaid).toLocaleString()}
                       </span>
