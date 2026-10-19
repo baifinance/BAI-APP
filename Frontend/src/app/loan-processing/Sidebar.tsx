@@ -39,10 +39,7 @@ export default function Sidebar({ activeTab }: SidebarProps) {
     } catch (err) {
       console.error("Failed to log out from backend:", err);
     }
-    // Clear cookies
-    document.cookie = "jwt-access-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "jwt-refresh-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "user-role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    // Auth cookies are HttpOnly and cleared by the backend logout endpoint.
 
     // Redirect to login page
     window.location.href = "/login";

@@ -10,7 +10,7 @@
 
 import React, { useState, useEffect } from "react";
 import { FileSearch, CheckCircle, FileWarning, HelpCircle, ChevronLeft, ChevronRight } from "lucide-react";
-import { AuditLogEntry } from "../MockLoanProcessingData";
+import type { AuditLogEntry } from "../MockLoanProcessingData";
 import { useLoanProcessing } from "../LoanProcessingContext";
 import { useRouter } from "next/navigation";
 

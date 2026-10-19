@@ -129,7 +129,9 @@ The live loan-status path is: **move a task in Asana → webhook → notificatio
    ```bash
    ngrok http 8000          # URL looks like https://<id>.ngrok-free.dev
    ```
-3. Register the webhook with Asana:
+3. Register the webhook with Asana. Set `ASANA_WEBHOOK_HANDSHAKE_ENABLED=True`
+   in `.env` and restart first, so Asana's `X-Hook-Secret` handshake is accepted
+   (the handshake is otherwise rejected with `403` to prevent secret rotation):
    ```bash
    cd backend
    venv/bin/python manage.py register_asana_webhook \
@@ -138,7 +140,11 @@ The live loan-status path is: **move a task in Asana → webhook → notificatio
    The endpoint accepts both `/api/asana/webhook` and `/api/asana/webhook/`
    (Asana sends the URL without a trailing slash).
 
-4. **Verify the handshake** before moving tasks:
+   Once the secret is stored, set `ASANA_WEBHOOK_HANDSHAKE_ENABLED=False` again
+   to lock the secret. Rotating an existing secret also requires
+   `ASANA_WEBHOOK_ALLOW_ROTATION=True`.
+
+4. **Verify the handshake** before moving tasks (only while handshake mode is on):
    ```bash
    curl -s -D - -o /dev/null -X POST https://<id>.ngrok-free.dev/api/asana/webhook \
      -H 'X-Hook-Secret: test-secret'

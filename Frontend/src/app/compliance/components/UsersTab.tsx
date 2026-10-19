@@ -146,8 +146,9 @@ export default function UsersTab() {
   } = useQuery({
     queryKey: ["compliance", "active-users"],
     queryFn: async () => {
-      const data: RegisteredUserApiItem[] = await usersApi.activeList();
-      return Array.isArray(data) ? data.map(mapUser) : [];
+      const page = await usersApi.activeList();
+      const data: RegisteredUserApiItem[] = Array.isArray(page) ? page : page.results;
+      return data.map(mapUser);
     },
     staleTime: 60_000,
   });

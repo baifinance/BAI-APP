@@ -1,9 +1,11 @@
+import json
+
 import redis
 
 from django.test import TestCase, override_settings
 from django.conf import settings
 
-from .utils import create_login_challenge, verify_otp
+from .utils import create_login_challenge, verify_otp, store_otp
 from otp import utils as utils_mod
 
 TEST_REDIS_URL = "redis://localhost:6379/15"
@@ -39,3 +41,13 @@ class OtpUtilTest(TestCase):
         create_login_challenge(email)
         utils_mod.get_redis_client().expire(f"otp:login_2fa:{email.lower()}", -1)
         self.assertFalse(verify_otp(email, "123456", purpose="login_2fa")[0])
+
+    def test_stored_otp_is_hashed_and_verifiable(self):
+        email = "hash@bai.finance"
+        store_otp(email, "135790", purpose="login", ttl=120)
+
+        raw = utils_mod.get_redis_client().get(f"otp:login:{email.lower()}")
+        self.assertNotEqual(json.loads(raw)["code"], "135790")
+
+        self.assertFalse(verify_otp(email, "000000", purpose="login")[0])
+        self.assertTrue(verify_otp(email, "135790", purpose="login")[0])

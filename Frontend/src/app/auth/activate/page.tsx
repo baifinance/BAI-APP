@@ -9,17 +9,32 @@
 
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import RegistrationForm from "./components/RegistrationForm";
 import StatusScreen from "./components/StatusScreen";
 
 function ActivatePageContent() {
   // ------------------------------------------------------------------------------
-  // QUERY PARAMETERS PARSING (Reads token from /auth/activate?token=xxx)
+  // TOKEN PARSING
+  // Primary: URL fragment (/auth/activate#token=xxx) — never sent to servers.
+  // Fallback: legacy query param (?token=xxx) for already-emailed links.
   // ------------------------------------------------------------------------------
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+  const [token, setToken] = useState<string | null>(null);
+  const [resolved, setResolved] = useState(false);
+
+  useEffect(() => {
+    const fromQuery = searchParams.get("token");
+    if (fromQuery) {
+      setToken(fromQuery);
+      setResolved(true);
+      return;
+    }
+    const hash = window.location.hash.replace(/^#/, "");
+    setToken(new URLSearchParams(hash).get("token"));
+    setResolved(true);
+  }, [searchParams]);
 
   // Registration feedback state managers
   const [isRegistered, setIsRegistered] = useState(false);
@@ -36,6 +51,14 @@ function ActivatePageContent() {
   // ------------------------------------------------------------------------------
   // CONDITIONAL RENDERING OR ROUTING
   // ------------------------------------------------------------------------------
+  if (!resolved) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center text-slate-600 font-semibold text-sm">
+        Loading Activation Portal...
+      </div>
+    );
+  }
+
   // Case A: Missing token / Clicked invalid link
   if (!token) {
     return (

@@ -10,7 +10,7 @@
 
 import React from "react";
 import { ArrowLeft, Check, FileText } from "lucide-react";
-import { Client } from "../MockData";
+import type { Client } from "../MockData";
 
 interface ClientApplicationDashboardProps {
   client: Client;
@@ -426,7 +426,7 @@ export default function ClientApplicationDashboard({ client: initialClient, onBa
           <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-soft-xl space-y-4">
             <div className="border-b border-slate-50 pb-2.5 flex items-center justify-between">
               <h4 className="font-extrabold text-slate-800 text-sm">Application Alerts</h4>
-              <span className="text-[10px] font-bold text-slate-400">Activity Logs</span>
+              <span className="text-[10px] font-bold text-slate-400">Activity Logs · sample data</span>
             </div>
 
             <div className="space-y-3">

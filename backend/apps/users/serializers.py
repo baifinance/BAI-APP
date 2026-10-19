@@ -11,10 +11,20 @@ from rest_framework import serializers  # noqa: F401
 from users.models import User
 
 class UserSerializer(serializers.ModelSerializer):
+    """Read-only view of the authenticated user for dj-rest-auth's
+    ``/api/auth/user/`` endpoint.
+
+    Every field is read-only: the endpoint is served by a
+    ``RetrieveUpdateAPIView``, and exposing ``role``/``status``/``is_active``/
+    ``mfa_enabled`` as writable allowed any authenticated user to escalate
+    privileges (e.g. PATCH ``{"role": "loan_processing"}``) or silently
+    disable their own MFA. Profile edits go through
+    ``PATCH /api/users/profile/`` (``ProfileSerializer``) instead.
+    """
     class Meta:
         model = User
         fields = [
-             "id",
+            "id",
             "email",
             "username",
             "role",
@@ -24,14 +34,11 @@ class UserSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = [
-            "id",
-            "created_at",
-            "updated_at",
-        ]
+        read_only_fields = fields
 
 class ProfileSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
+    client_profile = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -42,16 +49,48 @@ class ProfileSerializer(serializers.ModelSerializer):
             "full_name",
             "email",
             "role",
+            "client_profile",
         ]
         read_only_fields = [
             "id",
             "email",
-            "role"
+            "role",
+            "client_profile",
         ]
 
     def get_full_name(self, obj):
         name = f"{obj.first_name} {obj.last_name}".strip()
         return name if name else obj.email
+
+    def get_client_profile(self, obj):
+        """Expose the caller's own Asana-sourced profile (clients only).
+
+        Replaces the previous practice of shipping this PII in the login
+        response and caching it in the browser's sessionStorage.
+        """
+        if getattr(obj, "role", None) != "client":
+            return None
+        try:
+            profile = obj.client_profile
+        except Exception:
+            return None
+        return {
+            "fullname": profile.asana_fullname
+            or f"{obj.first_name} {obj.last_name}".strip()
+            or obj.email,
+            "email": obj.email,
+            "mobile": profile.mobile,
+            "address": profile.address,
+            "dob": profile.dob,
+            "visa": profile.visa,
+            "visa_subclass": profile.visa_subclass,
+            "visa_expiry": profile.visa_expiry,
+            "loan_amount": profile.loan_amount,
+            "goal": profile.goal,
+            "source": profile.source,
+            "inquiry": profile.inquiry,
+            "loan_status": profile.loan_status,
+        }
 
 class MfaEnableSerializer(serializers.Serializer):
     """Verify the emailed code before turning MFA on"""

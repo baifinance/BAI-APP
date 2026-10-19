@@ -64,17 +64,15 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle, 
     } catch (err) {
       console.error("Failed to log out from backend:", err);
     }
-    document.cookie = "jwt-access-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "jwt-refresh-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "user-role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    // Auth cookies are HttpOnly and cleared by the backend logout endpoint.
     window.location.href = "/login";
   };
 
-  const displayName = client?.name || clientName || "Emma Wilson";
-  const displayEmail = client?.email || `${displayName.toLowerCase().replace(/\s+/g, ".")}@email.com`;
+  const displayName = client?.name || clientName || "Client";
+  const displayEmail = client?.email || "";
   const initials = displayName
     ? displayName.split(" ").filter(Boolean).map((w) => w[0]).join("").toUpperCase().slice(0, 2)
-    : "EW";
+    : "C";
 
   const pathname = usePathname();
   const isSettingsActive = pathname?.startsWith("/client/profile/settings");

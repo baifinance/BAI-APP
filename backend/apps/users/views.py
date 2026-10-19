@@ -20,7 +20,10 @@ from rest_framework.throttling import ScopedRateThrottle
 
 from django.conf import settings
 
+from audit.services import log_action
+
 from users.models import User
+from users.pagination import UserListPagination
 from otp.utils import generate_otp, store_otp, verify_otp, mark_otp_verified
 from otp.services import send_otp_email
 from users.serializers import (
@@ -57,6 +60,7 @@ class MfaEnableSendView(generics.GenericAPIView):
     """
     permission_classes = [permissions.IsAuthenticated]
     throttle_classes = [MfaSendThrottle]
+    throttle_scope = "mfa_send"
 
     def post(self, request, *args, **kwargs):
         user = request.user
@@ -75,6 +79,7 @@ class MfaEnableView(generics.GenericAPIView):
     serializer_class = MfaEnableSerializer
     permission_classes = [permissions.IsAuthenticated]
     throttle_classes = [MfaSendThrottle]
+    throttle_scope = "mfa_send"
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -91,6 +96,14 @@ class MfaEnableView(generics.GenericAPIView):
         user.save(update_fields=["mfa_enabled", "updated_at"])
 
         mark_otp_verified(user.id)
+
+        log_action(
+            "MFA_ENABLED",
+            actor=user,
+            entity_type="User",
+            entity_id=user.id,
+            request=request,
+        )
 
         notification = create_notification(
             recipient=user,
@@ -112,6 +125,7 @@ class MfaDisableView(generics.GenericAPIView):
     serializer_class = MfaDisableSerializer
     permission_classes = [permissions.IsAuthenticated]
     throttle_classes = [MfaDisableThrottle]
+    throttle_scope = "mfa_disable"
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -125,6 +139,14 @@ class MfaDisableView(generics.GenericAPIView):
 
         user.mfa_enabled = False
         user.save(update_fields=["mfa_enabled", "updated_at"])
+
+        log_action(
+            "MFA_DISABLED",
+            actor=user,
+            entity_type="User",
+            entity_id=user.id,
+            request=request,
+        )
 
         notification = create_notification(
             recipient=user,
@@ -147,6 +169,7 @@ class UserListView(generics.ListAPIView):
     """
     serializer_class = RegisteredUserSerializer
     permission_classes = [permissions.IsAuthenticated, IsLoanProcessingTeam]
+    pagination_class = UserListPagination
 
     def get_queryset(self):
         return User.objects.all().order_by("-date_joined", "-created_at")

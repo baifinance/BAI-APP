@@ -13,6 +13,7 @@ from django.contrib.auth import get_user_model
 from notifications.choices import NotificationType
 from notifications.services import create_notification, publish_stream_notification
 from otp.utils import get_redis_client
+from users.services import record_loan_status_change
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,7 @@ class AsanaProfileService:
                 "gid,"
                 "name,"
                 "notes,"
+                "created_at,"
                 "memberships.project.gid,"
                 "memberships.section.gid,"
                 "memberships.section.name"
@@ -260,6 +262,7 @@ class AsanaProfileService:
 
         profile["asana_task_gid"] = task.get("gid")
         profile["asana_task_name"] = task.get("name")
+        profile["asana_created_at"] = task.get("created_at")
         profile["raw"] = notes
 
         memberships = task.get("memberships") or []
@@ -385,7 +388,8 @@ class AsanaProfileService:
             "goal",
             "source",
             "inquiry",
-            "loan_status"
+            "loan_status",
+            "asana_created_at",
         )
 
         return {
@@ -554,6 +558,8 @@ def handle_task_moved_event(event):
         section_name,
         client.id,
     )
+
+    record_loan_status_change(client, section_name)
 
     notification = create_notification(
         recipient=client,

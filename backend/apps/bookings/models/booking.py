@@ -55,6 +55,10 @@ class Booking(models.Model):
                 fields=["broker", "slot_time"],
                 name="unique_broker_booking_slot",
             ),
+            models.UniqueConstraint(
+                fields=["client", "slot_time"],
+                name="unique_client_booking_slot",
+            ),
         ]
 
     def __str__(self):

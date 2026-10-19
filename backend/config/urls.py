@@ -1,14 +1,37 @@
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 from bookings.views import BrokerListView
 from health.views import HealthView
-from authentication.views import LoginView
+from authentication.views import (
+    LoginView,
+    LogoutView,
+    PasswordChangeView,
+    DisabledPasswordResetView,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
 
     # Custom login response; keep distinct name to avoid colliding with dj_rest_auth's rest_login.
     path("api/auth/login/", LoginView.as_view(), name="custom-login"),
+
+    # Custom logout/password-change so MFA verification is revoked.
+    path("api/auth/logout/", LogoutView.as_view(), name="custom-logout"),
+    path("api/auth/password/change/", PasswordChangeView.as_view(), name="custom-password-change"),
+
+    # Retire dj-rest-auth's token-email password reset; OTP flow is canonical.
+    # re_path matches with/without trailing slash so dj-rest-auth's optional-slash
+    # route can't be reached as a bypass.
+    re_path(
+        r"^api/auth/password/reset/?$",
+        DisabledPasswordResetView.as_view(),
+        name="disabled-password-reset",
+    ),
+    re_path(
+        r"^api/auth/password/reset/confirm/?$",
+        DisabledPasswordResetView.as_view(),
+        name="disabled-password-reset-confirm",
+    ),
 
     # dj-rest-auth (login, logout, user, password, etc.)
     path("api/auth/", include("dj_rest_auth.urls")),
@@ -31,6 +54,9 @@ urlpatterns = [
     # Add OTP Urls
     path("api/otp/", include("otp.urls")),
     
+    # Audit trail (read-only, compliance/superuser)
+    path("api/audit/", include("audit.urls")),
+
     # AI Assistant (RAG)
     path("api/ai/", include("ai_assistant.urls")),
 

@@ -17,7 +17,7 @@ from rest_framework import permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from authentication.permissions import IsLoanProcessingTeam
+from authentication.permissions import IsLoanProcessingTeam, IsOtpVerified
 from asana_integration.services.asana import (
     AsanaProfileError,
     AsanaProfileService,
@@ -26,6 +26,9 @@ from asana_integration.services.asana import (
 
 from django.contrib.auth import get_user_model
 
+from users.choices import UserRole
+from users.models import ClientProfile
+from users.services import record_loan_status_change
 from notifications.choices import NotificationType
 from notifications.services import create_notification, publish_stream_notification
 
@@ -41,37 +44,61 @@ class CurrentLoanStatusView(APIView):
     Reads the current status directly from Asana.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsOtpVerified]
 
     def get(self, request):
-        if request.user.role != "client":
+        if request.user.role != UserRole.CLIENT:
             return Response(
                 {
                     "loan_status": None,
+                    "status_history": [],
                     "message": "This endpoint is for client accounts.",
                 }
             )
 
+        # The locally recorded status is kept in sync by the Asana webhook and
+        # the manual update endpoint, so it is authoritative and instant. Only
+        # fall back to a live Asana lookup when nothing has been recorded yet.
         try:
-            profile = get_client_asana_profile(request.user.email)
+            profile = request.user.client_profile
+        except ClientProfile.DoesNotExist:
+            profile = None
 
-        except AsanaProfileError:
-            return Response(
-                {
-                    "error": "Loan status is temporarily unavailable."
-                },
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
+        loan_status = profile.loan_status if profile else None
+
+        if not loan_status:
+            try:
+                asana_profile = get_client_asana_profile(request.user.email)
+            except AsanaProfileError:
+                return Response(
+                    {
+                        "error": "Loan status is temporarily unavailable."
+                    },
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+
+            if asana_profile:
+                loan_status = asana_profile.get("loan_status")
 
         return Response(
             {
-                "loan_status": (
-                    profile.get("loan_status")
-                    if profile
-                    else None
-                ),
+                "loan_status": loan_status,
+                "status_history": self._status_history(profile),
             }
         )
+
+    @staticmethod
+    def _status_history(profile):
+        """Return the client's recorded status entries, oldest first."""
+        if profile is None:
+            return []
+
+        history = profile.loan_status_history or {}
+
+        return [
+            {"status": status, "changed_at": changed_at}
+            for status, changed_at in sorted(history.items(), key=lambda item: item[1])
+        ]
 
 
 class LoanStatusUpdateView(APIView):
@@ -82,7 +109,7 @@ class LoanStatusUpdateView(APIView):
     Does not write to the local database.
     """
 
-    permission_classes = [IsLoanProcessingTeam]
+    permission_classes = [IsLoanProcessingTeam, IsOtpVerified]
 
     def patch(self, request):
         serializer = LoanStatusUpdateSerializer(
@@ -117,11 +144,13 @@ class LoanStatusUpdateView(APIView):
 
         client_user = User.objects.filter(
             email__iexact=email,
-            role="client",
+            role=UserRole.CLIENT,
             is_active=True
         ).first()
 
         if client_user:
+            record_loan_status_change(client_user, loan_status)
+
             notification = create_notification(
                 recipient=client_user,
                 notification_type=NotificationType.LOAN_STATUS,

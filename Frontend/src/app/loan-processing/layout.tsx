@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { Bell, LogOut } from "lucide-react";
 import Link from "next/link";
 import { API_BASE } from "@/lib/api";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 import MobileNavRail from "@/components/MobileNavRail";
 
 const getActiveTab = (pathname: string) => {
@@ -22,6 +23,7 @@ const getActiveTab = (pathname: string) => {
 export default function LoanProcessingLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const activeTab = getActiveTab(pathname);
+  const { fullName, email, initials } = useCurrentUser();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   // Mobile sidebar is open only for the path it was opened on, so navigating closes it
   const [mobileNavPath, setMobileNavPath] = useState<string | null>(null);
@@ -49,11 +51,8 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
     } catch (err) {
       console.error("Failed to log out from backend:", err);
     }
-    // Clear cookies
-    document.cookie = "jwt-access-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "jwt-refresh-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "user-role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    
+    // Auth cookies are HttpOnly and cleared by the backend logout endpoint.
+
     // Redirect to login page
     window.location.href = "/login";
   };
@@ -120,7 +119,7 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
                   title="Loan Processing Officer Profile"
                 >
                   <div className="w-8 h-8 rounded-full bg-[#1429A9] text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                    MC
+                    {initials}
                   </div>
                 </button>
 
@@ -129,12 +128,12 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
                     {/* Account detail row */}
                     <div className="flex items-center gap-3 pb-3 mb-2.5 border-b border-slate-100 select-none">
                       <div className="w-11 h-11 rounded-full bg-[#1429A9] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
-                        MC
+                        {initials}
                       </div>
                       <div className="flex flex-col text-left">
-                        <span className="font-extrabold text-slate-800 text-xs leading-none">Marcus Carter</span>
+                        <span className="font-extrabold text-slate-800 text-xs leading-none">{fullName || "Loan Processing"}</span>
                         <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider mt-1">Loan Processing Profile</span>
-                        <span className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">loanprocessing@bai.finance</span>
+                        <span className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">{email}</span>
                       </div>
                     </div>
 

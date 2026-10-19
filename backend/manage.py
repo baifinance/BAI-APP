@@ -2,10 +2,23 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
+from pathlib import Path
 
 
 def main():
     """Run administrative tasks."""
+    # Load backend/.env before resolving the settings module so that
+    # DJANGO_SETTINGS_MODULE in .env actually takes effect (the variable must
+    # exist before config.settings is imported).
+    env_path = Path(__file__).resolve().parent / ".env"
+    if env_path.exists():
+        try:
+            import environ
+
+            environ.Env.read_env(str(env_path))
+        except ImportError:
+            pass
+
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")
     try:
         from django.core.management import execute_from_command_line

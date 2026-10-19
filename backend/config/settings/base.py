@@ -162,6 +162,7 @@ REST_FRAMEWORK = {
         "anon": "100/hour",
         "user": "1000/hour",
         "otp": "5/hour",
+        "otp_email": "5/hour",
         "otp_verify": "10/hour",
         "ai": "30/hour",
         "mfa_send": "10/hour",
@@ -195,6 +196,29 @@ SIMPLE_JWT = {
 # Redis configuration
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
+# Shared cache backend (rate-limit counters, etc.) on its own Redis DB index so
+# it can't collide with — or be flushed alongside — OTP/session state in
+# REDIS_URL. Falling back to db 1 keeps local dev zero-config.
+REDIS_CACHE_URL = os.getenv("REDIS_CACHE_URL", "redis://localhost:6379/1")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_CACHE_URL,
+    }
+}
+
+if "test" in sys.argv:
+    # Tests run with an isolated, per-process cache so throttle counters don't
+    # leak between runs (Redis-backed limits would otherwise persist and make
+    # the suite flaky).
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "bai-test-cache",
+        }
+    }
+
 TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "").strip()
 
 TURNSTILE_ENABLED = env.bool("TURNSTILE_ENABLED", default=True)
@@ -220,6 +244,36 @@ ASANA_WEBHOOK_ENABLED = env.bool(
 )
 
 ASANA_WEBHOOK_SECRET = os.getenv("ASANA_WEBHOOK_SECRET", "").strip()
+
+# Key material for encrypting the stored webhook secret at rest. Falls back to
+# SECRET_KEY when unset (dev); set a dedicated value in production.
+ASANA_SECRET_ENC_KEY = os.getenv("ASANA_SECRET_ENC_KEY", "").strip()
+
+# Accept the Asana handshake (X-Hook-Secret) only while explicitly registering a
+# webhook; otherwise an unauthenticated caller could rotate the signing secret
+# and forge events. Rotation of an already-established secret additionally
+# requires ASANA_WEBHOOK_ALLOW_ROTATION.
+ASANA_WEBHOOK_HANDSHAKE_ENABLED = env.bool(
+    "ASANA_WEBHOOK_HANDSHAKE_ENABLED",
+    default=False,
+)
+
+ASANA_WEBHOOK_ALLOW_ROTATION = env.bool(
+    "ASANA_WEBHOOK_ALLOW_ROTATION",
+    default=False,
+)
+
+# AI assistant: whether the client's own profile is injected into the LLM
+# prompt (sent to Groq). Disable to keep PII entirely within the app, or enable
+# redaction to mask the most identifying fields while keeping loan context.
+AI_PROFILE_CONTEXT_ENABLED = env.bool(
+    "AI_PROFILE_CONTEXT_ENABLED",
+    default=True,
+)
+AI_REDACT_PROFILE_PII = env.bool(
+    "AI_REDACT_PROFILE_PII",
+    default=False,
+)
 
 # OTP configuration
 OTP_SIZE = int(os.getenv("OTP_SIZE", 6))
@@ -249,3 +303,42 @@ SECURE_HSTS_PRELOAD = True
 
 TIME_ZONE= "UTC"
 USE_TZ = True
+
+# Base logging: security-relevant loggers go to the console so they are
+# captured by the platform (systemd/Docker/Cloud Run) in production.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "plain": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"},
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "plain",
+        },
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        "django.security": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "authentication": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "turnstile": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "asana_integration": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
