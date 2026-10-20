@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 
 from django.conf import settings
 from django.http import HttpResponse
@@ -14,34 +15,61 @@ logger = logging.getLogger(__name__)
 
 MAX_HOOK_SECRET_LENGTH = 256
 
+# Each environment (deployment) stores its own handshake secret under a label
+# carried in the target URL as ``?hook=<label>``. Asana sends the full target
+# URL (including the query string) for both the handshake and every delivery, so
+# the label identifies which secret to use. Targets without the parameter keep
+# using the original ``asana`` label for backwards compatibility.
+DEFAULT_HOOK_KEY = "asana"
+HOOK_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
 
-def _active_secret() -> str:
-    """Return the stored handshake secret, falling back to the env secret."""
+
+def _hook_key(request) -> str | None:
+    """Return the validated label for this webhook, or ``None`` if malformed."""
+    raw = request.query_params.get("hook")
+    if raw is None:
+        return DEFAULT_HOOK_KEY
+    key = str(raw).strip().lower()
+    return key if HOOK_KEY_RE.match(key) else None
+
+
+def _active_secret(key: str = DEFAULT_HOOK_KEY) -> str:
+    """Return the stored secret for ``key``, falling back to the env secret.
+
+    The environment fallback only applies to the default label so one
+    environment's deliveries can never be verified with another's secret.
+    """
     try:
         from asana_integration.models import AsanaWebhookSecret
 
-        row = AsanaWebhookSecret.objects.filter(key="asana").first()
+        row = AsanaWebhookSecret.objects.filter(key=key).first()
         if row and row.secret:
             return row.secret
     except Exception:  # DB unavailable — fall back to env without failing open
-        logger.exception("Could not load stored Asana webhook secret")
+        logger.exception("Could not load stored Asana webhook secret for %s", key)
+    if key != DEFAULT_HOOK_KEY:
+        return ""
     return getattr(settings, "ASANA_WEBHOOK_SECRET", "").strip()
 
 
-def _store_handshake_secret(secret: str) -> None:
+def _store_handshake_secret(key: str, secret: str) -> None:
     from asana_integration.models import AsanaWebhookSecret
 
     AsanaWebhookSecret.objects.update_or_create(
-        key="asana",
+        key=key,
         defaults={"secret": secret[:MAX_HOOK_SECRET_LENGTH]},
     )
 
 
-def _verify_webhook_signature(raw_body: bytes, signature: str | None) -> bool:
-    secret = _active_secret()
+def _verify_webhook_signature(
+    key: str, raw_body: bytes, signature: str | None
+) -> bool:
+    secret = _active_secret(key)
     if not secret:
         # Never fail open: without a secret every delivery is rejected.
-        logger.error("No Asana webhook secret configured — rejecting delivery")
+        logger.error(
+            "No Asana webhook secret configured for %s — rejecting delivery", key
+        )
         return False
     if not signature:
         return False
@@ -51,10 +79,12 @@ def _verify_webhook_signature(raw_body: bytes, signature: str | None) -> bool:
 
 class AsanaWebhookReceiver(APIView):
     """
-    POST /api/asana/webhook/
+    POST /api/asana/webhook/?hook=<label>
 
     Handles the Asana webhook handshake (X-Hook-Secret echo) and event
-    deliveries for loan-status (section move) notifications.
+    deliveries for loan-status (section move) notifications. Each environment
+    keeps its own secret under the ``hook`` label carried in the target URL;
+    omitting the parameter uses the legacy ``asana`` label.
     """
 
     permission_classes = [AllowAny]
@@ -62,6 +92,11 @@ class AsanaWebhookReceiver(APIView):
     pagination_class = None
 
     def post(self, request):
+        key = _hook_key(request)
+        if key is None:
+            logger.warning("Rejected Asana webhook: invalid hook label")
+            return HttpResponse(status=400)
+
         secret = request.headers.get("X-Hook-Secret")
         if secret:
             # Handshakes are only honored while an operator is registering the
@@ -76,7 +111,7 @@ class AsanaWebhookReceiver(APIView):
             try:
                 from asana_integration.models import AsanaWebhookSecret
 
-                existing = AsanaWebhookSecret.objects.filter(key="asana").first()
+                existing = AsanaWebhookSecret.objects.filter(key=key).first()
             except Exception:
                 logger.exception("Could not load stored Asana webhook secret")
                 return HttpResponse(status=503)
@@ -87,14 +122,15 @@ class AsanaWebhookReceiver(APIView):
                 and not getattr(settings, "ASANA_WEBHOOK_ALLOW_ROTATION", False)
             ):
                 logger.warning(
-                    "Rejected Asana handshake: a secret already exists and "
-                    "rotation is disabled"
+                    "Rejected Asana handshake: a secret already exists for %s and "
+                    "rotation is disabled",
+                    key,
                 )
                 return HttpResponse(status=403)
 
             try:
-                _store_handshake_secret(secret)
-                logger.info("Asana webhook handshake secret stored")
+                _store_handshake_secret(key, secret)
+                logger.info("Asana webhook handshake secret stored for %s", key)
             except Exception:
                 logger.exception("Failed to persist Asana handshake secret")
                 return HttpResponse(status=503)
@@ -104,11 +140,13 @@ class AsanaWebhookReceiver(APIView):
             return response
 
         signature = request.headers.get("X-Hook-Signature")
-        if not _verify_webhook_signature(request.body or b"", signature):
+        if not _verify_webhook_signature(key, request.body or b"", signature):
             # Log which hook headers were present (names only, never values) so a
             # header-name drift or missing secret is easy to spot in the logs.
             logger.warning(
-                "Rejected Asana webhook: signature verification failed (hook headers present: %s)",
+                "Rejected Asana webhook for %s: signature verification failed "
+                "(hook headers present: %s)",
+                key,
                 [h for h in request.headers if h.lower().startswith("x-hook")],
             )
             return HttpResponse(status=403)

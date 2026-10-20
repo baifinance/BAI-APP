@@ -13,12 +13,12 @@ Asana as the loan-status source of truth.
 
 | Layer      | Tech                                              | Runs on                    |
 | ---------- | ------------------------------------------------- | -------------------------- |
-| Backend    | Django 4.2, Django REST Framework                 | `http://127.0.0.1:8000`    |
+| Backend    | Django 5.2, Django REST Framework                 | `http://127.0.0.1:8000`    |
 | Frontend   | Next.js (App Router), React, Tailwind             | `http://localhost:3000`    |
 | Cache/SSE  | Redis (`pub/sub` → live notification stream)      | `localhost:6379`           |
 | Database   | Postgres on **Supabase** (remote, via `DATABASE_URL`) | —                      |
 | AI         | **Cloud-only**: Groq (LLM chat), Jina (embeddings), Chroma Cloud (vector store) | — |
-| Webhook    | Asana events → `ngrok` tunnel → Django receiver   | `https://<id>.ngrok-free.dev/api/asana/webhook` |
+| Webhook    | Asana events → `ngrok` tunnel → Django receiver   | `https://<id>.ngrok-free.dev/api/asana/webhook?hook=<env>` |
 
 Notification flow: Asana task moved to a pipeline section → webhook (or broker
 save) creates a `loan_status` notification → Redis publishes to the client's SSE
@@ -124,40 +124,62 @@ Open `http://localhost:3000`. The client portal is at
 
 The live loan-status path is: **move a task in Asana → webhook → notification**.
 
+Each environment stores its **own** signing secret, keyed by a label carried in
+the target URL as `?hook=<label>` (e.g. `linux`, `windows`). Asana sends the
+full URL on both the handshake and every delivery, so two deployments sharing
+one database no longer overwrite each other's secret. A target without the
+parameter keeps using the legacy `asana` label.
+
 1. Start the Django server on `:8000`.
 2. Start a tunnel:
    ```bash
    ngrok http 8000          # URL looks like https://<id>.ngrok-free.dev
    ```
 3. Register the webhook with Asana. Set `ASANA_WEBHOOK_HANDSHAKE_ENABLED=True`
-   in `.env` and restart first, so Asana's `X-Hook-Secret` handshake is accepted
-   (the handshake is otherwise rejected with `403` to prevent secret rotation):
+   and restart first, so Asana's `X-Hook-Secret` handshake is accepted (it is
+   otherwise rejected with `403` to prevent secret rotation). Give this
+   environment its own label with `--hook` (default: `asana`):
    ```bash
    cd backend
-   venv/bin/python manage.py register_asana_webhook \
+   ASANA_WEBHOOK_HANDSHAKE_ENABLED=True venv/bin/python manage.py runserver
+   # in a second shell:
+   ASANA_WEBHOOK_HANDSHAKE_ENABLED=True venv/bin/python manage.py register_asana_webhook \
+     --hook windows \
      --target https://<id>.ngrok-free.dev/api/asana/webhook
    ```
-   The endpoint accepts both `/api/asana/webhook` and `/api/asana/webhook/`
-   (Asana sends the URL without a trailing slash).
+   The command appends `?hook=<label>` to the target and prints the effective
+   URL. The endpoint accepts both `/api/asana/webhook` and
+   `/api/asana/webhook/` (Asana sends the URL without a trailing slash).
+
+   Rotation is enforced **per label**: registering `windows` succeeds even when
+   `asana` (or `linux`) already has a secret. Replacing an existing label's
+   secret still requires `ASANA_WEBHOOK_ALLOW_ROTATION=True`.
 
    Once the secret is stored, set `ASANA_WEBHOOK_HANDSHAKE_ENABLED=False` again
-   to lock the secret. Rotating an existing secret also requires
-   `ASANA_WEBHOOK_ALLOW_ROTATION=True`.
+   and restart to lock it.
 
-4. **Verify the handshake** before moving tasks (only while handshake mode is on):
+4. **Verify** the handshake and list what Asana has registered:
    ```bash
-   curl -s -D - -o /dev/null -X POST https://<id>.ngrok-free.dev/api/asana/webhook \
+   curl -s -D - -o /dev/null -X POST \
+     'https://<id>.ngrok-free.dev/api/asana/webhook?hook=windows' \
      -H 'X-Hook-Secret: test-secret'
    # expect: HTTP 200 + X-Hook-Secret echoed back
+
+   venv/bin/python manage.py register_asana_webhook --list
+   # expect: one line per webhook with hook=<label>, active=True, no failures
    ```
 
 5. **Every new ngrok session = a new URL** → re-register. If Asana reports the
-   webhook already exists, delete it first:
+   webhook already exists, list and delete it first:
    ```bash
+   venv/bin/python manage.py register_asana_webhook --list
    venv/bin/python manage.py register_asana_webhook --delete <WEBHOOK_GID>
+   # add --hook <label> to also clear that label's stored secret
    ```
 
 > `ASANA_WEBHOOK_ENABLED=True` must stay set in `.env`.
+> One database holds one secret per label — use a distinct label per
+> environment (never reuse `asana` for a second deployment).
 
 ---
 
@@ -168,6 +190,7 @@ The live loan-status path is: **move a task in Asana → webhook → notificatio
 | Python deps consistent | `venv/bin/python -m pip check` | `No broken requirements found.` |
 | Django config | `venv/bin/python manage.py check` | `0 silenced` |
 | Asana logic tests | `venv/bin/python test_section.py` | `Ran 14 tests … OK` |
+| Registered webhooks | `venv/bin/python manage.py register_asana_webhook --list` | one line per environment: `active=True`, no `last_failure_at` |
 | Webhook event trace | `tail -f /tmp/asana_events.log` (Linux) | new `RAW EVENT` + `Asana event processed …` lines after a board move |
 | Frontend types | `cd Frontend && npx tsc --noEmit` | exits 0 |
 | Frontend lint (audited files) | `cd Frontend && npx eslint src/app/client/notifications/page.tsx src/app/client/ClientContext.tsx src/lib/api.ts` | 3 pre-existing `react-hooks/set-state-in-effect` errors + 1 warning, nothing else |
@@ -183,9 +206,11 @@ The live loan-status path is: **move a task in Asana → webhook → notificatio
 
 | Problem | Fix |
 | ------- | --- |
-| Webhook registration returns **400 / "incorrect status code: 500"** | Old trailing-slash regression — use the no-slash URL `/api/asana/webhook` (route exists); reload Django if you just edited `urls.py`. |
+| Registration: **400 "incorrect status code: 400"** | Django rejected the handshake's `Host`. Add the tunnel host to `ALLOWED_HOSTS` (e.g. `.ngrok-free.dev`) and restart `runserver`. |
+| Registration: **400 "incorrect status code: 403"** | Read the server log. *"handshake mode is disabled"* → restart `runserver` with `ASANA_WEBHOOK_HANDSHAKE_ENABLED=True`. *"a secret already exists for &lt;label&gt;"* → that label is already registered: register with a different `--hook`, or delete the row / allow rotation. |
 | Handshake curl returns non-200 | Tunnel down (`ngrok` died) or the server isn't on `:8000`. Check `curl http://127.0.0.1:8000/api/asana/webhook` locally first. |
 | No events after a board move | Check `/tmp/asana_events.log`; confirm webhook was re-registered for the **current** ngrok URL; move the task to a section that exists in the 16-stage pipeline. |
+| Second environment breaks the first | Both are using the same label. Register each with a distinct `--hook` (`linux`, `windows`, …) and verify with `register_asana_webhook --list`. |
 | Duplicate notifications on one move | Asana keeps old webhooks alive even after their ngrok URL dies. Prune stale ones: list with the SDK (`get_webhooks(workspace_gid, ...)` — project's workspace in `get_project`), then `venv/bin/python manage.py register_asana_webhook --delete <WEBHOOK_GID>` for every target that isn't your current tunnel. |
 | Client never gets toasts | Redis down → `redis-cli ping`; the frontend falls back to a 30s poll, so streams reconnect but live updates stop. |
 | Live updates work but no **desktop** pop-up | Click **Enable** on `/client/notifications`; permission must be `granted`; the pop-up only fires while that tab is **unfocused** and is deduped for 5s. |

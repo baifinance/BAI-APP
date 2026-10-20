@@ -165,3 +165,112 @@ class AsanaSecretEncryptionTests(APITestCase):
         self.assertEqual(
             AsanaWebhookSecret.objects.get(key="asana").secret, "legacy-plain"
         )
+
+
+@override_settings(
+    ASANA_WEBHOOK_ENABLED=True,
+    ASANA_WEBHOOK_SECRET="",
+    ASANA_WEBHOOK_HANDSHAKE_ENABLED=True,
+    ASANA_WEBHOOK_ALLOW_ROTATION=False,
+)
+class AsanaMultiKeyWebhookTests(APITestCase):
+    """One signing secret per ``?hook=`` label, so environments can coexist."""
+
+    URL = "/api/asana/webhook/"
+
+    def _store(self, key: str, secret: str) -> None:
+        AsanaWebhookSecret.objects.update_or_create(
+            key=key, defaults={"secret": secret}
+        )
+
+    def _handshake(self, label: str, secret: str):
+        return self.client.post(
+            f"{self.URL}?hook={label}", HTTP_X_HOOK_SECRET=secret
+        )
+
+    def _deliver(self, label: str, secret: str):
+        body = b'{"events": []}'
+        return self.client.post(
+            f"{self.URL}?hook={label}",
+            data=body,
+            content_type="application/json",
+            HTTP_X_HOOK_SIGNATURE=_sign(secret, body),
+        )
+
+    def test_handshake_stores_under_hook_label(self):
+        resp = self._handshake("windows", "w-secret")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.headers.get("X-Hook-Secret"), "w-secret")
+        self.assertEqual(
+            AsanaWebhookSecret.objects.get(key="windows").secret, "w-secret"
+        )
+        self.assertFalse(
+            AsanaWebhookSecret.objects.filter(key="asana").exists()
+        )
+
+    def test_new_label_is_accepted_while_default_exists(self):
+        self._store("asana", "a-secret")
+
+        resp = self._handshake("windows", "w-secret")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(
+            AsanaWebhookSecret.objects.get(key="asana").secret, "a-secret"
+        )
+        self.assertEqual(
+            AsanaWebhookSecret.objects.get(key="windows").secret, "w-secret"
+        )
+
+    def test_rotation_gate_is_per_label(self):
+        self._store("windows", "w-secret")
+
+        resp = self._handshake("windows", "attacker-secret")
+
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(
+            AsanaWebhookSecret.objects.get(key="windows").secret, "w-secret"
+        )
+
+    def test_delivery_uses_only_the_matching_label_secret(self):
+        self._store("asana", "a-secret")
+        self._store("windows", "w-secret")
+
+        self.assertEqual(self._deliver("windows", "w-secret").status_code, 200)
+        self.assertEqual(self._deliver("asana", "a-secret").status_code, 200)
+        self.assertEqual(self._deliver("windows", "a-secret").status_code, 403)
+        self.assertEqual(self._deliver("asana", "w-secret").status_code, 403)
+
+    def test_legacy_target_without_hook_uses_default(self):
+        self._store("asana", "a-secret")
+        body = b'{"events": []}'
+
+        resp = self.client.post(
+            self.URL,
+            data=body,
+            content_type="application/json",
+            HTTP_X_HOOK_SIGNATURE=_sign("a-secret", body),
+        )
+
+        self.assertEqual(resp.status_code, 200)
+
+    def test_invalid_hook_label_rejected(self):
+        for label in ("bad.label", "bad%20label", "", "x" * 33):
+            resp = self._handshake(label, "secret")
+            self.assertEqual(resp.status_code, 400, label)
+
+        self.assertFalse(AsanaWebhookSecret.objects.exists())
+
+    def test_each_label_is_encrypted_at_rest(self):
+        self._store("asana", "a-secret")
+        self._store("windows", "w-secret")
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT key, secret FROM asana_webhook_secrets ORDER BY key"
+            )
+            raw = dict(cursor.fetchall())
+
+        self.assertTrue(raw["asana"].startswith("fernet:"))
+        self.assertTrue(raw["windows"].startswith("fernet:"))
+        self.assertNotIn("w-secret", raw["windows"])
