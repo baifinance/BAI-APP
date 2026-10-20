@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { Bell, LogOut } from "lucide-react";
 import Link from "next/link";
 import { API_BASE } from "@/lib/api";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 import MobileNavRail from "@/components/MobileNavRail";
 
 const getActiveTab = (pathname: string) => {
@@ -23,6 +24,7 @@ const getActiveTab = (pathname: string) => {
 export default function BrokerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const activeTab = getActiveTab(pathname);
+  const { fullName, email, initials } = useCurrentUser();
   
   // Profile dropdown state
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -55,11 +57,8 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
     } catch (err) {
       console.error("Failed to log out from backend:", err);
     }
-    // Clear security cookies
-    document.cookie = "jwt-access-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "jwt-refresh-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "user-role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    
+    // Auth cookies are HttpOnly and cleared by the backend logout endpoint.
+
     // Redirect to login page
     window.location.href = "/login";
   };
@@ -120,10 +119,10 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
                 <button
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
                   className="p-1 hover:bg-slate-100/80 rounded-full transition-all cursor-pointer outline-hidden"
-                  title="Sarah Jenkins Profile"
+                  title="Broker Profile"
                 >
                   <div className="w-8 h-8 rounded-full bg-[#1429A9] text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                    SJ
+                    {initials}
                   </div>
                 </button>
 
@@ -134,13 +133,13 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
                     <div className="flex items-center gap-3 pb-3 mb-2.5 border-b border-slate-100 select-none">
                       {/* Avatar on the left */}
                       <div className="w-11 h-11 rounded-full bg-[#1429A9] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
-                        SJ
+                        {initials}
                       </div>
                       {/* Detailed info on the right */}
                       <div className="flex flex-col text-left">
-                        <span className="font-extrabold text-slate-800 text-xs leading-none">Sarah Jenkins</span>
+                        <span className="font-extrabold text-slate-800 text-xs leading-none">{fullName || "Broker"}</span>
                         <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider mt-1">Broker Profile</span>
-                        <span className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">sarah.jenkins@baifinance.com.au</span>
+                        <span className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">{email}</span>
                       </div>
                     </div>
 

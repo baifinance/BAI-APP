@@ -11,11 +11,12 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Lock } from "lucide-react";
 import { usePathname } from "next/navigation";
 import MobileNavRail from "@/components/MobileNavRail";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 import ComplianceSidebar from "./components/ComplianceSidebar";
 
 export default function ComplianceLayout({
@@ -24,26 +25,14 @@ export default function ComplianceLayout({
   children: React.ReactNode;
 }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [checkingRole, setCheckingRole] = useState(true);
   const pathname = usePathname();
   // Mobile sidebar is open only for the path it was opened on, so navigating closes it
   const [mobileNavPath, setMobileNavPath] = useState<string | null>(null);
   const mobileNavOpen = mobileNavPath === pathname;
 
-  // Client-side role validation check (reinforcing proxy.ts middleware)
-  useEffect(() => {
-    try {
-      const cookies = document.cookie.split("; ");
-      const roleCookie = cookies.find((c) => c.startsWith("user-role="));
-      const roleVal = roleCookie ? decodeURIComponent(roleCookie.split("=")[1]) : null;
-      setUserRole(roleVal);
-    } catch {
-      setUserRole(null);
-    } finally {
-      setCheckingRole(false);
-    }
-  }, []);
+  // Server-backed role check (reinforces proxy.ts middleware). Falls back to the
+  // hook's loading state while the profile request is in flight.
+  const { role, isLoading: checkingRole } = useCurrentUser();
 
   // Display loading skeleton while checking credentials
   if (checkingRole) {
@@ -60,7 +49,7 @@ export default function ComplianceLayout({
   }
 
   // Access restriction: Page can be accessed ONLY if user has the compliance role
-  const isCompliance = userRole === "compliance";
+  const isCompliance = role === "compliance";
 
   if (!isCompliance) {
     return (

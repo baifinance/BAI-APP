@@ -58,7 +58,6 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       // Unverified 2FA session: the user holds a JWT but hasn't passed the login OTP.
       // Bounce to the login page so they can re-authenticate and complete the step.
       if (res.status === 403 && j.detail === OTP_REQUIRED_DETAIL) {
-        document.cookie = "user-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
         window.location.replace("/login");
       }
     } catch {
@@ -66,9 +65,13 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     }
 
     // Access token rejected (401) with an active session → session is dead.
-    // Guard on user-role (set after login) so failed logins/OTP on the login
-    // page never trigger the SessionExpiryModal.
-    if (res.status === 401 && document.cookie.includes("user-role=")) {
+    // Skip on the login page so failed logins never trigger the expiry modal.
+    // (The user-role cookie is now HttpOnly and unreadable here.)
+    if (
+      res.status === 401 &&
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/login")
+    ) {
       window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
     }
 
@@ -112,7 +115,6 @@ export interface LoginResponse {
   access?: string;
   access_expiration?: string;
   refresh_expiration?: string;
-  asana_profile?: AsanaProfile | null;
   otp_required?: boolean;
   otp_expires_in?: number;
 }
@@ -192,6 +194,7 @@ export interface UserProfileResponse {
   full_name: string;
   email: string;
   role: string;
+  client_profile?: AsanaProfile | null;
 }
 
 export interface RegisteredUserApiItem {
@@ -207,18 +210,25 @@ export interface RegisteredUserApiItem {
   created_at?: string;
 }
 
+export interface Paginated<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 export const usersApi = {
   /**
    * GET /api/users/
-   * Fetches all registered users from the database.
+   * Fetches registered users from the database (paginated).
    */
-  list: () => request<RegisteredUserApiItem[]>("/api/users/"),
+  list: () => request<Paginated<RegisteredUserApiItem>>("/api/users/"),
 
   /**
    * GET /api/users/active/
-   * Lists active users and their assigned roles.
+   * Lists active users and their assigned roles (paginated).
    */
-  activeList: () => request<RegisteredUserApiItem[]>("/api/users/active/"),
+  activeList: () => request<Paginated<RegisteredUserApiItem>>("/api/users/active/"),
 
   /**
    * GET /api/users/profile/
@@ -445,8 +455,14 @@ export const slotsApi = {
     request<void>(`/api/bookings/slots/${id}/`, { method: "DELETE" }),
 };
 
+export interface LoanStatusHistoryEntry {
+  status: string;
+  changed_at: string;
+}
+
 export interface CurrentLoanStatusResponse {
   loan_status: string | null;
+  status_history?: LoanStatusHistoryEntry[];
 }
 
 export interface LoanStatusUpdateResponse {

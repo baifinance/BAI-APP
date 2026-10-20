@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import secrets
 import string
 from django.utils import timezone
@@ -23,11 +25,21 @@ def generate_otp(size=6):
     """Generate numeriec OTP code"""
     return "".join(secrets.choice(string.digits) for _ in range(size))
 
+def _otp_digest(code):
+    """Keyed hash of an OTP so Redis never holds the live code in plaintext."""
+    return hmac.new(
+        settings.SECRET_KEY.encode(), str(code).encode(), hashlib.sha256
+    ).hexdigest()
+
 def store_otp(email, code, purpose="login", ttl=settings.OTP_TTL):
-    """Store OTP in Redis with TTL in seconds — key is namespaced by purpose to prevent cross-purpose collisions."""
+    """Store OTP in Redis with TTL in seconds — key is namespaced by purpose to prevent cross-purpose collisions.
+
+    Only a keyed hash of the code is persisted, so a Redis reader cannot recover
+    a live OTP.
+    """
     key = f"otp:{purpose}:{email.lower()}"
     payload = {
-        "code": code,
+        "code": _otp_digest(code),
         "ttl": ttl,
         "created_at": timezone.now().isoformat(),
         "purpose": purpose,
@@ -40,10 +52,15 @@ def store_otp(email, code, purpose="login", ttl=settings.OTP_TTL):
     )
     return key
 
+MAX_OTP_ATTEMPTS = 3
+
+
 def verify_otp(email, code, purpose="login", consume=True):
     """Verify OTP against Redis. Returns (success, error_message)"""
     key = f"otp:{purpose}:{email.lower()}"
-    stored = get_redis_client().get(key)
+    attempts_key = f"{key}:attempts"
+    client = get_redis_client()
+    stored = client.get(key)
     if not stored:
         return False, "OTP expired or not found"
 
@@ -52,17 +69,23 @@ def verify_otp(email, code, purpose="login", consume=True):
     if payload["purpose"] != purpose:
         return False, "OTP purpose mismatch"
 
-    if payload["code"] != code:
-        payload["attempts"] += 1
-        get_redis_client().setex(key, payload["ttl"], json.dumps(payload))
-        if payload["attempts"] >= 3:
-            get_redis_client().delete(key)
+    # Constant-time comparison of the keyed digest; use an atomic counter so
+    # concurrent guesses cannot undercount attempts (INCR is atomic in Redis).
+    if not hmac.compare_digest(
+        str(payload.get("code", "")), _otp_digest(code or "")
+    ):
+        attempts = client.incr(attempts_key)
+        client.expire(attempts_key, payload.get("ttl", settings.OTP_TTL))
+        if attempts >= MAX_OTP_ATTEMPTS:
+            client.delete(key)
+            client.delete(attempts_key)
             return False, "Account locked. Too many failed attempts."
-        return False, f"Invalid OTP. {3 - payload['attempts']} attempts remaining."
+        return False, f"Invalid OTP. {MAX_OTP_ATTEMPTS - attempts} attempts remaining."
 
     # Success - consume OTP if requested
     if consume:
-        get_redis_client().delete(key)
+        client.delete(key)
+    client.delete(attempts_key)
     return True, "OTP Verified"
 
 def create_login_challenge(email):
@@ -75,3 +98,7 @@ def mark_otp_verified(user_id, ttl=None):
 
 def is_otp_verified(user_id):
     return bool(get_redis_client().get(f"otp_verified:{user_id}"))
+
+def clear_otp_verified(user_id):
+    """Revoke the OTP-verified flag (call on logout / password change)."""
+    get_redis_client().delete(f"otp_verified:{user_id}")

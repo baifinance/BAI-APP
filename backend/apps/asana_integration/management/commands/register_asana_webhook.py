@@ -3,7 +3,11 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 class Command(BaseCommand):
-    help = "Register or delete the Asana webhook for loan-status events."
+    help = (
+        "Register or delete the Asana webhook for loan-status events. "
+        "Set ASANA_WEBHOOK_HANDSHAKE_ENABLED=True in .env before registering so "
+        "the incoming X-Hook-Secret handshake is accepted, then turn it back off."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument("--target", dest="target", help="Public HTTPS URL receiving events (e.g. https://<id>.ngrok-free.app/api/asana/webhook).")
@@ -27,6 +31,12 @@ class Command(BaseCommand):
         target = options["target"]
         if not target:
             raise CommandError("--target is required to register a webhook.")
+
+        if not settings.ASANA_WEBHOOK_HANDSHAKE_ENABLED:
+            raise CommandError(
+                "Set ASANA_WEBHOOK_HANDSHAKE_ENABLED=True in .env, restart, and "
+                "re-run so Asana's X-Hook-Secret handshake is accepted."
+            )
 
         result = api.create_webhook({
             "data": {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { 
   SubmittedDocument, 
@@ -43,29 +43,12 @@ function mapNotification(notification: NotificationApiResponse): PortalNotificat
 }
 
 export function LoanProcessingProvider({ children }: { children: React.ReactNode }) {
-  const [submittedDocs, setSubmittedDocs] = useState<SubmittedDocument[]>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("new_registrations");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored) as SubmittedDocument[];
-          return parsed;
-        } catch (e) {
-          console.error("Failed to parse registrations:", e);
-        }
-      }
-    }
-    return [];
-  });
+  // Kept in memory only: client PII must not be persisted to localStorage.
+  const [submittedDocs, setSubmittedDocs] = useState<SubmittedDocument[]>([]);
 
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
-
-  useEffect(() => {
-    const newRegs = submittedDocs.filter(doc => doc.id.startsWith("reg-"));
-    localStorage.setItem("new_registrations", JSON.stringify(newRegs));
-  }, [submittedDocs]);
 
   const { data: notifData } = useQuery({
     queryKey: ["loan-processing", "notifications"],

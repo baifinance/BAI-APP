@@ -11,6 +11,7 @@
 from rest_framework import serializers  # noqa: F401
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.utils import timezone
 from users.models import User, BrokerProfile, ClientProfile
 from users.choices import UserRole, UserStatus
 from authentication.models import Invitation
@@ -32,7 +33,7 @@ class LoanProcessingAccountCreateSerializer(serializers.Serializer):
             user = User.objects.create_user(
                     email=validated_data["email"],
                     username=validated_data["email"],
-                    password=User.objects.make_random_password(),
+                    password=None,
                     role=UserRole.LOAN_PROCESSING,
                     status=UserStatus.ACTIVE,
                     is_active=False,
@@ -108,6 +109,19 @@ class SendInviteSerializer(serializers.Serializer):
                         {"email": "Must exist in Asana — no record found for this email in the loan project."}
                     )
 
+        broker_id = attrs.get("broker_id")
+        if broker_id:
+            if role != UserRole.CLIENT:
+                raise serializers.ValidationError(
+                    {"broker_id": "broker_id is only valid when inviting a client."}
+                )
+            if not User.objects.filter(
+                id=broker_id, role=UserRole.BROKER, is_active=True
+            ).exists():
+                raise serializers.ValidationError(
+                    {"broker_id": "Broker not found or is inactive."}
+                )
+
         return attrs
 
     def create(self, validated_data, actor=None):
@@ -130,6 +144,13 @@ class SendInviteSerializer(serializers.Serializer):
                     status=UserStatus.INACTIVE,
                     is_active=False,
                 )
+
+            # Link the invited client to the broker that invited them so the
+            # broker can be resolved later (e.g. available booking slots).
+            broker_id = validated_data.get("broker_id")
+            if role == UserRole.CLIENT and broker_id:
+                user.invited_by_id = broker_id
+                user.save(update_fields=["invited_by"])
 
             # Revoke previous pending invitations for safety
             Invitation.objects.filter(user=user, status=InviteStatus.PENDING).update(status=InviteStatus.REVOKED)
@@ -281,6 +302,15 @@ class InvitationAcceptSerializer(serializers.Serializer):
                     source=(asana_profile or {}).get("source"),
                     inquiry=(asana_profile or {}).get("inquiry"),
                     loan_status=(asana_profile or {}).get("loan_status"),
+                    # Seed step 1 with the moment the client was added in Asana
+                    # (task created_at), falling back to now when Asana has no
+                    # record or the lookup is disabled.
+                    loan_status_history={
+                        "Pending": (
+                            (asana_profile or {}).get("asana_created_at")
+                            or timezone.now().isoformat()
+                        )
+                    },
                     # verification_status defaults to PENDING in the model
                 )
             

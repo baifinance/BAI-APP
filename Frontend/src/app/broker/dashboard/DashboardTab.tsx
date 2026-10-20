@@ -11,7 +11,7 @@
 
 import React, { useState } from "react";
 import { ClipboardList, Clock, AlertTriangle, CheckCircle, ArrowUpRight, ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
-import { Client } from "../MockData";
+import type { Client } from "../MockData";
 import ClientApplicationDashboard from "../applications/ClientApplicationDashboard";
 import { useBroker } from "../BrokerContext";
 import Link from "next/link";
@@ -525,7 +525,7 @@ export default function DashboardTab() {
           {/* Activity Logs Container */}
           <div className="bg-white border border-[#0038A8] p-3.5 shadow-soft-xl rounded-[5px] flex flex-col h-[482px]">
             <h3 className="font-extrabold text-[#000000] text-xs uppercase tracking-wider mb-2.5 pb-2 border-b border-[#0038A8]/20 flex justify-between items-center select-none shrink-0 font-['Inter',sans-serif]">
-              <span>Activity Log</span>
+              <span>Activity Log <span className="text-[9px] font-bold text-[#808080] normal-case">(sample data)</span></span>
               <span className="text-[10px] text-[#808080] font-bold font-['Poppins',sans-serif]">({filteredLogs.length} entries)</span>
             </h3>
 

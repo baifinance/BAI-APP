@@ -9,6 +9,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.throttling import UserRateThrottle, ScopedRateThrottle
 
+from authentication.permissions import IsOtpVerified
+
 from .models import ChatMessage, Conversation, ConversationCounter
 from .serializers import (
     ConversationEndRequestSerializer,
@@ -88,7 +90,14 @@ def _render_transcript(conversation: Conversation, messages, customer_name: str)
     return "\n".join(lines).rstrip() + "\n"
 
 
+# Fields masked when AI_REDACT_PROFILE_PII is on (the assistant can still
+# reason about loan amount/goal/status, which are not individually identifying).
+_REDACTED_PROFILE_FIELDS = {"Email", "Mobile", "Address", "DOB", "Visa expiry"}
+
+
 def _build_profile_context(user) -> str | None:
+    if not getattr(settings, "AI_PROFILE_CONTEXT_ENABLED", True):
+        return None
     if getattr(user, "role", None) != "client":
         return None
     try:
@@ -118,8 +127,11 @@ def _build_profile_context(user) -> str | None:
         ("Goal", getattr(profile, "goal", None)),
         ("Loan status", getattr(profile, "loan_status", None)),
     ]
+    redact = getattr(settings, "AI_REDACT_PROFILE_PII", False)
     for label, value in fields:
         if value:
+            if redact and label in _REDACTED_PROFILE_FIELDS:
+                value = "[redacted]"
             parts.append(f"{label}: {value}")
     return "\n".join(parts) if parts else None
 
@@ -127,7 +139,7 @@ def _build_profile_context(user) -> str | None:
 class ConversationStartView(APIView):
     """POST /api/ai/chat/session/start/ -> open a transcript session."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOtpVerified]
     throttle_classes = [SessionStartThrottle]
     throttle_scope = "session"
 
@@ -162,7 +174,7 @@ class RAGChatView(APIView):
     Client users get their own verified profile injected; other roles get KB only.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOtpVerified]
     throttle_classes = [AiUserThrottle]
 
     def post(self, request):
@@ -231,7 +243,7 @@ class RAGChatView(APIView):
 class ConversationEndView(APIView):
     """POST /api/ai/chat/session/end/ -> close session + always email transcript."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOtpVerified]
     throttle_classes = [TranscriptEndThrottle]
     throttle_scope = "transcript"
 

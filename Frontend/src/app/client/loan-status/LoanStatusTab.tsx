@@ -23,114 +23,125 @@ interface LoanStatusTabProps {
   onLogAction?: (msg: string) => void;
 }
 
+/** Format a backend ISO timestamp in a fixed locale/timezone so server and
+ *  client renders agree (avoids React hydration mismatches). */
+function formatStatusDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "Pending";
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 export default function LoanStatusTab({
   client,
 }: LoanStatusTabProps) {
   // ----------------------------------------------------------------------------
   // 1. 13-STAGE LOAN STATUS STEPS WORKFLOW
   // ----------------------------------------------------------------------------
-  const baseSteps: Omit<StepperStep, "status">[] = [
+  const baseSteps: Omit<StepperStep, "status" | "date">[] = [
     {
       id: 1,
       title: "Pending",
       subtitle: "Application initiated",
-      date: "Aug 10, 2026",
       description: "Initial application received and registered in BAI Finance system.",
     },
     {
       id: 2,
       title: "Appointment Booked",
       subtitle: "Consultation scheduled",
-      date: "Aug 12, 2026",
       description: "Mortgage discovery session completed with your designated broker.",
     },
     {
       id: 3,
       title: "Under Review",
       subtitle: "Preliminary file check",
-      date: "Aug 15, 2026",
       description: "Broker performed initial qualification and credit capacity assessment.",
     },
     {
       id: 4,
       title: "Revisit",
       subtitle: "Strategy refinement",
-      date: "Aug 18, 2026",
       description: "Refinancing structure options reviewed and client details clarified.",
     },
     {
       id: 5,
       title: "Proceeding",
       subtitle: "Engagement confirmed",
-      date: "Aug 20, 2026",
       description: "Formal agreement to proceed with selected lender and product package.",
     },
     {
       id: 6,
       title: "Collection of Documents",
       subtitle: "Supporting doc uploads",
-      date: "Aug 24, 2026",
       description: "Gathering income proofs, bank statements, identity documents, and property deeds.",
     },
     {
       id: 7,
       title: "Assessment",
       subtitle: "Credit & serviceability",
-      date: "Pending",
       description: "Comprehensive financial modeling and preliminary lender underwriting check.",
     },
     {
       id: 8,
       title: "Docs for Sign",
       subtitle: "Sign disclosures & forms",
-      date: "Pending",
       description: "Formal lender application forms and compliance disclosures prepared for e-signing.",
     },
     {
       id: 9,
       title: "For Lodgment",
       subtitle: "Packaging submission",
-      date: "Pending",
       description: "Quality assurance check and packaging for lender portal lodgment.",
     },
     {
       id: 10,
       title: "Submitted",
       subtitle: "Lodged with bank",
-      date: "Pending",
       description: "Application successfully submitted into lender credit queue.",
     },
     {
       id: 11,
       title: "Conditional Approval",
       subtitle: "Lender credit approval",
-      date: "Pending",
       description: "Lender satisfies condition requirements and issues formal unconditional loan offer.",
     },
     {
       id: 12,
       title: "Settlement",
       subtitle: "Legal & booking phase",
-      date: "Pending",
       description: "Lender, solicitors, and incoming/outgoing banks coordinate settlement booking.",
     },
     {
       id: 13,
       title: "Settled",
       subtitle: "Disbursement / Closed",
-      date: "Pending",
       description: "Loan funds disbursed and facility active, or application file concluded.",
     },
   ];
 
   const resolution = resolveLoanStatus(client.loan?.currentStatus);
 
+  // When each status was reached, keyed by the Asana section name (which
+  // matches the step title). Steps without a recorded entry show "Pending".
+  const historyByStatus = new Map(
+    (client.loan?.statusHistory ?? []).map((entry) => [entry.status, entry.changed_at]),
+  );
+
   // stepperSteps: the 13 pipeline steps colored by the real loan status.
   // Withdrawn applications skip the stepper entirely and get a dedicated card.
-  const stepperSteps: StepperStep[] = baseSteps.map((step, i) => ({
-    ...step,
-    status: resolution.states[i] ?? ("upcoming" as const),
-  }));
+  const stepperSteps: StepperStep[] = baseSteps.map((step, i) => {
+    const changedAt = historyByStatus.get(step.title);
+    return {
+      ...step,
+      date: changedAt ? formatStatusDate(changedAt) : "Pending",
+      status: resolution.states[i] ?? ("upcoming" as const),
+    };
+  });
 
   return (
     <div className="min-h-full space-y-8 pb-12">

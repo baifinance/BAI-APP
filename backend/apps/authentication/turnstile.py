@@ -17,9 +17,9 @@ def verify_turnstile(token: str | None, remoteip: str | None = None) -> tuple[bo
         return False, ["invalid-input-response"]
     secret = getattr(settings, "TURNSTILE_SECRET_KEY", "")
     if not secret:
-        if settings.DEBUG:
-            logger.warning("TURNSTILE_SECRET_KEY missing — Turnstile check skipped in dev only")
-            return True, []
+        # Fail closed. To run without Turnstile locally, set TURNSTILE_ENABLED=False
+        # rather than relying on DEBUG.
+        logger.error("TURNSTILE_SECRET_KEY missing — rejecting verification")
         return False, ["missing-input-secret"]
 
     payload = {"secret": secret, "response": token}

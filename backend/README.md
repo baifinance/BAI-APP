@@ -356,6 +356,8 @@ Read from `backend/.env` by `django-environ` and `os.getenv`. Grouped by feature
 | `ASANA_ACCESS_TOKEN` | Personal access token / service-account token | `""` |
 | `ASANA_PROJECT_GID` | Project containing the loan tasks | `""` |
 | `ASANA_WEBHOOK_ENABLED` | Required by `manage.py register_asana_webhook` | `False` |
+| `ASANA_WEBHOOK_HANDSHAKE_ENABLED` | Accept Asana's `X-Hook-Secret` handshake (enable only while registering) | `False` |
+| `ASANA_WEBHOOK_ALLOW_ROTATION` | Allow replacing an already-stored webhook secret | `False` |
 
 > [!NOTE]
 > `ASANA_REQUEST_TIMEOUT` appears in `.env.example` but is **never read by any code**. It is safe to delete.
@@ -808,7 +810,7 @@ Serializer `purpose` choices: `login`, `reset_password`, `login_2fa`, `invite_ve
 
 | Method | Path | View | Description | Permission |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/api/asana/webhook/` | `AsanaWebhookReceiver` | On registration, echoes the `X-Hook-Secret` handshake header. Otherwise iterates `payload["events"]` → `handle_task_moved_event`. Always a bare `200` | Public, **throttling disabled** so webhook bursts are never 429'd |
+| `POST` | `/api/asana/webhook/` | `AsanaWebhookReceiver` | On registration, echoes (and stores) the `X-Hook-Secret` handshake header — only while `ASANA_WEBHOOK_HANDSHAKE_ENABLED=True`, and never replacing an existing secret unless `ASANA_WEBHOOK_ALLOW_ROTATION=True`; otherwise `403`. Other deliveries verify the `X-Hook-Signature` HMAC over the raw body against the stored secret, then iterate `payload["events"]` → `handle_task_moved_event`. Verified deliveries return a bare `200`; missing/invalid signatures return `403` (fail-closed) | Public, **throttling disabled** so webhook bursts are never 429'd |
 
 ### Throttle scopes
 
@@ -870,7 +872,7 @@ Gated by `ASANA_PROFILE_LOOKUP_ENABLED` (default `False`). When it is off, `/api
 | Command | Description |
 | :--- | :--- |
 | `python manage.py ingest_rag [--reset]` | Embeds 8 hardcoded Bai Finance knowledge chunks into ChromaDB as `bai_doc_01`–`bai_doc_08`. `--reset` clears the collection first |
-| `python manage.py register_asana_webhook --target <url>` | Creates an Asana webhook on `ASANA_PROJECT_GID` with filters for `task/changed`, `task/added`, `task/removed`. Raises `CommandError` unless `ASANA_ACCESS_TOKEN`, `ASANA_PROJECT_GID`, and `ASANA_WEBHOOK_ENABLED=True` are all set |
+| `python manage.py register_asana_webhook --target <url>` | Creates an Asana webhook on `ASANA_PROJECT_GID` with filters for `task/changed`, `task/added`, `task/removed`. Raises `CommandError` unless `ASANA_ACCESS_TOKEN`, `ASANA_PROJECT_GID`, `ASANA_WEBHOOK_ENABLED=True`, and `ASANA_WEBHOOK_HANDSHAKE_ENABLED=True` are all set (turn the handshake flag back off after registering) |
 | `python manage.py register_asana_webhook --delete <gid>` | Deletes a registered webhook |
 
 ---
@@ -975,9 +977,9 @@ path("api/auth/accounts/", include("authentication.urls")),
 
 The same six invitation routes are exposed under two prefixes. The duplicate is likely intentional for a frontend migration, but it doubles the attack surface and makes route names ambiguous (`send-invite` resolves to two paths). Either drop one or set `app_name` to namespace them.
 
-### 4. Login is unthrottled — `config/urls.py:11`
+### 4. Login throttling (RESOLVED)
 
-A `login` scope of `20/hour` is declared at `config/settings/base.py:167` and never used: `LoginView` sets `authentication_classes = ()` and `permission_classes = [AllowAny]` but no `throttle_classes`. Login is therefore limited only by the global `anon` rate of 100/hour, allowing credential stuffing well beyond the intended limit.
+`LoginView` now sets `throttle_classes = [LoginThrottle]` + `throttle_scope = "login"` (`10/minute`). The earlier `ScopedRateThrottle` no-op/shadowing bugs on the invitation endpoints (missing `throttle_scope`, and a nested `UserRateThrottle` shadowing the module `InviteThrottle` on `SendInviteView`) are also fixed: all invitation endpoints now enforce the `invite` scope (`20/hour`). Note `ScopedRateThrottle` reads the **view's** `throttle_scope`, not the class-level `scope`.
 
 ### 5. `ASANA_REQUEST_TIMEOUT` is a dead variable
 
@@ -998,7 +1000,7 @@ Declared in `.env.example:29` and read by no module. The Asana service uses the 
 ### 9. Smaller items
 
 - `authentication/auth_urls.py` is dead — nothing includes it.
-- `DEFAULT_THROTTLE_RATES` is `.update()`-ed a second time at `config/settings/base.py:246-250` with values identical to the original dict.
+- ~~`DEFAULT_THROTTLE_RATES` is `.update()`-ed a second time~~ (fixed: there is a single `DEFAULT_THROTTLE_RATES` block).
 - `python-decouple` is pinned but never imported.
 - `config/urls.py:5` imports `from authentication.views import LoginView` while lines 3-4 use the `apps.` prefix — the two styles coexist because of the `sys.path` insertion.
 - `REST_FRAMEWORK` sets no `DEFAULT_PAGINATION_CLASS`, so every list endpoint is unpaginated.

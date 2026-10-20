@@ -104,20 +104,8 @@ export default function ClientLoginPage() {
 
   const finalizeLogin = useCallback(
     (data: LoginResponse) => {
-      if (data.asana_profile) {
-        sessionStorage.setItem(
-          "asana_profile",
-          JSON.stringify(data.asana_profile)
-        );
-      } else {
-        sessionStorage.removeItem("asana_profile");
-      }
-
-      const role = data.user.role;
-      // Set secure cookie for user role redirection
-      const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
-      document.cookie = `user-role=${role}; path=/; SameSite=Lax${isHttps ? "; Secure" : ""}`;
-      router.push(getRoleRedirect(role));
+      // The backend sets the (HttpOnly) user-role routing cookie on login.
+      router.push(getRoleRedirect(data.user.role));
     },
     [router]
   );

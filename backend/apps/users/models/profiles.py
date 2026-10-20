@@ -49,6 +49,11 @@ class ClientProfile(models.Model):
     inquiry = models.TextField(null=True, blank=True)
     loan_status = models.CharField(max_length=64, null=True, blank=True)
 
+    # Maps each Asana loan-status section the client has entered to the ISO
+    # timestamp when it was entered, so the client stepper can show the real
+    # "completed at" date for every step instead of hardcoded values.
+    loan_status_history = models.JSONField(default=dict, blank=True)
+
     class Meta:
         db_table = "client_profiles"
 

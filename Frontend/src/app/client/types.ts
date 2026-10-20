@@ -3,7 +3,7 @@
  *
  * These replace the previous mock models (`MockClientData.ts` and the broker
  * portal's `Client`). All values are resolved from the backend:
- *   - identity/profile  -> usersApi.getProfile() + sessionStorage.asana_profile
+ *   - identity/profile  -> usersApi.getProfile() (in-memory React Query cache)
  *   - loan status       -> loansApi.getCurrentStatus()
  *   - bookings/slots    -> bookingsApi / slotsApi
  */
@@ -23,10 +23,16 @@ export interface ClientProfileFields {
   nationality: string;
 }
 
+export interface LoanStatusHistoryEntry {
+  status: string;
+  changed_at: string;
+}
+
 export interface ClientLoanFields {
   requestedAmount?: number;
   purpose: string;
   currentStatus?: string;
+  statusHistory?: LoanStatusHistoryEntry[];
 }
 
 export interface ClientData {
@@ -62,6 +68,7 @@ export function emptyClient(): ClientData {
       requestedAmount: undefined,
       purpose: "",
       currentStatus: undefined,
+      statusHistory: [],
     },
   };
 }

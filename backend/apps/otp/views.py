@@ -1,6 +1,6 @@
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
+from rest_framework.throttling import AnonRateThrottle, SimpleRateThrottle
 from django.conf import settings
 from users.models import User
 from .serializers import (
@@ -8,11 +8,29 @@ from .serializers import (
     OtpVerifySerializer,
     PasswordResetSerializer,
 )
-from .utils import generate_otp, store_otp, verify_otp, mark_otp_verified
+from .utils import (
+    generate_otp,
+    store_otp,
+    verify_otp,
+    mark_otp_verified,
+    clear_otp_verified,
+)
 from .services import send_otp_email
 
 class OtpSendThrottle(AnonRateThrottle):
     scope = "otp"
+
+
+class OtpSendEmailThrottle(SimpleRateThrottle):
+    """Per-recipient throttle so one address cannot be spammed from many IPs."""
+
+    scope = "otp_email"
+
+    def get_cache_key(self, request, view):
+        email = (request.data.get("email") or "").strip().lower()
+        if not email:
+            return None
+        return self.cache_format % {"scope": self.scope, "ident": email}
 
 
 class OtpVerifyThrottle(AnonRateThrottle):
@@ -23,7 +41,7 @@ class OtpVerifyThrottle(AnonRateThrottle):
 class OtpSendView(generics.CreateAPIView):
     serializer_class = OtpSendSerializer
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [OtpSendThrottle]
+    throttle_classes = [OtpSendThrottle, OtpSendEmailThrottle]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -32,17 +50,26 @@ class OtpSendView(generics.CreateAPIView):
         email = serializer.validated_data["email"]
         purpose = serializer.validated_data.get("purpose", "login")
 
-        # login_2fa code live for 2 minutes; other OTPs use OTP_TTL
+        # Only issue codes for eligible, existing accounts. The response is
+        # always generic so this endpoint cannot be used to enumerate users.
+        user = User.objects.filter(email__iexact=email, is_active=True).first()
+        eligible = False
         if purpose == "login_2fa":
-            ttl = settings.OTP_LOGIN_EXPIRY
-        else:
-            ttl = settings.OTP_TTL
+            eligible = bool(user and user.mfa_enabled)
+        elif purpose in ("login", "reset_password"):
+            eligible = bool(user)
 
-        code = generate_otp(size=settings.OTP_SIZE)
-        store_otp(email, code, purpose=purpose, ttl=ttl)
-        send_otp_email(email, code, purpose=purpose)
+        if eligible:
+            # login_2fa code live for 2 minutes; other OTPs use OTP_TTL
+            ttl = settings.OTP_LOGIN_EXPIRY if purpose == "login_2fa" else settings.OTP_TTL
+            code = generate_otp(size=settings.OTP_SIZE)
+            store_otp(email, code, purpose=purpose, ttl=ttl)
+            send_otp_email(email, code, purpose=purpose)
 
-        return Response({"detail": f"OTP sent to {email}"}, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "If an account exists for this email, a code has been sent."},
+            status=status.HTTP_200_OK,
+        )
 
 class OtpVerifyView(generics.GenericAPIView):
     serializer_class = OtpVerifySerializer
@@ -106,6 +133,9 @@ class PasswordResetView(generics.GenericAPIView):
         user = serializer.validated_data["user"]
         user.set_password(serializer.validated_data["password"])
         user.save(update_fields=["password", "updated_at"])
+
+        # A password change invalidates any prior MFA verification for this user.
+        clear_otp_verified(user.id)
 
         return Response(
             {"message": "Password reset successfully."},

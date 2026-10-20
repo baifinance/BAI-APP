@@ -7,7 +7,6 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
-  useSyncExternalStore,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -20,6 +19,7 @@ import {
   parseSlotTime,
   toISOSlotTime,
   NotificationApiResponse,
+  CurrentLoanStatusResponse,
   notificationsApi,
   subscribeToNotificationStream,
 } from "@/lib/api";
@@ -76,42 +76,6 @@ const clientKeys = {
   availableSlots: (date: string, brokerId?: string) =>
     ["client", "available-slots", date, brokerId ?? null] as const,
 };
-
-let asanaProfileCache: AsanaProfile | null = null;
-let asanaProfileRawCache: string | null | undefined = undefined;
-
-function readAsanaProfileSnapshot(): AsanaProfile | null {
-  const raw =
-    typeof window === "undefined"
-      ? null
-      : sessionStorage.getItem("asana_profile");
-
-  if (raw === asanaProfileRawCache) return asanaProfileCache;
-  asanaProfileRawCache = raw;
-
-  if (!raw) {
-    asanaProfileCache = null;
-    return null;
-  }
-
-  try {
-    asanaProfileCache = JSON.parse(raw) as AsanaProfile;
-  } catch {
-    sessionStorage.removeItem("asana_profile");
-    asanaProfileRawCache = undefined;
-    asanaProfileCache = null;
-  }
-  return asanaProfileCache;
-}
-
-function subscribeAsanaProfile(onStoreChange: () => void) {
-  window.addEventListener("storage", onStoreChange);
-  return () => window.removeEventListener("storage", onStoreChange);
-}
-
-function getAsanaProfileServerSnapshot(): AsanaProfile | null {
-  return null;
-}
 
 function mapNotification(notification: NotificationApiResponse): PortalNotification {
   return {
@@ -188,11 +152,6 @@ function applyAsanaProfile(base: ClientData, asana: AsanaProfile): ClientData {
 export function ClientProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
 
-  const asanaProfile = useSyncExternalStore(
-    subscribeAsanaProfile,
-    readAsanaProfileSnapshot,
-    getAsanaProfileServerSnapshot,
-  );
   const [toasts, setToasts] = useState<PortalNotification[]>([]);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
 
@@ -226,9 +185,13 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
 
   const client = useMemo<ClientData>(() => {
     let next = emptyClient();
-    if (asanaProfile) next = applyAsanaProfile(next, asanaProfile);
 
     const profile = profileQuery.data;
+    // PII comes from the authenticated profile endpoint (in-memory cache only;
+    // never persisted to sessionStorage).
+    const asanaProfile = profile?.client_profile;
+    if (asanaProfile) next = applyAsanaProfile(next, asanaProfile);
+
     if (profile) {
       const resolvedFullName =
         profile.full_name ||
@@ -250,8 +213,15 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     if (loanStatus) {
       next = { ...next, loan: { ...next.loan, currentStatus: loanStatus } };
     }
+    next = {
+      ...next,
+      loan: {
+        ...next.loan,
+        statusHistory: loanQuery.data?.status_history ?? next.loan.statusHistory,
+      },
+    };
     return next;
-  }, [asanaProfile, profileQuery.data, loanQuery.data]);
+  }, [profileQuery.data, loanQuery.data]);
 
   const lastLoanStatusUpdate = loanQuery.data
     ? new Date(loanQuery.dataUpdatedAt).toISOString()
@@ -314,9 +284,21 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribe = subscribeToNotificationStream((push, event) => {
       if (push.loan_status) {
-        queryClient.setQueryData(clientKeys.loanStatus, {
-          loan_status: push.loan_status,
-        });
+        const status = push.loan_status;
+        // Apply the pushed status immediately so the stepper moves without a
+        // round-trip, stamping a provisional timestamp for the new step.
+        queryClient.setQueryData<CurrentLoanStatusResponse>(
+          clientKeys.loanStatus,
+          (prev) => ({
+            loan_status: status,
+            status_history: [
+              ...(prev?.status_history ?? []).filter((e) => e.status !== status),
+              { status, changed_at: new Date().toISOString() },
+            ],
+          }),
+        );
+        // Reconcile with the authoritative server record (exact timestamp).
+        void queryClient.invalidateQueries({ queryKey: clientKeys.loanStatus });
       }
 
       // `snapshot` is the synthetic "connected" frame sent on every (re)connect;

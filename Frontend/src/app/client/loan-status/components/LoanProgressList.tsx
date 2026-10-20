@@ -18,7 +18,7 @@
 
 import React, { useState } from "react";
 import { FileText, Calendar, UploadCloud, X } from "lucide-react";
-import { ClientDocuments } from "../../../broker/MockData";
+import type { ClientDocuments } from "../../../broker/MockData";
 
 export interface ProgressDocumentItem {
   id: string;

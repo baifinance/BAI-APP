@@ -16,17 +16,20 @@ import logging
 from django.conf import settings
 from rest_framework import generics, status, serializers, permissions
 from rest_framework.response import Response
-from dj_rest_auth.views import LoginView as DjRestAuthLoginView
+from dj_rest_auth.views import (
+    LoginView as DjRestAuthLoginView,
+    LogoutView as DjRestAuthLogoutView,
+    PasswordChangeView as DjRestAuthPasswordChangeView,
+)
 
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
-from django.conf import settings
 from authentication.permissions import IsLoanProcessingTeam
 from authentication.serializers import LoanProcessingAccountCreateSerializer
-from audit.models import AuditLog
+from audit.services import log_action
 
 from users.models import User
 from users.choices import UserStatus
@@ -45,17 +48,35 @@ class InviteThrottle(ScopedRateThrottle):
 from authentication.serializers import SendInviteSerializer, InvitationAcceptSerializer
 
 from otp.services import send_otp_email
-from otp.utils import create_login_challenge
-
-from asana_integration.services.asana import (
-    AsanaProfileError,
-    get_client_asana_profile
-)
+from otp.utils import create_login_challenge, clear_otp_verified
 
 
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
+
+class DisabledPasswordResetView(generics.GenericAPIView):
+    """Retired dj-rest-auth token-email password reset.
+
+    The app's canonical recovery flow is OTP-based
+    (``/api/otp/send/`` + ``/api/otp/reset-password/``). Leaving the
+    token-email flow reachable would allow a second, less-hardened reset path.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    serializer_class = serializers.Serializer
+
+    def post(self, request, *args, **kwargs):
+        return Response(
+            {
+                "detail": (
+                    "Password reset via email links is disabled. Request an OTP "
+                    "at /api/otp/send/ and reset at /api/otp/reset-password/."
+                )
+            },
+            status=status.HTTP_410_GONE,
+        )
+
 
 class LoanProcessingAccountCreateView(generics.CreateAPIView):
     serializer_class = LoanProcessingAccountCreateSerializer
@@ -65,12 +86,12 @@ class LoanProcessingAccountCreateView(generics.CreateAPIView):
         user = serializer.save(request=self.request)
         invitation = getattr(user, "invitation", None)
 
-        AuditLog.objects.create(
+        log_action(
+            "LOAN_PROCESSING_ACCOUNT_CREATED",
             actor=self.request.user,
-            action="LOAN_PROCESSING_ACCOUNT_CREATED",
             entity_type="User",
             entity_id=user.id,
-            ip_address=self.request.META.get("REMOTE_ADDR")
+            request=self.request,
         )
 
         if invitation:
@@ -110,8 +131,13 @@ class LoginView(DjRestAuthLoginView):
             if not ok:
                 code = (codes or ["invalid-input-response"])[0]
                 msg = TURNSTILE_ERROR_MESSAGES.get(code, "Verification failed, please retry.")
+                log_action("LOGIN_BLOCKED_TURNSTILE", request=request)
                 return Response({"turnstile": [msg]}, status=status.HTTP_400_BAD_REQUEST)
-        return super().post(request, *args, **kwargs)
+        try:
+            return super().post(request, *args, **kwargs)
+        except serializers.ValidationError:
+            log_action("LOGIN_FAILED", request=request)
+            raise
 
     def get_response(self):
         response = super().get_response()
@@ -125,6 +151,35 @@ class LoginView(DjRestAuthLoginView):
 
         user = getattr(self, "user", None)
 
+        if user is not None:
+            log_action(
+                "LOGIN_SUCCEEDED",
+                actor=user,
+                entity_type="User",
+                entity_id=user.id,
+                request=self.request,
+            )
+
+        # Set an HttpOnly, server-authoritative role cookie for portal routing.
+        # It stays unreadable to JS (mitigating XSS tampering) while the Next.js
+        # proxy/middleware can still read it server-side. The backend enforces
+        # RBAC regardless, so this is a routing hint, not an authZ control.
+        if user is not None:
+            refresh_lifetime = settings.SIMPLE_JWT.get("REFRESH_TOKEN_LIFETIME")
+            response.set_cookie(
+                "user-role",
+                user.role,
+                max_age=(
+                    int(refresh_lifetime.total_seconds())
+                    if refresh_lifetime
+                    else 60 * 60 * 24 * 7
+                ),
+                httponly=True,
+                samesite=settings.REST_AUTH.get("JWT_AUTH_SAMESITE", "Lax"),
+                secure=settings.REST_AUTH.get("JWT_AUTH_SECURE", False),
+                path="/",
+            )
+
         if user and user.mfa_enabled:
             try:
                 code = create_login_challenge(user.email)
@@ -135,25 +190,53 @@ class LoginView(DjRestAuthLoginView):
             response.data["otp_expires_in"] = settings.OTP_LOGIN_EXPIRY
                 
 
-        if user and user.role == UserRole.CLIENT:
-            try:
-                response.data["asana_profile"] = (
-                    get_client_asana_profile(user.email)
-                )
-            except AsanaProfileError as error:
-                logger.warning(
-                    "Asana lookup failed for user %s %s",
-                    user.pk,
-                    error
-                )
-                response.data["asana_profile"] = None
-
         return response
+
+
+class LogoutView(DjRestAuthLogoutView):
+    """dj-rest-auth logout that also revokes the user's MFA-verified flag."""
+
+    def post(self, request, *args, **kwargs):
+        user = getattr(request, "user", None)
+        response = super().post(request, *args, **kwargs)
+        response.delete_cookie("user-role", path="/")
+        if user is not None and getattr(user, "is_authenticated", False):
+            clear_otp_verified(user.id)
+            log_action(
+                "LOGOUT",
+                actor=user,
+                entity_type="User",
+                entity_id=user.id,
+                request=request,
+            )
+        return response
+
+
+class PasswordChangeView(DjRestAuthPasswordChangeView):
+    """Password change that invalidates any prior MFA verification."""
+
+    def post(self, request, *args, **kwargs):
+        user = getattr(request, "user", None)
+        response = super().post(request, *args, **kwargs)
+        if user is not None and getattr(user, "is_authenticated", False):
+            clear_otp_verified(user.id)
+            if response.status_code < 400:
+                log_action(
+                    "PASSWORD_CHANGED",
+                    actor=user,
+                    entity_type="User",
+                    entity_id=user.id,
+                    request=request,
+                )
+        return response
+
 
 def send_invite_email(user, invitation, request):
     """Send invitation email to the user using a separated HTML template."""
     frontend_base = getattr(settings, "FRONTEND_BASE_URL", "http://localhost:3000")
-    activate_url = f"{frontend_base}/auth/activate?token={invitation.token}"
+    # Token goes in the URL fragment so it is never sent to servers, logged,
+    # or leaked via the Referer header.
+    activate_url = f"{frontend_base.rstrip('/')}/auth/activate#token={invitation.token}"
 
     is_broker = user.role == UserRole.BROKER
     role_label = "broker" if is_broker else "client"
@@ -223,14 +306,10 @@ class SendInviteView(generics.CreateAPIView):
     to a broker or client.
     POST /api/auth/invitations/send/
     """
-    from rest_framework.throttling import UserRateThrottle
-
-    class InviteThrottle(UserRateThrottle):
-        scope = "user"
-
     serializer_class = SendInviteSerializer
     permission_classes = [IsLoanProcessingTeam]
     throttle_classes = [InviteThrottle]
+    throttle_scope = "invite"
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -241,8 +320,13 @@ class SendInviteView(generics.CreateAPIView):
             actor=request.user
         )
 
-        # Optional audit log
-        # AuditLog.objects.create(...)
+        log_action(
+            "INVITATION_SENT",
+            actor=request.user,
+            entity_type="Invitation",
+            entity_id=invitation.id,
+            request=request,
+        )
 
         send_invite_email(user, invitation, request)
 
@@ -258,6 +342,7 @@ class InvitationValidateView(generics.GenericAPIView):
     """
     permission_classes = [permissions.AllowAny]
     throttle_classes = [InviteThrottle]
+    throttle_scope = "invite"
     serializer_class = serializers.Serializer # dummy - test
 
     def get(self, request, *args, **kwargs):
@@ -268,7 +353,7 @@ class InvitationValidateView(generics.GenericAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
-            invitation = Invitation.objects.select_related("user").get(token=token)
+            invitation = Invitation.objects.select_related("user", "sent_by").get(token=token)
         except Invitation.DoesNotExist:
             return Response({"valid": False, "error": "Invalid token."})
 
@@ -276,11 +361,19 @@ class InvitationValidateView(generics.GenericAPIView):
             return Response({"valid": False, "error": "Invitation expired or invalid."})
 
         user = invitation.user
+        compliance_name = ""
+        inviter = invitation.sent_by or getattr(user, "invited_by", None)
+        if inviter:
+            full_name = f"{inviter.first_name} {inviter.last_name}".strip()
+            compliance_name = full_name or inviter.email or ""
+
         return Response(
             {
                 "valid": True,
                 "email": user.email,
                 "role": user.role,
+                "invited_by": compliance_name,
+                "compliance_name": compliance_name,
             }
         )
 
@@ -291,6 +384,7 @@ class InvitationAcceptView(generics.GenericAPIView):
     """
     permission_classes = [permissions.AllowAny]
     throttle_classes = [InviteThrottle]
+    throttle_scope = "invite"
     serializer_class = InvitationAcceptSerializer
 
     def post(self, request, *args, **kwargs):
@@ -299,8 +393,13 @@ class InvitationAcceptView(generics.GenericAPIView):
 
         user = serializer.save(request=request)
 
-        # Optional audit log
-        # AuditLog.objects.create(...)
+        log_action(
+            "INVITATION_ACCEPTED",
+            actor=user,
+            entity_type="User",
+            entity_id=user.id,
+            request=request,
+        )
 
         return Response(
             {"message": "Account activated. You can now log in."},
@@ -314,6 +413,8 @@ class InvitationResendView(generics.GenericAPIView):
     Loan Processing only — state-changing, must be POST with CSRF.
     """
     permission_classes = [IsLoanProcessingTeam]
+    throttle_classes = [InviteThrottle]
+    throttle_scope = "invite"
     queryset = Invitation.objects.select_related("user")
 
     def post(self, request, *args, **kwargs):
@@ -328,12 +429,12 @@ class InvitationResendView(generics.GenericAPIView):
         invitation.expires_at = timezone.now() + timedelta(days=7)
         invitation.save()
 
-        AuditLog.objects.create(
+        log_action(
+            "INVITATION_RESENT",
             actor=request.user,
-            action="INVITATION_RESENT",
             entity_type="Invitation",
             entity_id=invitation.id,
-            ip_address=request.META.get("REMOTE_ADDR"),
+            request=request,
         )
 
         send_invite_email(invitation.user, invitation, request)
@@ -355,6 +456,8 @@ class InvitationRevokeView(generics.GenericAPIView):
     Loan Processing only — state-changing, must be POST with CSRF.
     """
     permission_classes = [IsLoanProcessingTeam]
+    throttle_classes = [InviteThrottle]
+    throttle_scope = "invite"
     queryset = Invitation.objects.select_related("user")
 
     def post(self, request, *args, **kwargs):
@@ -362,26 +465,25 @@ class InvitationRevokeView(generics.GenericAPIView):
 
         if invitation.status == InviteStatus.ACCEPTED:
             return Response(
-                 {"error": "Cannot revoke an accepted invitation."},
+                {"error": "Cannot revoke an accepted invitation."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         invitation.status = InviteStatus.REVOKED
         invitation.save()
 
-        AuditLog.objects.create(
+        log_action(
+            "INVITATION_REVOKED",
             actor=request.user,
-            action="INVITATION_REVOKED",
             entity_type="Invitation",
             entity_id=invitation.id,
-            ip_address=request.META.get("REMOTE_ADDR"),
+            request=request,
         )
 
         user = invitation.user
-        if not user.is_active:
-            user.is_active = False
-            user.status = UserStatus.INACTIVE
-            user.save()
+        user.is_active = False
+        user.status = UserStatus.INACTIVE
+        user.save(update_fields=["is_active", "status"])
 
         return Response({"message": "Invitation revoked."})
 
