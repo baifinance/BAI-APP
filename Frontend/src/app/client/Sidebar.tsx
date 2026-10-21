@@ -79,15 +79,17 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle, 
 
   return (
     <aside
-      className={`sticky top-0 h-screen bg-[#0A2881] text-white border-r border-[#001D85] flex flex-col shrink-0 transition-all duration-300 ease-in-out z-40 select-none shadow-xl ${compact ? "w-full" : isCollapsed ? "w-16" : "w-64"
-        }`}
+      className={`sticky top-0 h-screen sidebar-duotone-bg text-white border-r border-[#001D85]/80 flex flex-col shrink-0 transition-all duration-300 ease-in-out z-40 select-none shadow-xl ${
+        compact ? "w-full" : isCollapsed ? "w-16" : "w-64"
+      }`}
     >
       {/* ------------------------------------------------------------------ */}
-      {/* Brand Header                                                       */}
+      {/* 1. Brand Header                                                    */}
       {/* ------------------------------------------------------------------ */}
       <div
-        className={`${compact ? "p-3 min-h-14" : "p-4 min-h-[69px]"} border-b border-white/10 flex items-center overflow-hidden ${isCollapsed ? "justify-center" : "gap-3"
-          }`}
+        className={`${compact ? "p-3 min-h-14" : "p-4 min-h-[69px]"} border-b border-white/[0.08] flex items-center overflow-hidden bg-transparent ${
+          isCollapsed ? "justify-center" : "gap-3"
+        }`}
       >
         {isCollapsed ? (
           <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-start shrink-0" title="BAI Group of Companies">
@@ -115,10 +117,11 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle, 
         )}
       </div>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Navigation Menu                                                    */}
-      {/* ------------------------------------------------------------------ */}
-      <nav className={`flex-1 space-y-1.5 overflow-y-auto ${compact ? "py-3 px-2" : "py-4 px-2"}`}>
+      <nav
+        className={`flex-1 space-y-1.5 sidebar-nav-scroll ${
+          compact ? "py-3 px-2" : "py-4 px-2"
+        } ${isCollapsed ? "overflow-visible" : "overflow-y-auto overflow-x-hidden"}`}
+      >
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -127,24 +130,41 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle, 
             <div key={item.id} className="relative group">
               <Link
                 href={item.href}
-                className={`w-full flex items-center ${compact ? "gap-3 px-2.5 py-2.5 text-[13px]" : "gap-3.5 px-3 py-3 text-sm"} rounded-xl text-left font-extrabold transition-all relative ${isCollapsed && !compact ? "justify-center" : ""
-                  } ${isActive
-                    ? "bg-[#E4BA37] text-[#0A2881] shadow-lg shadow-[#E4BA37]/20"
-                    : "text-white/85 hover:text-white hover:bg-white/10"
-                  }`}
+                data-active={isActive ? "true" : "false"}
+                title={isCollapsed ? item.label : undefined}
+                className={`w-full flex items-center ${
+                  compact ? "gap-3 px-2.5 py-2.5 text-[13px]" : "gap-3.5 px-3 py-3 text-sm"
+                } rounded-xl text-left font-extrabold transition-all relative sidebar-swipe-btn ${
+                  isCollapsed && !compact ? "justify-center px-2 py-3" : ""
+                } ${
+                  isActive
+                    ? "bg-[#E4BA37] text-[#0A2881] shadow-lg shadow-[#E4BA37]/25"
+                    : "text-white/85 hover:text-white"
+                }`}
               >
-                <Icon
-                  className={`w-4.5 h-4.5 shrink-0 transition-colors ${isActive ? "text-[#0A2881]" : "text-white/80 group-hover:text-white"
+                {/* Icon wrapper: hover scale, rotation, and closed-state diagonal swipe highlight */}
+                <div
+                  data-active={isActive ? "true" : "false"}
+                  className="sidebar-icon-container shrink-0 z-10"
+                >
+                  <Icon
+                    className={`w-4.5 h-4.5 shrink-0 transition-colors ${
+                      isActive ? "text-[#0A2881]" : "text-white/85 group-hover:text-white"
                     }`}
-                />
+                  />
+                </div>
 
-                {!isCollapsed && <span>{item.label}</span>}
+                {!isCollapsed && (
+                  <span className="relative z-10 truncate transition-transform duration-300 group-hover:translate-x-0.5">
+                    {item.label}
+                  </span>
+                )}
 
                 {item.id === "Notifications" && unreadCount > 0 && (
                   <span
-                    className={`inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-black animate-pulse ${
+                    className={`relative z-10 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-black animate-pulse ${
                       isCollapsed
-                        ? "absolute right-1.5 top-1.5 min-w-4 h-4 text-[9px]"
+                        ? "absolute right-1 top-1 min-w-4 h-4 text-[9px]"
                         : "ml-auto"
                     }`}
                     title={`${unreadCount} unread`}
@@ -156,7 +176,7 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle, 
 
               {/* Tooltip — visible in collapsed mode on hover */}
               {isCollapsed && (
-                <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-[#001859] text-white text-xs font-bold rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 z-50 shadow-xl border border-white/10">
+                <div className="hidden group-hover:flex absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-[#001859] text-white text-xs font-bold rounded-lg whitespace-nowrap z-50 shadow-xl border border-white/10 items-center pointer-events-none transition-opacity duration-150">
                   {item.label}
                   {/* Tooltip arrow */}
                   <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#001859]" />
@@ -168,9 +188,9 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle, 
       </nav>
 
       {/* ------------------------------------------------------------------ */}
-      {/* User Profile & Log Out Section (Bottom of Sidebar)                 */}
+      {/* 3. User Profile & Log Out Section with Diagonal Swipe Buttons      */}
       {/* ------------------------------------------------------------------ */}
-      <div className="mt-auto border-t border-white/10 bg-[#071E63]">
+      <div className="mt-auto border-t border-white/[0.08] bg-black/15 backdrop-blur-xs">
         {!isCollapsed ? (
           <div className={`${compact ? "p-3 space-y-2" : "p-3.5 space-y-2.5"}`}>
             {/* Profile Row with Settings Icon on the Top Right */}
@@ -194,33 +214,37 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle, 
                 </div>
               </div>
 
-              {/* Settings Icon on Top Right of Profile Card */}
+              {/* Settings Icon on Top Right of Profile Card with Diagonal Swipe */}
               <Link
                 href="/client/profile/settings"
-                className={`p-1.5 rounded-lg transition-all shrink-0 cursor-pointer ${
+                className={`p-1.5 rounded-lg transition-all shrink-0 cursor-pointer sidebar-swipe-btn group ${
                   isSettingsActive
                     ? "text-[#E4BA37] bg-white/20 ring-1 ring-[#E4BA37]/40 shadow-xs"
-                    : "text-white/70 hover:text-white hover:bg-white/10"
+                    : "text-white/70 hover:text-white"
                 }`}
                 title="Profile Settings"
                 aria-label="Profile Settings"
               >
-                <Settings className="w-4 h-4 transition-transform hover:rotate-45" />
+                <div className="sidebar-icon-container">
+                  <Settings className="w-4 h-4 transition-transform group-hover:rotate-45" />
+                </div>
               </Link>
             </div>
 
             {/* Divider */}
             <div className="border-t border-white/10" />
 
-            {/* Logout Button */}
+            {/* Logout Button with Diagonal Swipe */}
             <div className="flex justify-end">
               <button
                 onClick={handleLogout}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-rose-300 hover:text-white hover:bg-rose-600/30 rounded-lg transition-colors cursor-pointer group"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-rose-300 hover:text-white rounded-lg transition-colors cursor-pointer group sidebar-swipe-btn"
                 title="Log Out"
               >
-                <span>Log Out</span>
-                <LogOut className="w-4 h-4 text-rose-300 group-hover:text-white group-hover:translate-x-0.5 transition-transform" />
+                <span className="relative z-10">Log Out</span>
+                <div className="sidebar-icon-container z-10">
+                  <LogOut className="w-4 h-4 text-rose-300 group-hover:text-white transition-transform" />
+                </div>
               </button>
             </div>
           </div>
@@ -233,34 +257,38 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle, 
               {initials}
             </div>
 
-            {/* Settings Icon (Collapsed Sidebar Mode) */}
+            {/* Settings Icon (Collapsed Sidebar Mode) with Diagonal Swipe */}
             <Link
               href="/client/profile/settings"
-              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer sidebar-swipe-btn group ${
                 isSettingsActive
                   ? "text-[#E4BA37] bg-white/20 ring-1 ring-[#E4BA37]/40"
-                  : "text-white/70 hover:text-white hover:bg-white/10"
+                  : "text-white/70 hover:text-white"
               }`}
               title="Profile Settings"
               aria-label="Profile Settings"
             >
-              <Settings className="w-4 h-4" />
+              <div className="sidebar-icon-container">
+                <Settings className="w-4 h-4" />
+              </div>
             </Link>
 
-            {/* Log Out Button */}
+            {/* Log Out Button (Collapsed Sidebar Mode) with Diagonal Swipe */}
             <button
               onClick={handleLogout}
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-rose-300 hover:text-white hover:bg-rose-600/30 transition-colors cursor-pointer"
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-rose-300 hover:text-white transition-colors cursor-pointer sidebar-swipe-btn group"
               title="Log Out"
             >
-              <LogOut className="w-4 h-4" />
+              <div className="sidebar-icon-container">
+                <LogOut className="w-4 h-4" />
+              </div>
             </button>
           </div>
         )}
       </div>
 
       {/* ------------------------------------------------------------------ */}
-      {/* FULL-HEIGHT SQUARE COLLAPSE BUTTON STRIP                           */}
+      {/* 4. Full-Height Collapse Toggle Strip (Entire Side)                 */}
       {/* ------------------------------------------------------------------ */}
       <button
         type="button"

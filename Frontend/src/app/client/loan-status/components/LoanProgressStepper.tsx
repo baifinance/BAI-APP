@@ -172,7 +172,7 @@ export default function LoanProgressStepper({
                     isCompleted
                       ? "bg-[#0024A8] text-white shadow-md shadow-[#0024A8]/20 ring-4 ring-blue-50"
                       : isInProcess
-                      ? "bg-[#0024A8] text-white shadow-lg shadow-[#0024A8]/30 ring-4 ring-blue-100 animate-pulse"
+                      ? "bg-[#0024A8] text-white shadow-lg shadow-[#0024A8]/30 animate-pulse-ring"
                       : isActionNeeded
                       ? "bg-rose-600 text-white shadow-md shadow-rose-600/30 ring-4 ring-rose-100"
                       : "bg-slate-100 text-slate-400 border-2 border-slate-300"
@@ -198,19 +198,19 @@ export default function LoanProgressStepper({
               </div>
 
               {/* -------------------------------------------------------------- */}
-              {/* 2. VISIBLE BOXED CONTAINER (Aligned to left)                   */}
+              {/* 2. VISIBLE BOXED CONTAINER (Aligned to left with pulse ring)   */}
               {/* -------------------------------------------------------------- */}
               <div
-                className={`flex-1 rounded-2xl p-4 sm:p-5 transition-all text-left border ${
+                className={`relative flex-1 rounded-2xl p-4 sm:p-5 transition-all text-left border ${
                   isCompleted
                     ? "bg-[#0024A8] border-[#0024A8] text-white shadow-sm shadow-[#0024A8]/10"
                     : isInProcess
-                    ? "bg-blue-50/50 border-[#0024A8] shadow-xs ring-1 ring-[#0024A8]/20"
+                    ? "bg-blue-50/50 border-[#0024A8] ring-1 ring-[#0024A8]/30 animate-pulse-ring"
                     : "bg-slate-50/60 border-slate-200/80"
                 }`}
               >
                 {/* Header row inside boxed container */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
+                <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
                   
                   {/* Step Title in a larger font (Left-aligned) */}
                   <h3
@@ -251,7 +251,7 @@ export default function LoanProgressStepper({
 
                 {/* Step Description under the title (Left-aligned) */}
                 <p
-                  className={`text-xs sm:text-sm font-medium leading-relaxed text-left ${
+                  className={`relative z-10 text-xs sm:text-sm font-medium leading-relaxed text-left ${
                     isCompleted
                       ? "text-white/90"
                       : isInProcess

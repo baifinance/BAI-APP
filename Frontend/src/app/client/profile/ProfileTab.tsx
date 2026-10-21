@@ -12,7 +12,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Check, Clock, ArrowRight, Pen, Mail, Phone, User, Ban, Settings, X } from "lucide-react";
+import { Check, Clock, ArrowRight, Pen, Mail, Phone, User, Ban, X } from "lucide-react";
 import { ClientData } from "../types";
 import { resolveLoanStatus } from "../loanStatus";
 
@@ -200,26 +200,14 @@ export default function ProfileTab({ client }: ProfileTabProps) {
         {/* LEFT COLUMN: PERSONAL INFORMATION DETAILS */}
         <div className="lg:col-span-7 space-y-5">
           <div className="bg-white rounded-[15px] border-0 shadow-sm overflow-hidden">
-            {/* Header with blue background and white text */}
-            <div className="bg-[#0A2881] px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-white/10 text-white flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-                <h3 className="text-base font-extrabold text-white">
-                  Personal Information
-                </h3>
+            {/* Header with static blue gradient background (not animated) */}
+            <div className="bg-gradient-to-r from-[#061C65] via-[#0A2881] to-[#0024A8] px-6 py-4 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-white/10 text-white flex items-center justify-center">
+                <User className="w-4 h-4 text-white" />
               </div>
-
-              {/* Quick Link to Profile Settings */}
-              <Link
-                href="/client/profile/settings"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors cursor-pointer"
-                title="Profile & Security Settings"
-              >
-                <Settings className="w-3.5 h-3.5" />
-                <span>Profile Settings</span>
-              </Link>
+              <h3 className="text-base font-extrabold text-white">
+                Personal Information
+              </h3>
             </div>
 
             <div className="p-6 sm:p-7 space-y-5">
@@ -280,8 +268,8 @@ export default function ProfileTab({ client }: ProfileTabProps) {
         {/* RIGHT COLUMN: 6-STEP LOAN STATUS PROGRESS PREVIEW */}
         <div className="lg:col-span-5 space-y-5">
           <div className="bg-white rounded-[15px] border-0 shadow-sm overflow-hidden">
-            {/* Header with blue background, gold subtitle, and gold button */}
-            <div className="bg-[#0A2881] px-6 py-4 flex items-center justify-between">
+            {/* Header with static blue gradient background (not animated) */}
+            <div className="bg-gradient-to-r from-[#061C65] via-[#0A2881] to-[#0024A8] px-6 py-4 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-extrabold text-white">
                   Loan Status Progress
@@ -349,7 +337,7 @@ export default function ProfileTab({ client }: ProfileTabProps) {
                 /* Renders the vertical 6-step preview of current & next steps.   */
                 /* ============================================================== */
                 <div className="space-y-3.5 relative pl-3 before:absolute before:left-6.5 before:top-3.5 before:bottom-3.5 before:w-0.5 before:bg-slate-200">
-                  {displayedSteps.map((step) => {
+                  {displayedSteps.map((step, idx) => {
                     const isCurrent = step.status === "in_process";
                     const isCompleted = step.status === "completed";
 
@@ -359,7 +347,7 @@ export default function ProfileTab({ client }: ProfileTabProps) {
                         {/* Stepper Node Circle */}
                         <div
                           className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0 border-2 transition-all ${isCurrent
-                            ? "bg-[#0024A8] text-white border-[#0024A8] shadow-md ring-4 ring-blue-100 animate-pulse"
+                            ? "bg-[#0024A8] text-white border-[#0024A8] animate-pulse-ring"
                             : isCompleted
                               ? "bg-[#0024A8] text-white border-[#0024A8] shadow-xs"
                               : "bg-white text-slate-400 border-slate-300"
@@ -372,10 +360,10 @@ export default function ProfileTab({ client }: ProfileTabProps) {
                           )}
                         </div>
 
-                        {/* Step Box / Card */}
+                        {/* Step Box / Card with Blue Slow Pulsing Ring Animation */}
                         <div
-                          className={`flex-1 flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all ${isCurrent
-                            ? "bg-blue-50/90 text-[#0024A8] border-[#0024A8] ring-1 ring-[#0024A8]/20 shadow-xs"
+                          className={`relative flex-1 flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all ${isCurrent
+                            ? "bg-blue-50/90 text-[#0024A8] border-[#0024A8] ring-1 ring-[#0024A8]/30 animate-pulse-ring"
                             : isCompleted
                               ? "bg-[#0024A8] text-white border-[#0024A8]"
                               : "bg-slate-50/60 text-slate-600 border-slate-200/80"

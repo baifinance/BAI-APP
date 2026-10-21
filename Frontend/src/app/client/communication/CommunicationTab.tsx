@@ -72,7 +72,9 @@ function EmptyPanel({
             type="button"
             onClick={onStart}
             disabled={starting}
-            className="mt-5 px-5 py-3 rounded-xl bg-[#0024A8] hover:bg-[#0A2881] text-white text-xs font-bold shadow-md transition-all disabled:opacity-50"
+            className={`mt-5 px-5 py-3 rounded-xl bg-[#0024A8] hover:bg-[#0A2881] text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer ${
+              !starting ? "animate-pulse-ring" : "shadow-md"
+            }`}
           >
             {starting ? "Starting…" : "Start new chat"}
           </button>
@@ -200,7 +202,7 @@ export default function CommunicationTab() {
   const started = messages.length > 0;
 
   return (
-    <div className="w-full h-full flex-1 flex flex-col min-h-0 bg-white border-0 sm:border sm:border-blue-100 rounded-none sm:rounded-3xl shadow-soft-xl overflow-hidden">
+    <div className="w-full h-full flex-1 flex flex-col min-h-0 bg-white border-0 rounded-none shadow-none overflow-hidden">
       <header className="px-4 sm:px-6 py-3.5 bg-[#0A2881] border-b border-[#001D85] flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-2xl bg-[#E4BA37] text-[#0A2881] flex items-center justify-center shadow-sm shrink-0">

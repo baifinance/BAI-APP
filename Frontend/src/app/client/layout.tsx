@@ -39,13 +39,10 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
   const isLoanStatus = activeTab === "LoanStatus";
   const isCalculator = activeTab === "Calculator";
   const isCommunication = activeTab === "Communication";
-  const isFullWidthPage = isLoanStatus || isCalculator;
-  // Chat: full-bleed on mobile, padded like other pages on sm+ screens.
+  const isFullWidthPage = isLoanStatus || isCalculator || isCommunication;
   const mainPadding = isFullWidthPage
     ? "p-0"
-    : isCommunication
-      ? "p-0 sm:p-4 md:p-6 lg:p-8 sm:max-w-[1600px] sm:mx-auto"
-      : "p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto";
+    : "p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto";
 
   return (
     <div
@@ -55,7 +52,7 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
     >
 
       {/* Desktop sidebar (full, collapsible) */}
-      <div className="hidden lg:block shrink-0">
+      <div className="hidden lg:block shrink-0 mr-5">
         <Sidebar
           activeTab={activeTab}
           isCollapsed={isSidebarCollapsed}
@@ -100,7 +97,7 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
         <main
           className={`flex-1 w-full ${
             isCommunication
-              ? "h-full min-h-0 flex flex-col overflow-hidden p-0 sm:p-3 md:p-4 lg:p-5 max-w-[1600px] mx-auto"
+              ? "h-full min-h-0 flex flex-col overflow-hidden p-0"
               : `overflow-y-auto ${mainPadding}`
           }`}
         >

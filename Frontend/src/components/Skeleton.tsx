@@ -97,16 +97,14 @@ export function InboxSkeleton() {
   return (
     <Themed>
       <div
-        className="grid min-h-[620px] grid-cols-1 overflow-hidden rounded-3xl border border-slate-200/80 bg-white lg:grid-cols-16"
+        className="w-full h-full min-h-[620px] flex flex-col overflow-hidden bg-white"
         role="status"
         aria-label="Loading inbox"
       >
-        <div className="flex flex-col gap-3 border-slate-200 p-5 lg:col-span-5 lg:border-r">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <SkeletonBase key={i} height={64} borderRadius={16} />
-          ))}
+        <div className="h-16 bg-[#0A2881]/15 border-b border-slate-100 flex items-center px-6">
+          <SkeletonBase width={180} height={20} borderRadius={6} />
         </div>
-        <div className="flex flex-col items-center justify-center gap-3 lg:col-span-11">
+        <div className="flex-1 flex flex-col items-center justify-center gap-3">
           <SkeletonBase circle width={64} height={64} />
           <SkeletonBase width={128} height={16} borderRadius={6} />
         </div>

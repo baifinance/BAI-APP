@@ -62,6 +62,170 @@ body {
   }
 }
 
+/* ==============================================================================
+ * 1. SIDEBAR ANIMATED DUOTONE GRADIENT BACKGROUND
+ * Continuous, ultra-smooth flowing duotone color shift between deep brand navy
+ * (#061A5C / #09267C) and radiant royal cobalt blue (#0D35A4).
+ * Blended with close, harmonious stops to eliminate banding and harsh seams.
+ * ============================================================================== */
+@keyframes sidebar-duotone-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.sidebar-duotone-bg {
+  background: linear-gradient(
+    145deg,
+    #061A5C 0%,
+    #09267C 25%,
+    #0D35A4 50%,
+    #09267C 75%,
+    #061A5C 100%
+  );
+  background-size: 200% 200%;
+  animation: sidebar-duotone-shift 18s ease-in-out infinite;
+}
+
+/* ==============================================================================
+ * 2. SIDEBAR BUTTON DIAGONAL SWIPE ANIMATION (50% Slower & Smoother)
+ * Creates a bright diagonal sheen beam that sweeps from top-left to bottom-right
+ * across the button surface and icon when hovered by the cursor.
+ * ============================================================================== */
+.sidebar-swipe-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Diagonal sheen ribbon that sweeps across on hover (1.15s duration — 50% slower) */
+.sidebar-swipe-btn::after {
+  content: "";
+  position: absolute;
+  top: -120%;
+  left: -120%;
+  width: 75%;
+  height: 340%;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0) 15%,
+    rgba(255, 255, 255, 0.42) 50%,
+    rgba(228, 186, 55, 0.35) 68%,
+    transparent 90%
+  );
+  transform: rotate(30deg) translate3d(-100%, -50%, 0);
+  transition: transform 1.15s cubic-bezier(0.2, 0.85, 0.25, 1), opacity 0.35s ease;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0;
+}
+
+.sidebar-swipe-btn:hover::after {
+  opacity: 1;
+  transform: rotate(30deg) translate3d(320%, 50%, 0);
+}
+
+/* Diagonal backdrop fill highlight on hover for inactive buttons */
+.sidebar-swipe-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(228, 186, 55, 0.12) 100%
+  );
+  opacity: 0;
+  transform: scale(0.94);
+  transition: opacity 0.45s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.sidebar-swipe-btn:not([data-active="true"]):hover::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Active button sheen variant — brilliant pure white diagonal beam over gold */
+.sidebar-swipe-btn[data-active="true"]::after {
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0) 20%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0.2) 75%,
+    transparent 100%
+  );
+}
+
+/* ==============================================================================
+ * 3. SIDEBAR ICON HOVER & CLOSED-SIDEBAR SWIPE MICRO-INTERACTIONS
+ * Specially enhances icons in both open and closed (collapsed) sidebar states.
+ * Tuned to match the 50% slower, smoother swipe motion.
+ * ============================================================================== */
+.sidebar-icon-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.55s cubic-bezier(0.34, 1.25, 0.64, 1), filter 0.5s ease;
+}
+
+.group:hover .sidebar-icon-container {
+  transform: scale(1.18) rotate(4deg);
+  filter: drop-shadow(0 0 6px rgba(228, 186, 55, 0.55));
+}
+
+.group:hover .sidebar-icon-container[data-active="true"] {
+  transform: scale(1.12) rotate(0deg);
+  filter: drop-shadow(0 0 6px rgba(10, 40, 129, 0.4));
+}
+
+/* ==============================================================================
+ * 4. SIDEBAR NAVIGATION SCROLLBAR SUPPRESSION
+ * Strictly removes any unwanted horizontal scrollbars from the sidebar nav.
+ * ============================================================================== */
+.sidebar-nav-scroll {
+  overflow-x: hidden !important;
+  scrollbar-width: thin;
+}
+
+.sidebar-nav-scroll::-webkit-scrollbar:horizontal {
+  display: none !important;
+  height: 0px !important;
+}
+
+/* ==============================================================================
+ * 5. BLUE SLOW PULSING RING ANIMATION
+ * Creates a vivid, elegant blue concentric pulsing ring that radiates outwards
+ * from active in-process steps, rounded buttons, and indicator nodes.
+ * ============================================================================== */
+@keyframes slow-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 102, 255, 0.65), 0 0 0 0 rgba(0, 102, 255, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(0, 102, 255, 0.22), 0 0 0 14px rgba(0, 102, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 102, 255, 0), 0 0 0 0 rgba(0, 102, 255, 0);
+  }
+}
+
+.animate-pulse-ring,
+.animate-blue-pulse-ring {
+  animation: slow-pulse-ring 2.8s cubic-bezier(0.25, 0, 0.35, 1) infinite;
+}
+
 /* Keyframes for the smooth moving gradient background animation */
 @keyframes moving-gradient {
   0% {
