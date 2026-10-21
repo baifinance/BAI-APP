@@ -8,6 +8,7 @@ import { Bell, LogOut } from "lucide-react";
 import Link from "next/link";
 import { API_BASE } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { unsubscribePushForLogout } from "@/lib/push";
 import MobileNavRail from "@/components/MobileNavRail";
 
 const getActiveTab = (pathname: string) => {
@@ -48,6 +49,7 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
 
   // API Call & Cookie Clear Logout Handler
   const handleLogout = async () => {
+    await unsubscribePushForLogout();
     try {
       await fetch(API_BASE + "/api/auth/logout/", {
         method: "POST",

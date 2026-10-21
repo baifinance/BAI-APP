@@ -4,5 +4,6 @@ class NotificationType(models.TextChoices):
     LOAN_STATUS = "loan_status", "Loan status"
     COMMUNICATION = "communication", "Communication"
     MFA = "mfa", "MFA"
+    BOOKING = "booking", "Booking"
+    DOCUMENT = "document", "Document"
     SYSTEM = "system", "System"
-    

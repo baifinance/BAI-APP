@@ -21,28 +21,33 @@ def _invalidate_asana_profile_cache(email):
         logger.warning("Could not invalidate Asana profile cache", exc_info=True)
 
 
-def record_loan_status_change(user, status, *, when=None):
-    """Stamp the moment a client entered a given loan-status section.
+def apply_loan_status_change(user, status, *, actor=None, when=None):
+    """Record a loan-status transition and report whether anything changed.
 
     Persists a ``{status: ISO-timestamp}`` map on the client's ``ClientProfile``
     so the loan-status stepper can render the real date each step was reached.
 
     Safe to call repeatedly: consecutive duplicates of the current status are
-    ignored. Returns the updated profile, or ``None`` when there is nothing to
-    record (no status, or the user is not a client).
+    ignored. Returns ``(profile, changed)`` where ``profile`` is ``None`` when
+    there is nothing to record (no status, or the user is not a client) and
+    ``changed`` is ``False`` when the client was already in that status.
+
+    Callers use ``changed`` to avoid duplicate notifications: Asana retries
+    webhook deliveries, and every retry would otherwise notify and email the
+    client again for a move that already happened.
     """
     if not status:
-        return None
+        return None, False
 
     try:
         profile = user.client_profile
     except ClientProfile.DoesNotExist:
-        return None
+        return None, False
 
     history = dict(profile.loan_status_history or {})
 
     if profile.loan_status == status and status in history:
-        return profile
+        return profile, False
 
     history[status] = (when or timezone.now()).isoformat()
     profile.loan_status = status
@@ -51,7 +56,7 @@ def record_loan_status_change(user, status, *, when=None):
 
     log_action(
         "LOAN_STATUS_CHANGED",
-        actor=user,
+        actor=actor,
         entity_type="ClientProfile",
         entity_id=profile.pk,
     )
@@ -60,4 +65,20 @@ def record_loan_status_change(user, status, *, when=None):
     # so a /api/loans/current-status/ read falls back to a fresh Asana lookup.
     _invalidate_asana_profile_cache(user.email)
 
+    return profile, True
+
+
+def record_loan_status_change(user, status, *, actor=None, when=None):
+    """Stamp the moment a client entered a given loan-status section.
+
+    Thin wrapper over :func:`apply_loan_status_change` for callers that do not
+    care whether the status actually changed. Returns the updated profile, or
+    ``None`` when there is nothing to record.
+    """
+    profile, _changed = apply_loan_status_change(
+        user,
+        status,
+        actor=actor,
+        when=when,
+    )
     return profile

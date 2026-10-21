@@ -13,7 +13,7 @@ from django.contrib.auth import get_user_model
 from notifications.choices import NotificationType
 from notifications.services import create_notification, publish_stream_notification
 from otp.utils import get_redis_client
-from users.services import record_loan_status_change
+from users.services import apply_loan_status_change
 
 logger = logging.getLogger(__name__)
 
@@ -559,7 +559,17 @@ def handle_task_moved_event(event):
         client.id,
     )
 
-    record_loan_status_change(client, section_name)
+    _profile, changed = apply_loan_status_change(client, section_name)
+    if not changed:
+        # Asana retries webhook deliveries. The client is already in this
+        # section, so this is a repeat of a move that was already handled.
+        # Notifying again would duplicate the in-app entry and the email.
+        logger.info(
+            "Asana event ignored: status unchanged client=%s status=%s",
+            client.id,
+            section_name,
+        )
+        return
 
     notification = create_notification(
         recipient=client,

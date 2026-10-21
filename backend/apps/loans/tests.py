@@ -2,9 +2,10 @@ from unittest import mock
 
 from rest_framework.test import APITestCase
 
+from audit.models import AuditLog
 from otp.utils import get_redis_client
 from users.models import ClientProfile, User
-from users.services import record_loan_status_change
+from users.services import apply_loan_status_change, record_loan_status_change
 
 
 def _make_user(email, role="client"):
@@ -48,6 +49,48 @@ class RecordLoanStatusChangeTests(APITestCase):
         record_loan_status_change(self.user, "Under Review")
 
         self.assertIsNone(redis.get(key))
+
+
+class ApplyLoanStatusChangeTests(APITestCase):
+    """The changed flag lets callers skip duplicate notifications."""
+
+    def setUp(self):
+        self.user = _make_user("client@example.com")
+        self.profile = ClientProfile.objects.create(user=self.user)
+
+    def test_reports_change_on_first_transition(self):
+        profile, changed = apply_loan_status_change(self.user, "Pending")
+
+        self.assertTrue(changed)
+        self.assertEqual(profile.loan_status, "Pending")
+
+    def test_reports_no_change_for_a_repeated_status(self):
+        apply_loan_status_change(self.user, "Pending")
+
+        _profile, changed = apply_loan_status_change(self.user, "Pending")
+
+        self.assertFalse(changed)
+
+    def test_reports_change_for_a_new_status(self):
+        apply_loan_status_change(self.user, "Pending")
+
+        _profile, changed = apply_loan_status_change(self.user, "Under Review")
+
+        self.assertTrue(changed)
+
+    def test_no_status_reports_no_change(self):
+        profile, changed = apply_loan_status_change(self.user, "")
+
+        self.assertIsNone(profile)
+        self.assertFalse(changed)
+
+    def test_non_client_reports_no_change(self):
+        broker = _make_user("broker@example.com", role="broker")
+
+        profile, changed = apply_loan_status_change(broker, "Pending")
+
+        self.assertIsNone(profile)
+        self.assertFalse(changed)
 
 
 class CurrentLoanStatusViewTests(APITestCase):
@@ -140,3 +183,38 @@ class AsanaWebhookHistoryTests(APITestCase):
 
         self.profile.refresh_from_db()
         self.assertIn("Under Review", self.profile.loan_status_history)
+
+
+class LoanStatusUpdateAuditActorTests(APITestCase):
+    def setUp(self):
+        self.client_user = _make_user("client@example.com")
+        ClientProfile.objects.create(user=self.client_user)
+        self.staff = _make_user("staff@example.com", role="loan_processing")
+        self.client.force_authenticate(self.staff)
+
+    @mock.patch("loans.views.publish_stream_notification")
+    @mock.patch("loans.views.create_notification")
+    @mock.patch("loans.views.AsanaProfileService")
+    def test_staff_action_records_staff_actor(
+        self,
+        asana_service,
+        _create_notification,
+        _publish,
+    ):
+        asana_service.return_value.move_task_to_status.return_value = {}
+
+        resp = self.client.patch(
+            "/api/loans/status/",
+            {
+                "email": "client@example.com",
+                "loan_status": "Under Review",
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        row = AuditLog.objects.get(
+            action="LOAN_STATUS_CHANGED",
+            entity_id=self.client_user.client_profile.pk,
+        )
+        self.assertEqual(row.actor, self.staff)

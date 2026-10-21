@@ -100,15 +100,24 @@ Access tokens live 15 minutes, refresh tokens 7 days, with rotation and blacklis
 | `notify:{user_id}` | — | Pub/sub channel backing the SSE stream |
 | `asana_task:{gid}` / `asana_section:{gid}` | 24h | Memoised Asana lookups |
 
-`IsOtpVerified` is a permission class, not middleware: it passes when `user.mfa_enabled` is `False`, otherwise it requires the Redis flag. It guards all of `bookings`, `notifications`, and `users.profile`. A wrong code costs a strike; three strikes lock the key.
+`IsOtpVerified` is a permission class, not middleware: it passes when `user.mfa_enabled` is `False`, otherwise it requires the Redis flag. It guards `bookings`, `notifications`, `users.profile`, staff administration, and audit reads. A wrong code costs a strike; three strikes lock the key.
 
 `redis` is imported at module load, so **Redis must be running or the app will not boot** — this is not an optional dependency.
 
-### Notifications: DB rows + SSE
+### Notifications: DB rows + SSE + optional push/email
 
-Every notification is written twice: a durable `Notification` row (so history and unread counts work) and a JSON payload published to Redis `notify:{user_id>`, which `NotificationStreamView` relays to the browser as Server-Sent Events. Producers are the MFA views, `loans.LoanStatusUpdateView`, and `asana_integration.handle_task_moved_event`.
+Every notification is written twice: a durable `Notification` row (so history and unread counts work) and a JSON payload published to Redis `notify:{user_id}`, which `NotificationStreamView` relays to the browser as Server-Sent Events. Producers are the MFA views, `loans.LoanStatusUpdateView`, `bookings` create/update, and `asana_integration.handle_task_moved_event`.
 
 SSE rather than WebSockets keeps this a single long-lived `GET` with no extra server. The stream emits an `event: snapshot` on connect, `event: notification` per message, and `: keepalive` comments every 25s, with `X-Accel-Buffering: no` to defeat proxy buffering.
+
+Optional delivery channels are independently feature-flagged:
+
+- **Web Push** (`PUSH_NOTIFICATIONS_ENABLED`) sends a minimal payload to each `PushSubscription` using VAPID. Users opt in per browser/device from Notification Settings.
+- **Email** (`EMAIL_NOTIFICATIONS_ENABLED`) creates an `EmailDelivery` outbox row and sends it **inline, in the same request** that published the notification. Critical types default on; optional communications default off. `EMAIL_TIMEOUT` (default `5s`) bounds how long a slow SMTP server can hold the request open.
+
+Both channels are best-effort and never block notification creation: a push or SMTP failure is logged and swallowed. If the inline email send fails, the outbox row stays `pending` with a backoff timestamp and can be retried later with `python manage.py send_notification_emails`. Delivery is rolled out by enabling flags only after VAPID/SMTP is configured.
+
+A status change is only notified once. `users.services.apply_loan_status_change` reports whether the client's status actually changed, so an Asana webhook retry (Asana re-delivers on a slow response) cannot produce a second notification or a second email.
 
 ### Loan status lives in Asana, not Postgres
 
@@ -121,13 +130,13 @@ This is the most surprising design decision in the codebase. `loans` exposes onl
 
 ### No async task queue
 
-There is no Celery, no `tasks.py`, and no `signals.py` anywhere. All `AuditLog` writes are explicit calls in `apps/authentication/views.py`. The only background work is the `ai_assistant` management command and the SSE keepalive loop.
+There is no Celery, no `tasks.py`, and no `signals.py` anywhere. All `AuditLog` writes are explicit calls in `apps/authentication/views.py`. Background work is limited to the `ai_assistant` management command, the SSE keepalive loop, and the notification email outbox drain (`send_notification_emails`), which is only needed to retry emails that failed inline.
 
 ---
 
 ## Tech Stack
 
-`requirements.txt` is a **fully pinned 138-line lockfile** (`pip freeze` output), so it pulls in transitive ML and infrastructure packages that this project does not use directly. The table below separates what the code actually imports from what arrives as a dependency.
+`requirements.txt` is a **fully pinned lockfile** (`pip freeze` output), so it pulls in transitive ML and infrastructure packages that this project does not use directly. The table below separates what the code actually imports from what arrives as a dependency.
 
 ### Core
 
@@ -831,7 +840,7 @@ Serializer `purpose` choices: `login`, `reset_password`, `login_2fa`, `invite_ve
 | Class | Rule | Used by |
 | :--- | :--- | :--- |
 | `IsLoanProcessingTeam` | `is_superuser` **or** `role == UserRole.LOAN_PROCESSING` | 5 views — 4 invitation routes in `authentication`, plus `loans.LoanStatusUpdateView` |
-| `IsOtpVerified` | Passes if `not mfa_enabled`, else requires the Redis `otp_verified:<id>` flag | 11 views (bookings, notifications, profile) |
+| `IsOtpVerified` | Passes if `not mfa_enabled`, else requires the Redis `otp_verified:<id>` flag | Bookings, notifications, profile, staff administration, audit reads |
 | `IsLoanProcessingOrSelf` | LP gets everything; others only `retrieve`/`update`/`partial_update` on their own object | **Never used** |
 
 ---
@@ -874,38 +883,29 @@ Gated by `ASANA_PROFILE_LOOKUP_ENABLED` (default `False`). When it is off, `/api
 | `python manage.py ingest_rag [--reset]` | Embeds 8 hardcoded Bai Finance knowledge chunks into ChromaDB as `bai_doc_01`–`bai_doc_08`. `--reset` clears the collection first |
 | `python manage.py register_asana_webhook --target <url>` | Creates an Asana webhook on `ASANA_PROJECT_GID` with filters for `task/changed`, `task/added`, `task/removed`. Raises `CommandError` unless `ASANA_ACCESS_TOKEN`, `ASANA_PROJECT_GID`, `ASANA_WEBHOOK_ENABLED=True`, and `ASANA_WEBHOOK_HANDSHAKE_ENABLED=True` are all set (turn the handshake flag back off after registering) |
 | `python manage.py register_asana_webhook --delete <gid>` | Deletes a registered webhook |
+| `python manage.py send_notification_emails [--limit N]` | Drains due rows from the notification email outbox. Emails normally send inline, so this is only for retrying rows that failed (Gmail outage). Optionally run it every minute via cron/systemd timer when `EMAIL_NOTIFICATIONS_ENABLED=True` |
 
 ---
 
 ## Preseeded Accounts
 
-Data migration `users/migrations/0002_auto_20260824_1151.py` creates a default back-office administrator on first `migrate`.
+The legacy hardcoded seed account is disabled by migration `0010_neutralize_seeded_compliance_account`. Fresh databases do not provide a usable default login.
 
-| Field | Value |
-| :--- | :--- |
-| **Email** | `compliance@bai.finance` |
-| **Password** | `SuperSecretPassword123!` |
-| **Role** | `loan_processing` (migrated from the original `compliance` by `0004_fix_compliance_to_loan_processing`) |
-| **Status** | `active` |
-| **Permissions** | `is_staff=True`, `is_superuser=True` |
+Create staff accounts explicitly and assign a supported role:
 
-> [!WARNING]
-> The username and password are hardcoded in a committed migration and were printed in earlier versions of this README. **Rotate the password before any shared or public deployment**, and note that the email address can no longer be changed by a migration alone — edit the row directly or create a fresh superuser.
+```bash
+python manage.py createsuperuser
+python manage.py shell -c "from users.models import User; u=User.objects.get(email='you@example.com'); u.role='loan_processing'; u.save(update_fields=['role'])"
+```
+
+Never reuse a documented or shared password for a staff account.
 
 Migration history worth knowing:
 
 - `0003_alter_user_role` replaced the `compliance` role value with `loan_processing`.
 - `0004_fix_compliance_to_loan_processing` rewrote existing rows to match.
 - `0005_auto_20260909_0000` is a **deliberate no-op** — an earlier version wrongly collapsed the `broker` role into `loan_processing`, and this migration exists only to document that it was reverted.
-
-### Re-seeding
-
-If the account is deleted or altered and you need to reset it:
-
-```bash
-python manage.py migrate users 0001
-python manage.py migrate users 0002
-```
+- `0010_neutralize_seeded_compliance_account` disables the legacy seed account if it still uses the published password.
 
 ---
 
@@ -919,7 +919,7 @@ python manage.py migrate users 0002
 - Invitation lifecycle — 32-byte `secrets` tokens, 7-day expiry, HTML email dispatch
 - Public activation flow with role validation and profile creation
 - Redis-backed OTP: login 2FA, password reset, MFA enrolment, 3-strike lockout
-- `IsOtpVerified` permission gating 11 endpoints
+- `IsOtpVerified` permission gating across client, staff, and audit endpoints
 - MFA enable/disable with password confirmation
 - Broker slot publishing and client booking claims with double-booking protection
 - Asana-backed loan status read and section moves

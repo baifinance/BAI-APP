@@ -14,6 +14,7 @@ import {
   bookingsApi,
   usersApi,
   loansApi,
+  slotsApi,
   BookingApiResponse,
   PublishedSlot,
   parseSlotTime,
@@ -72,6 +73,7 @@ const clientKeys = {
   profile: ["client", "profile"] as const,
   loanStatus: ["client", "loan-status"] as const,
   bookings: ["client", "bookings"] as const,
+  publishedSlots: ["client", "published-slots"] as const,
   notifications: ["client", "notifications"] as const,
   availableSlots: (date: string, brokerId?: string) =>
     ["client", "available-slots", date, brokerId ?? null] as const,
@@ -173,6 +175,13 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     queryKey: clientKeys.bookings,
     queryFn: bookingsApi.list,
     staleTime: 60_000,
+    meta: { persist: false },
+  });
+
+  const publishedSlotsQuery = useQuery({
+    queryKey: clientKeys.publishedSlots,
+    queryFn: slotsApi.list,
+    staleTime: 30_000,
     meta: { persist: false },
   });
 
@@ -340,7 +349,10 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
         consultation_type: typeStr,
         meeting_platform: platformStr,
       });
-      await queryClient.invalidateQueries({ queryKey: clientKeys.bookings });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: clientKeys.bookings }),
+        queryClient.invalidateQueries({ queryKey: clientKeys.publishedSlots }),
+      ]);
     },
     [queryClient],
   );
@@ -348,7 +360,10 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   const claimSlot = useCallback(
     async (slotId: string) => {
       await bookingsApi.create({ slot_id: slotId });
-      await queryClient.invalidateQueries({ queryKey: clientKeys.bookings });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: clientKeys.bookings }),
+        queryClient.invalidateQueries({ queryKey: clientKeys.publishedSlots }),
+      ]);
     },
     [queryClient],
   );
@@ -400,7 +415,14 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => [toast, ...prev].slice(0, 4));
   }, []);
 
-  const loading = profileQuery.isPending || bookingsQuery.isPending;
+  const publishedSlots = useMemo(
+    () => publishedSlotsQuery.data ?? [],
+    [publishedSlotsQuery.data],
+  );
+  const loading =
+    profileQuery.isPending ||
+    bookingsQuery.isPending ||
+    publishedSlotsQuery.isPending;
 
   const dataValue = useMemo<ClientDataContextType>(
     () => ({
@@ -408,7 +430,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       lastLoanStatusUpdate,
       booking,
       bookings,
-      publishedSlots: [],
+      publishedSlots,
       availableSlots,
       fetchAvailableSlots,
       handleNewBooking,
@@ -421,6 +443,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       lastLoanStatusUpdate,
       booking,
       bookings,
+      publishedSlots,
       availableSlots,
       fetchAvailableSlots,
       handleNewBooking,

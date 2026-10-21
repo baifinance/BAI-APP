@@ -5,6 +5,24 @@ from rest_framework import serializers
 from audit.models import AuditLog
 
 
+class AuditLogQuerySerializer(serializers.Serializer):
+    action = serializers.CharField(max_length=100, required=False)
+    entity_type = serializers.CharField(max_length=100, required=False)
+    entity_id = serializers.UUIDField(required=False)
+    actor = serializers.UUIDField(required=False)
+    since = serializers.DateTimeField(required=False)
+    until = serializers.DateTimeField(required=False)
+
+    def validate(self, attrs):
+        since = attrs.get("since")
+        until = attrs.get("until")
+        if since and until and since > until:
+            raise serializers.ValidationError(
+                "`since` must be earlier than or equal to `until`."
+            )
+        return attrs
+
+
 class AuditLogSerializer(serializers.ModelSerializer):
     actor_email = serializers.SerializerMethodField()
 

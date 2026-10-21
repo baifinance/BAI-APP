@@ -15,7 +15,9 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import {
+  Bell,
   Users,
   ChevronLeft,
   ChevronRight,
@@ -23,6 +25,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { authApi, AuthUser } from "@/lib/api";
+import { unsubscribePushForLogout } from "@/lib/push";
 
 interface ComplianceSidebarProps {
   isCollapsed: boolean;
@@ -34,6 +37,9 @@ export default function ComplianceSidebar({
   onToggle,
 }: ComplianceSidebarProps) {
   const [user, setUser] = React.useState<AuthUser | null>(null);
+  const pathname = usePathname();
+  const isUsersActive = !pathname.startsWith("/compliance/notifications");
+  const isNotificationsActive = pathname.startsWith("/compliance/notifications");
 
   React.useEffect(() => {
     authApi
@@ -43,6 +49,7 @@ export default function ComplianceSidebar({
   }, []);
 
   const handleLogout = async () => {
+    await unsubscribePushForLogout();
     try {
       await authApi.logout();
     } catch (err) {
@@ -112,7 +119,11 @@ export default function ComplianceSidebar({
         <div className="relative group">
           <Link
             href="/compliance"
-            className="flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all duration-200 cursor-pointer bg-[#E4BA37] text-[#0A2881] font-bold shadow-md shadow-[#E4BA37]/20"
+            className={`flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all duration-200 cursor-pointer font-bold ${
+              isUsersActive
+                ? "bg-[#E4BA37] text-[#0A2881] shadow-md shadow-[#E4BA37]/20"
+                : "text-slate-200 hover:bg-white/10 hover:text-white"
+            }`}
           >
             <Users className="w-5 h-5 shrink-0" />
             {!isCollapsed && (
@@ -124,6 +135,28 @@ export default function ComplianceSidebar({
           {isCollapsed && (
             <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
               Users Tab
+            </div>
+          )}
+        </div>
+
+        <div className="relative group">
+          <Link
+            href="/compliance/notifications"
+            className={`flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all duration-200 cursor-pointer font-bold ${
+              isNotificationsActive
+                ? "bg-[#E4BA37] text-[#0A2881] shadow-md shadow-[#E4BA37]/20"
+                : "text-slate-200 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            <Bell className="w-5 h-5 shrink-0" />
+            {!isCollapsed && (
+              <span className="text-sm tracking-wide">Notifications</span>
+            )}
+          </Link>
+
+          {isCollapsed && (
+            <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
+              Notifications Tab
             </div>
           )}
         </div>

@@ -1,11 +1,19 @@
 import hashlib
 import hmac
+from unittest import mock
 
+from django.contrib.auth import get_user_model
+from django.core import mail
 from django.db import connection
 from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from asana_integration.models import AsanaWebhookSecret
+from asana_integration.services.asana import handle_task_moved_event
+from notifications.models import EmailDelivery, Notification
+from users.models import ClientProfile
+
+User = get_user_model()
 
 
 def _sign(secret: str, body: bytes) -> str:
@@ -274,3 +282,65 @@ class AsanaMultiKeyWebhookTests(APITestCase):
         self.assertTrue(raw["asana"].startswith("fernet:"))
         self.assertTrue(raw["windows"].startswith("fernet:"))
         self.assertNotIn("w-secret", raw["windows"])
+
+
+@override_settings(
+    EMAIL_NOTIFICATIONS_ENABLED=True,
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+)
+class AsanaTaskMovedNotificationTests(APITestCase):
+    """A section move notifies the client once, even if the event repeats."""
+
+    def setUp(self):
+        self.client_user = User.objects.create_user(
+            email="moved@example.com",
+            username="moved@example.com",
+            password="StrongPassword123!",
+            role="client",
+            is_active=True,
+        )
+        ClientProfile.objects.create(
+            user=self.client_user,
+            loan_status="Pending",
+            loan_status_history={"Pending": "2026-01-01T00:00:00+00:00"},
+        )
+
+    def _event(self, section="Under Review"):
+        return {
+            "action": "changed",
+            "resource": {"gid": "task-gid-1"},
+            "change": {
+                "field": "memberships",
+                "new_section": {"name": section},
+            },
+        }
+
+    def _handle(self, event):
+        with mock.patch(
+            "asana_integration.services.asana._task_email",
+            return_value="moved@example.com",
+        ), mock.patch("notifications.services.get_redis_client"), mock.patch(
+            "users.services.get_redis_client"
+        ):
+            handle_task_moved_event(event)
+
+    def test_task_moved_notifies_and_emails_the_client(self):
+        self._handle(self._event())
+
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.client_user).count(), 1
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Loan status updated", mail.outbox[0].subject)
+        delivery = EmailDelivery.objects.get()
+        self.assertEqual(delivery.status, EmailDelivery.Status.SENT)
+
+    def test_repeated_event_does_not_notify_or_email_twice(self):
+        self._handle(self._event())
+        self._handle(self._event())
+
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.client_user).count(), 1
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(EmailDelivery.objects.count(), 1)

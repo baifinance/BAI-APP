@@ -35,30 +35,27 @@ BAI Finance uses **JSON Web Tokens (JWT)** configured with **HttpOnly Cookies** 
 
 ---
 
-## Preseeded Accounts
+## Staff Account Provisioning
 
-The database migrations include an initial administrator/compliance account seeded into the system via migration `0002_auto_20260824_1151`:
+The legacy hardcoded seed account has been disabled by migration `0010_neutralize_seeded_compliance_account`. Fresh databases do not provide a usable default login.
 
-| Field | Value |
-| :--- | :--- |
-| **Email** | `compliance@bai.finance` |
-| **Password** | `SuperSecretPassword123!` (**EXAMPLE ONLY — rotate before any deploy**) |
-| **Role** | `compliance` |
-| **Status** | `active` |
-| **Permissions** | `is_staff=True`, `is_superuser=True` |
+Create staff accounts explicitly and assign a supported role:
 
-### Setting Up & Seeding the Database
-1. **Automatic Seeding**: Run `python manage.py migrate` (or start the project via `backend_start.bat`). Migration `0002_auto_20260824_1151` automatically checks for and creates the default compliance account if it does not already exist.
-2. **Re-seeding**: If the account was deleted and needs to be recreated:
-   ```bash
-   python manage.py migrate users 0001
-   python manage.py migrate users 0002
-   ```
-3. **Local Email Testing (Invitations)**: To test the invitation email dispatch without configuring SMTP credentials, set:
-   ```env
-   EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
-   ```
-   All invitation emails and activation links will be printed directly in your terminal console.
+```bash
+python manage.py createsuperuser
+python manage.py shell -c "from users.models import User; u=User.objects.get(email='you@example.com'); u.role='loan_processing'; u.save(update_fields=['role'])"
+```
+
+Never reuse a documented or shared password for a staff account.
+
+### Local Email Testing (Invitations)
+To test invitation email dispatch without configuring SMTP credentials, set:
+
+```env
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+```
+
+Invitation emails and activation links will be printed directly in your terminal console.
 
 ---
 
@@ -75,8 +72,8 @@ Authenticates credentials and sets secure JWT cookies (`jwt-access-token` and `j
 #### Request Body
 ```json
 {
-  "email": "compliance@bai.finance",
-  "password": "SuperSecretPassword123!"
+  "email": "staff@example.com",
+  "password": "your-password-here"
 }
 ```
 
@@ -90,8 +87,8 @@ Authenticates credentials and sets secure JWT cookies (`jwt-access-token` and `j
 {
   "user": {
     "id": "e83df3b8-6f6a-4d2c-8ab5-3b987b1c3123",
-    "email": "compliance@bai.finance",
-    "username": "compliance@bai.finance",
+    "email": "staff@example.com",
+    "username": "staff@example.com",
     "role": "compliance",
     "status": "active",
     "mfa_enabled": false,
@@ -159,8 +156,8 @@ Returns or updates profile details for the currently logged-in user.
 ```json
 {
   "id": "e83df3b8-6f6a-4d2c-8ab5-3b987b1c3123",
-  "email": "compliance@bai.finance",
-  "username": "compliance@bai.finance",
+  "email": "staff@example.com",
+  "username": "staff@example.com",
   "role": "compliance",
   "status": "active",
   "mfa_enabled": false,

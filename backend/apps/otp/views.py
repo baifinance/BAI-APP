@@ -1,7 +1,12 @@
+import logging
+
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, SimpleRateThrottle
 from django.conf import settings
+
+from audit.services import log_action
+from authentication.cookies import issue_session_cookies
 from users.models import User
 from .serializers import (
     OtpSendSerializer,
@@ -9,13 +14,14 @@ from .serializers import (
     PasswordResetSerializer,
 )
 from .utils import (
-    generate_otp,
-    store_otp,
     verify_otp,
     mark_otp_verified,
     clear_otp_verified,
 )
-from .services import send_otp_email
+from .services import issue_otp
+
+
+logger = logging.getLogger(__name__)
 
 class OtpSendThrottle(AnonRateThrottle):
     scope = "otp"
@@ -62,9 +68,10 @@ class OtpSendView(generics.CreateAPIView):
         if eligible:
             # login_2fa code live for 2 minutes; other OTPs use OTP_TTL
             ttl = settings.OTP_LOGIN_EXPIRY if purpose == "login_2fa" else settings.OTP_TTL
-            code = generate_otp(size=settings.OTP_SIZE)
-            store_otp(email, code, purpose=purpose, ttl=ttl)
-            send_otp_email(email, code, purpose=purpose)
+            try:
+                issue_otp(email, purpose=purpose, ttl=ttl)
+            except Exception:
+                logger.exception("Failed to send %s OTP", purpose)
 
         return Response(
             {"detail": "If an account exists for this email, a code has been sent."},
@@ -90,11 +97,33 @@ class OtpVerifyView(generics.GenericAPIView):
             return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
 
         if purpose == "login_2fa":
-            try:
-                user = User.objects.get(email__iexact=email)
-                mark_otp_verified(user.id)
-            except User.DoesNotExist:
-                pass
+            user = User.objects.filter(
+                email__iexact=email,
+                is_active=True,
+                mfa_enabled=True,
+            ).first()
+            if user is None:
+                return Response(
+                    {"error": "OTP verification failed."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            mark_otp_verified(user.id)
+            log_action(
+                "MFA_VERIFIED",
+                actor=user,
+                entity_type="User",
+                entity_id=user.id,
+                request=request,
+            )
+            response = Response(
+                {"message": message, "verified": True},
+                status=status.HTTP_200_OK,
+            )
+            # Login does not issue JWTs until MFA succeeds; this is where the
+            # session becomes usable.
+            issue_session_cookies(response, user)
+            return response
 
         return Response(
             {"message": message, "verified": True},

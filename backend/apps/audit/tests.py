@@ -1,9 +1,14 @@
+import redis
+
 from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from audit.models import AuditLog
 from audit.services import log_action
+from otp import utils as otp_utils
 from users.models import ClientProfile, User
+
+TEST_REDIS_URL = "redis://localhost:6379/15"
 
 
 def _make_user(email, role, **extra):
@@ -70,11 +75,26 @@ class LoanStatusAuditTests(APITestCase):
 
         record_loan_status_change(user, "Under Review")
 
-        self.assertTrue(
-            AuditLog.objects.filter(
-                action="LOAN_STATUS_CHANGED", entity_id=user.id
-            ).exists()
+        row = AuditLog.objects.get(
+            action="LOAN_STATUS_CHANGED",
+            entity_id=user.id,
         )
+        self.assertIsNone(row.actor)
+
+    def test_status_change_records_supplied_actor(self):
+        from users.services import record_loan_status_change
+
+        user = _make_user("client@example.com", "client")
+        staff = _make_user("staff@example.com", "loan_processing")
+        ClientProfile.objects.create(user=user)
+
+        record_loan_status_change(user, "Under Review", actor=staff)
+
+        row = AuditLog.objects.get(
+            action="LOAN_STATUS_CHANGED",
+            entity_id=user.id,
+        )
+        self.assertEqual(row.actor, staff)
 
 
 class AuditLogReadApiTests(APITestCase):
@@ -107,3 +127,97 @@ class AuditLogReadApiTests(APITestCase):
         resp = self.client.get(self.URL, {"action": "SEED_ACTION"})
         self.assertEqual(resp.data["count"], 1)
         self.assertEqual(resp.data["results"][0]["action"], "SEED_ACTION")
+
+    def test_valid_entity_id_filter(self):
+        self.client.force_authenticate(self.compliance)
+        log_action("ENTITY_ACTION", entity_type="User", entity_id=self.compliance.id)
+
+        resp = self.client.get(self.URL, {"entity_id": str(self.compliance.id)})
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["count"], 1)
+        self.assertEqual(resp.data["results"][0]["action"], "ENTITY_ACTION")
+
+    def test_blank_filters_are_ignored(self):
+        self.client.force_authenticate(self.compliance)
+
+        resp = self.client.get(self.URL, {"action": "", "entity_id": ""})
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["count"], 2)
+
+    def test_invalid_entity_id_returns_400(self):
+        self.client.force_authenticate(self.compliance)
+
+        resp = self.client.get(self.URL, {"entity_id": "not-a-uuid"})
+
+        self.assertEqual(resp.status_code, 400)
+
+    def test_invalid_actor_returns_400(self):
+        self.client.force_authenticate(self.compliance)
+
+        resp = self.client.get(self.URL, {"actor": "not-a-uuid"})
+
+        self.assertEqual(resp.status_code, 400)
+
+    def test_invalid_since_returns_400(self):
+        self.client.force_authenticate(self.compliance)
+
+        resp = self.client.get(self.URL, {"since": "not-a-date"})
+
+        self.assertEqual(resp.status_code, 400)
+
+    def test_invalid_until_returns_400(self):
+        self.client.force_authenticate(self.compliance)
+
+        resp = self.client.get(self.URL, {"until": "not-a-date"})
+
+        self.assertEqual(resp.status_code, 400)
+
+    def test_since_after_until_returns_400(self):
+        self.client.force_authenticate(self.compliance)
+
+        resp = self.client.get(
+            self.URL,
+            {
+                "since": "2026-10-21T12:00:00Z",
+                "until": "2026-10-21T11:00:00Z",
+            },
+        )
+
+        self.assertEqual(resp.status_code, 400)
+
+
+class AuditOtpGateTests(APITestCase):
+    URL = "/api/audit/logs/"
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        otp_utils._redis_client = redis.from_url(TEST_REDIS_URL)
+
+    def setUp(self):
+        otp_utils.get_redis_client().flushdb()
+        self.compliance = _make_user(
+            "mfa-compliance@example.com",
+            "compliance",
+            mfa_enabled=True,
+        )
+        self.client.force_authenticate(self.compliance)
+
+    def tearDown(self):
+        otp_utils.get_redis_client().flushdb()
+
+    def test_audit_reader_requires_otp_verification(self):
+        resp = self.client.get(self.URL)
+
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(
+            resp.data.get("detail"),
+            "OTP verification required.",
+        )
+
+    def test_audit_reader_unlocks_after_otp_verification(self):
+        otp_utils.mark_otp_verified(self.compliance.id)
+
+        self.assertEqual(self.client.get(self.URL).status_code, 200)

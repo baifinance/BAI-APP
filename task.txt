@@ -1,0 +1,47 @@
+BAI-APP - Tasks completed today (2026-10-21)
+
+NOTIFICATION SYSTEM (new feature, Plan A + Plan B)
+- Backend foundation: NotificationPreference, PushSubscription, EmailDelivery,
+  EmailSuppression models + migration notifications.0002
+- APIs: preferences GET/PATCH, push config/subscribe/unsubscribe/test,
+  signed email-preferences endpoint
+- Web Push dispatch via VAPID (pywebpush), SSE fan-out on publish
+- Gmail SMTP email outbox + render templates + retry/backoff
+- Frontend: service worker, manifest, push registration, settings panels on
+  client / broker / loan-processing / compliance, compliance notifications page,
+  public email-preferences page, logout cleanup, CSP worker-src
+
+INLINE EMAIL DELIVERY (Option A - no cron, no worker service)
+- Email now sends in the same request that publishes the notification
+  (notifications/services.py)
+- Duplicate guard: apply_loan_status_change() returns a "changed" flag;
+  Asana webhook retries and repeated LP moves no longer notify/email twice
+- EMAIL_TIMEOUT=5 so a slow SMTP server cannot stall the webhook response
+- Test runner forces the in-memory email backend so tests never send real mail
+
+TESTS / DOCS
+- +10 tests: inline send, SMTP-failure resilience, channel-off, webhook dedupe,
+  changed-flag. Full suite: 123 passing
+- backend/README.md + .env.example updated
+
+VERIFICATION PERFORMED
+- VAPID key pair validated (signs correctly, matches public key)
+- Gmail SMTP reachable on 587 (STARTTLS ok)
+- Live email delivered: 3 sends, all "sent"
+- Push dispatch verified against a mock push service (valid VAPID JWT,
+  aes128gcm body, ttl 86400)
+- Real signed Asana webhook -> 200 + notification + email; bad signature -> 403
+- Browser push subscribed + real device notification confirmed (Firefox,
+  Mozilla push endpoint, push_enabled=True)
+- Enabled PUSH_NOTIFICATIONS_ENABLED / EMAIL_NOTIFICATIONS_ENABLED in .env
+
+STILL OPEN
+- Railway: apply migration, set env vars, FRONTEND_BASE_URL to prod domain
+- Broker / loan-processing portals still poll every 30s (no SSE toasts)
+- Nothing committed yet
+
+NOTES
+- Push is per browser: Chrome/Edge need their own opt-in, iOS Safari needs the
+  PWA installed. Production push requires HTTPS (localhost is exempt).
+- Test cleanup briefly deleted the laptop's push_subscription row (05:52);
+  the frontend re-synced it on reload at 06:12, so it self-heals.

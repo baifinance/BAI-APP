@@ -33,6 +33,7 @@ from bookings.serializers import (
     AvailableSlotSerializer,
 )
 from authentication.permissions import IsOtpVerified
+from bookings.notifications import notify_booking_created, notify_booking_updated
 
 class AvailableSlotsView(APIView):
     """Returns the logged-in user's designated broker's published available slots for a given date."""
@@ -109,6 +110,10 @@ class BookingListCreateView(generics.ListCreateAPIView):
             return Booking.objects.all()
         return Booking.objects.none()
 
+    def perform_create(self, serializer):
+        booking = serializer.save()
+        notify_booking_created(booking)
+
 
 class BookingDetailView(generics.RetrieveUpdateAPIView):
     """Retrieve or update (cancel/reschedule/confirm) a booking."""
@@ -128,6 +133,27 @@ class BookingDetailView(generics.RetrieveUpdateAPIView):
         elif user.role == UserRole.LOAN_PROCESSING:
             return Booking.objects.all()
         return Booking.objects.none()
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        previous_status = instance.status
+        previous_slot_time = instance.slot_time
+
+        response = super().update(request, *args, **kwargs)
+
+        instance.refresh_from_db()
+        if (
+            instance.status != previous_status
+            or instance.slot_time != previous_slot_time
+        ):
+            notify_booking_updated(
+                instance,
+                previous_status,
+                previous_slot_time,
+                actor=request.user,
+            )
+
+        return response
 
 class BrokerListView(generics.ListAPIView):
     """Returns a list of active brokers for dropdown selection."""

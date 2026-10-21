@@ -45,12 +45,24 @@ def store_otp(email, code, purpose="login", ttl=settings.OTP_TTL):
         "purpose": purpose,
         "attempts": 0
     }
-    get_redis_client().setex(
+    attempts_key = f"{key}:attempts"
+    client = get_redis_client()
+    pipeline = client.pipeline()
+    pipeline.setex(
         name=key,
         time=ttl,
         value=json.dumps(payload)
     )
+    pipeline.delete(attempts_key)
+    pipeline.execute()
     return key
+
+
+def clear_otp(email, purpose="login"):
+    """Remove an OTP and its failed-attempt counter."""
+    key = f"otp:{purpose}:{email.lower()}"
+    get_redis_client().delete(key, f"{key}:attempts")
+
 
 MAX_OTP_ATTEMPTS = 3
 
@@ -77,15 +89,15 @@ def verify_otp(email, code, purpose="login", consume=True):
         attempts = client.incr(attempts_key)
         client.expire(attempts_key, payload.get("ttl", settings.OTP_TTL))
         if attempts >= MAX_OTP_ATTEMPTS:
-            client.delete(key)
-            client.delete(attempts_key)
+            clear_otp(email, purpose)
             return False, "Account locked. Too many failed attempts."
         return False, f"Invalid OTP. {MAX_OTP_ATTEMPTS - attempts} attempts remaining."
 
     # Success - consume OTP if requested
     if consume:
-        client.delete(key)
-    client.delete(attempts_key)
+        clear_otp(email, purpose)
+    else:
+        client.delete(attempts_key)
     return True, "OTP Verified"
 
 def create_login_challenge(email):

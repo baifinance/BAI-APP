@@ -27,7 +27,12 @@ from django.utils import timezone
 from datetime import timedelta
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
-from authentication.permissions import IsLoanProcessingTeam
+from authentication.cookies import (
+    ROLE_COOKIE,
+    clear_session_cookies,
+    set_role_cookie,
+)
+from authentication.permissions import IsLoanProcessingTeam, IsOtpVerified
 from authentication.serializers import LoanProcessingAccountCreateSerializer
 from audit.services import log_action
 
@@ -47,8 +52,8 @@ class InviteThrottle(ScopedRateThrottle):
     scope = "invite"
 from authentication.serializers import SendInviteSerializer, InvitationAcceptSerializer
 
-from otp.services import send_otp_email
-from otp.utils import create_login_challenge, clear_otp_verified
+from otp.services import issue_otp
+from otp.utils import clear_otp_verified
 
 
 logger = logging.getLogger(__name__)
@@ -80,10 +85,10 @@ class DisabledPasswordResetView(generics.GenericAPIView):
 
 class LoanProcessingAccountCreateView(generics.CreateAPIView):
     serializer_class = LoanProcessingAccountCreateSerializer
-    permission_classes = [IsLoanProcessingTeam]
+    permission_classes = [IsLoanProcessingTeam, IsOtpVerified]
 
     def perform_create(self, serializer):
-        user = serializer.save(request=self.request)
+        user = serializer.save()
         invitation = getattr(user, "invitation", None)
 
         log_action(
@@ -160,35 +165,35 @@ class LoginView(DjRestAuthLoginView):
                 request=self.request,
             )
 
-        # Set an HttpOnly, server-authoritative role cookie for portal routing.
-        # It stays unreadable to JS (mitigating XSS tampering) while the Next.js
-        # proxy/middleware can still read it server-side. The backend enforces
-        # RBAC regardless, so this is a routing hint, not an authZ control.
-        if user is not None:
-            refresh_lifetime = settings.SIMPLE_JWT.get("REFRESH_TOKEN_LIFETIME")
-            response.set_cookie(
-                "user-role",
-                user.role,
-                max_age=(
-                    int(refresh_lifetime.total_seconds())
-                    if refresh_lifetime
-                    else 60 * 60 * 24 * 7
-                ),
-                httponly=True,
-                samesite=settings.REST_AUTH.get("JWT_AUTH_SAMESITE", "Lax"),
-                secure=settings.REST_AUTH.get("JWT_AUTH_SECURE", False),
-                path="/",
-            )
-
-        if user and user.mfa_enabled:
+        if user is not None and user.mfa_enabled:
+            # Never hand out a usable session before the second factor is
+            # verified. The OTP verify endpoint issues the JWT + role cookies
+            # once the challenge is satisfied; otherwise a reloaded tab would
+            # be bounced back into a portal that rejects every IsOtpVerified
+            # request (login → portal → 403 → login loop).
+            clear_session_cookies(response)
             try:
-                code = create_login_challenge(user.email)
-                send_otp_email(user.email, code, purpose="login_2fa")
+                issue_otp(
+                    user.email,
+                    purpose="login_2fa",
+                    ttl=settings.OTP_LOGIN_EXPIRY,
+                )
             except Exception:
                 logger.exception("Failed to send login OTP for user %s", user.pk)
+                response.data = {
+                    "detail": "Unable to send a verification code. Please try again."
+                }
+                response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+                return response
+
             response.data["otp_required"] = True
             response.data["otp_expires_in"] = settings.OTP_LOGIN_EXPIRY
-                
+        elif user is not None:
+            # Set an HttpOnly, server-authoritative role cookie for portal
+            # routing. It stays unreadable to JS (mitigating XSS tampering)
+            # while the Next.js proxy can still read it server-side. The backend
+            # enforces RBAC regardless, so this is a routing hint, not authZ.
+            set_role_cookie(response, user)
 
         return response
 
@@ -199,7 +204,7 @@ class LogoutView(DjRestAuthLogoutView):
     def post(self, request, *args, **kwargs):
         user = getattr(request, "user", None)
         response = super().post(request, *args, **kwargs)
-        response.delete_cookie("user-role", path="/")
+        response.delete_cookie(ROLE_COOKIE, path="/")
         if user is not None and getattr(user, "is_authenticated", False):
             clear_otp_verified(user.id)
             log_action(
@@ -307,7 +312,7 @@ class SendInviteView(generics.CreateAPIView):
     POST /api/auth/invitations/send/
     """
     serializer_class = SendInviteSerializer
-    permission_classes = [IsLoanProcessingTeam]
+    permission_classes = [IsLoanProcessingTeam, IsOtpVerified]
     throttle_classes = [InviteThrottle]
     throttle_scope = "invite"
 
@@ -362,10 +367,22 @@ class InvitationValidateView(generics.GenericAPIView):
 
         user = invitation.user
         compliance_name = ""
-        inviter = invitation.sent_by or getattr(user, "invited_by", None)
-        if inviter:
+        if invitation.sent_by:
+            inviter = invitation.sent_by
             full_name = f"{inviter.first_name} {inviter.last_name}".strip()
             compliance_name = full_name or inviter.email or ""
+
+        # Clients are assigned to a broker when the invitation is created; the
+        # activation form only displays that assignment. It is not client-
+        # selectable, and anonymous callers cannot list brokers.
+        broker = getattr(user, "invited_by", None)
+        broker_id = None
+        broker_name = ""
+        if broker and broker.role == UserRole.BROKER:
+            broker_id = str(broker.id)
+            broker_name = (
+                f"{broker.first_name} {broker.last_name}".strip() or broker.email
+            )
 
         return Response(
             {
@@ -374,6 +391,8 @@ class InvitationValidateView(generics.GenericAPIView):
                 "role": user.role,
                 "invited_by": compliance_name,
                 "compliance_name": compliance_name,
+                "broker_id": broker_id,
+                "broker_name": broker_name,
             }
         )
 
@@ -412,7 +431,7 @@ class InvitationResendView(generics.GenericAPIView):
     POST /api/auth/invitations/<id>/resend/
     Loan Processing only — state-changing, must be POST with CSRF.
     """
-    permission_classes = [IsLoanProcessingTeam]
+    permission_classes = [IsLoanProcessingTeam, IsOtpVerified]
     throttle_classes = [InviteThrottle]
     throttle_scope = "invite"
     queryset = Invitation.objects.select_related("user")
@@ -455,7 +474,7 @@ class InvitationRevokeView(generics.GenericAPIView):
     POST /api/auth/invitations/<id>/revoke/
     Loan Processing only — state-changing, must be POST with CSRF.
     """
-    permission_classes = [IsLoanProcessingTeam]
+    permission_classes = [IsLoanProcessingTeam, IsOtpVerified]
     throttle_classes = [InviteThrottle]
     throttle_scope = "invite"
     queryset = Invitation.objects.select_related("user")

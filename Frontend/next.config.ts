@@ -24,6 +24,7 @@ const PROD_CSP = [
     .filter(Boolean)
     .join(" "),
   "frame-src https://challenges.cloudflare.com",
+  "worker-src 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

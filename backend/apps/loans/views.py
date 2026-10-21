@@ -28,7 +28,7 @@ from django.contrib.auth import get_user_model
 
 from users.choices import UserRole
 from users.models import ClientProfile
-from users.services import record_loan_status_change
+from users.services import apply_loan_status_change
 from notifications.choices import NotificationType
 from notifications.services import create_notification, publish_stream_notification
 
@@ -149,23 +149,28 @@ class LoanStatusUpdateView(APIView):
         ).first()
 
         if client_user:
-            record_loan_status_change(client_user, loan_status)
-
-            notification = create_notification(
-                recipient=client_user,
-                notification_type=NotificationType.LOAN_STATUS,
-                title="Loan status updated",
-                message=(
-                    f"Your loan status has been updated to "
-                    f"{loan_status.replace('_', ' ').title()}."
-                ),
+            _profile, changed = apply_loan_status_change(
+                client_user,
+                loan_status,
+                actor=request.user,
             )
 
-            publish_stream_notification(
-                client_user.id,
-                notification,
-                loan_status=loan_status
-            )
+            if changed:
+                notification = create_notification(
+                    recipient=client_user,
+                    notification_type=NotificationType.LOAN_STATUS,
+                    title="Loan status updated",
+                    message=(
+                        f"Your loan status has been updated to "
+                        f"{loan_status.replace('_', ' ').title()}."
+                    ),
+                )
+
+                publish_stream_notification(
+                    client_user.id,
+                    notification,
+                    loan_status=loan_status
+                )
 
         return Response(
             {

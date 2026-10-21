@@ -3,9 +3,10 @@
 from rest_framework import generics
 
 from audit.models import AuditLog
+from authentication.permissions import IsOtpVerified
 from audit.pagination import AuditLogPagination
 from audit.permissions import IsAuditReader
-from audit.serializers import AuditLogSerializer
+from audit.serializers import AuditLogQuerySerializer, AuditLogSerializer
 
 
 class AuditLogListView(generics.ListAPIView):
@@ -16,35 +17,42 @@ class AuditLogListView(generics.ListAPIView):
     """
 
     serializer_class = AuditLogSerializer
-    permission_classes = [IsAuditReader]
+    permission_classes = [IsAuditReader, IsOtpVerified]
     pagination_class = AuditLogPagination
     queryset = AuditLog.objects.select_related("actor").all()
 
     def get_queryset(self):
         qs = super().get_queryset()
-        params = self.request.query_params
+        params = {
+            key: value
+            for key, value in self.request.query_params.items()
+            if value
+        }
+        query = AuditLogQuerySerializer(data=params)
+        query.is_valid(raise_exception=True)
+        filters = query.validated_data
 
-        action = params.get("action")
+        action = filters.get("action")
         if action:
             qs = qs.filter(action=action)
 
-        entity_type = params.get("entity_type")
+        entity_type = filters.get("entity_type")
         if entity_type:
             qs = qs.filter(entity_type=entity_type)
 
-        entity_id = params.get("entity_id")
+        entity_id = filters.get("entity_id")
         if entity_id:
             qs = qs.filter(entity_id=entity_id)
 
-        actor = params.get("actor")
+        actor = filters.get("actor")
         if actor:
             qs = qs.filter(actor_id=actor)
 
-        since = params.get("since")
+        since = filters.get("since")
         if since:
             qs = qs.filter(occurred_at__gte=since)
 
-        until = params.get("until")
+        until = filters.get("until")
         if until:
             qs = qs.filter(occurred_at__lte=until)
 

@@ -29,15 +29,52 @@ environ.Env.read_env(BASE_DIR / ".env")
 FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
 
 # Email / SMTP
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"
+)
 EMAIL_HOST = os.getenv("EMAIL_HOST")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() in ("true", "1", "yes")
+# Bound how long a notification email may hold an inbound request open. The
+# Asana webhook returns inline, so a slow SMTP server must not stall it.
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "5"))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv(
     "DEFAULT_FROM_EMAIL", "BAI Finance <no-reply@baifinance.com>"
 )
+
+# Notification delivery channels. Both are opt-in at deploy time; the database
+# tables and endpoints stay available so enabling a channel is a config change.
+PUSH_NOTIFICATIONS_ENABLED = env.bool(
+    "PUSH_NOTIFICATIONS_ENABLED",
+    default=False,
+)
+EMAIL_NOTIFICATIONS_ENABLED = env.bool(
+    "EMAIL_NOTIFICATIONS_ENABLED",
+    default=False,
+)
+
+# Web Push VAPID identity. Generate once with ``py-vapid`` and keep the private
+# key out of source control. The admin email must be a mailto: URL.
+VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "").strip()
+VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "").strip()
+VAPID_ADMIN_EMAIL = os.getenv(
+    "VAPID_ADMIN_EMAIL", "mailto:no-reply@baifinance.com"
+).strip()
+WEB_PUSH_TTL = int(os.getenv("WEB_PUSH_TTL", "86400"))
+
+# Notification email outbox retry policy.
+NOTIFICATION_EMAIL_BATCH_SIZE = int(
+    os.getenv("NOTIFICATION_EMAIL_BATCH_SIZE", "50")
+)
+NOTIFICATION_EMAIL_MAX_ATTEMPTS = int(
+    os.getenv("NOTIFICATION_EMAIL_MAX_ATTEMPTS", "5")
+)
+NOTIFICATION_EMAIL_TOKEN_MAX_AGE = int(
+    os.getenv("NOTIFICATION_EMAIL_TOKEN_MAX_AGE", "2592000")
+)
+
 
 SECRET_KEY = env("SECRET_KEY")
 
@@ -92,6 +129,10 @@ INSTALLED_APPS = [
     "asana_integration",
     "notifications"
 ]
+
+# Force the in-memory email backend for every test run so a dev .env pointing
+# at real SMTP cannot deliver live emails from the test suite.
+TEST_RUNNER = "config.test_runner.NotificationSafeTestRunner"
 
 REST_AUTH = {
     "USE_JWT": True,
@@ -172,6 +213,7 @@ REST_FRAMEWORK = {
         "invite": "20/hour",
         "session": "10/hour",
         "transcript": "5/hour",
+        "push_test": "10/hour",
     },
 }
 

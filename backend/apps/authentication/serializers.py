@@ -25,6 +25,14 @@ class LoanProcessingAccountCreateSerializer(serializers.Serializer):
     first_name = serializers.CharField(required=False, allow_blank=True)
     last_name = serializers.CharField(required=False, allow_blank=True)
 
+    def validate_email(self, value):
+        email = value.strip().lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError(
+                "A user with this email already exists."
+            )
+        return email
+
     def create(self, validated_data):
         request = self.context["request"]
 

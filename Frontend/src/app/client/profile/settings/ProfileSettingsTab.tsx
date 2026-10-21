@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { ClientData } from "../../types";
 import { usersApi, authApi } from "@/lib/api";
+import NotificationSettings from "@/components/NotificationSettings";
 
 interface ProfileSettingsTabProps {
   client: ClientData;
@@ -368,6 +369,8 @@ export default function ProfileSettingsTab({
           />
         </button>
       </div>
+
+      <NotificationSettings />
 
       {/* Error banner (if an error occurs outside of modals) */}
       {mfaError && !showMfaEnable && !showDisableModal && (

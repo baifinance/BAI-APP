@@ -9,6 +9,7 @@ import Link from "next/link";
 import { API_BASE } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import MobileNavRail from "@/components/MobileNavRail";
+import { unsubscribePushForLogout } from "@/lib/push";
 
 const getActiveTab = (pathname: string) => {
   if (pathname.includes("/loan-processing/dashboard")) return "Dashboard";
@@ -42,6 +43,7 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
   }, []);
 
   const handleLogout = async () => {
+    await unsubscribePushForLogout();
     try {
       await fetch(API_BASE + "/api/auth/logout/", {
         method: "POST",

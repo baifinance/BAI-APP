@@ -13,6 +13,8 @@
 #   from rest_framework import generics, viewsets
 # -----------------------------------------------------------------------
 
+import logging
+
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from authentication.permissions import IsOtpVerified, IsLoanProcessingTeam
@@ -24,8 +26,8 @@ from audit.services import log_action
 
 from users.models import User
 from users.pagination import UserListPagination
-from otp.utils import generate_otp, store_otp, verify_otp, mark_otp_verified
-from otp.services import send_otp_email
+from otp.utils import verify_otp, mark_otp_verified
+from otp.services import issue_otp
 from users.serializers import (
     ProfileSerializer,
     MfaEnableSerializer,
@@ -34,6 +36,9 @@ from users.serializers import (
 )
 from notifications.choices import NotificationType
 from notifications.services import create_notification, publish_stream_notification
+
+
+logger = logging.getLogger(__name__)
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
@@ -64,9 +69,18 @@ class MfaEnableSendView(generics.GenericAPIView):
 
     def post(self, request, *args, **kwargs):
         user = request.user
-        code = generate_otp(size=settings.OTP_SIZE)
-        store_otp(user.email, code, purpose="mfa_enable", ttl=settings.OTP_TTL)
-        send_otp_email(user.email, code, purpose="mfa_enable")
+        try:
+            issue_otp(
+                user.email,
+                purpose="mfa_enable",
+                ttl=settings.OTP_TTL,
+            )
+        except Exception:
+            logger.exception("Failed to send MFA enable OTP for user %s", user.pk)
+            return Response(
+                {"detail": "Unable to send a verification code. Please try again."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         return Response(
             {"detail": "Verification code sent to your email."},
             status=status.HTTP_200_OK
@@ -168,7 +182,11 @@ class UserListView(generics.ListAPIView):
     Used by the Compliance portal and user administration.
     """
     serializer_class = RegisteredUserSerializer
-    permission_classes = [permissions.IsAuthenticated, IsLoanProcessingTeam]
+    permission_classes = [
+        permissions.IsAuthenticated,
+        IsLoanProcessingTeam,
+        IsOtpVerified,
+    ]
     pagination_class = UserListPagination
 
     def get_queryset(self):

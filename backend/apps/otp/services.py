@@ -5,6 +5,8 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
 
+from .utils import clear_otp, generate_otp, store_otp
+
 PURPOSE_LABELS = {
     "login": "log in",
     "signup": "verify your email",
@@ -40,7 +42,7 @@ def send_otp_email(email, code, purpose="login", expires_in=None):
     subject = "Your Bai App Verification code"
     message = (
         f"Your Bai App verification code is: {code}\n\n"
-        f"Use it to {purpose_label}. It expires in {expires_in} seconds"
+        f"Use it to {purpose_label}. It expires in {expires_in} seconds\n\n"
         "If you did not request this, please ignore this email."
     )
     context = {
@@ -59,3 +61,21 @@ def send_otp_email(email, code, purpose="login", expires_in=None):
         html_message=render_to_string("send_otp.html", context),
         fail_silently=False
     )
+
+
+def issue_otp(email, purpose="login", ttl=None, size=None):
+    """Generate, store, and deliver an OTP, clearing state if delivery fails."""
+    if ttl is None:
+        ttl = (
+            settings.OTP_LOGIN_EXPIRY
+            if purpose == "login_2fa"
+            else settings.OTP_TTL
+        )
+    code = generate_otp(size=size or getattr(settings, "OTP_SIZE", 6))
+    store_otp(email, code, purpose=purpose, ttl=ttl)
+    try:
+        send_otp_email(email, code, purpose=purpose, expires_in=ttl)
+    except Exception:
+        clear_otp(email, purpose)
+        raise
+    return code

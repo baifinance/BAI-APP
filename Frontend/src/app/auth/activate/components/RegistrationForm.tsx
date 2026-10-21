@@ -28,6 +28,8 @@ interface TokenValidationResponse {
   email: string;
   invited_by?: string;
   compliance_name?: string;
+  broker_id?: string | null;
+  broker_name?: string;
   error?: string;
 }
 
@@ -36,7 +38,7 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
   // 2. STATE MANAGEMENT: FORM FIELDS & UI CONTROLS
   // ============================================================================
   const [role, setRole] = useState<"client" | "broker">("client");
-  const [email, setEmail] = useState("");
+
   const [complianceName, setComplianceName] = useState("");
 
   // User details inputs
@@ -50,7 +52,10 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordMismatchError, setPasswordMismatchError] = useState("");
+  const passwordMismatchError =
+    confirmPassword.length > 0 && password !== confirmPassword
+      ? "Password mismatch."
+      : "";
 
   // Feedback, loading & token validation states
   const [errorMsg, setErrorMsg] = useState("");
@@ -58,11 +63,8 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
   const [isValidating, setIsValidating] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Broker selection for client invites
-  const [brokers, setBrokers] = useState<
-    { id?: string; user_id?: string; name?: string; first_name?: string; last_name?: string; email: string }[]
-  >([]);
-  const [selectedBrokerId, setSelectedBrokerId] = useState("");
+  // Broker assigned by the inviter (read-only; clients cannot list brokers).
+  const [assignedBrokerName, setAssignedBrokerName] = useState("");
 
   // ============================================================================
   // 3. TOKEN VALIDATION & COMPLIANCE ACCOUNT RETRIEVAL
@@ -78,23 +80,28 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
           const data: TokenValidationResponse = await res.json();
           if (data.valid) {
             setRole(data.role || "client");
-            setEmail(data.email || "");
             const inviter = data.invited_by || data.compliance_name || "";
             setComplianceName(inviter || "Compliance Team");
+            setAssignedBrokerName(
+              data.role === "client" ? data.broker_name || "" : "",
+            );
           } else {
             setTokenError(data.error || "This invitation link is invalid or has expired.");
           }
         } else {
-          // Fallback for standalone frontend demonstration mode
-          setRole("client");
-          setEmail("invited.user@example.com");
-          setComplianceName("Compliance Team");
+          let detail = "This invitation link is invalid or has expired.";
+          try {
+            const data = await res.json();
+            detail = data.error || data.detail || detail;
+          } catch {
+            // Keep the generic message when the server returns a non-JSON body.
+          }
+          setTokenError(detail);
         }
       } catch {
-        // Fallback when backend is unreachable during frontend-only runs
-        setRole("client");
-        setEmail("invited.user@example.com");
-        setComplianceName("Compliance Team");
+        setTokenError(
+          "Unable to validate this invitation right now. Please check your connection and try again.",
+        );
       } finally {
         setIsValidating(false);
       }
@@ -103,44 +110,9 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
     validateToken();
   }, [token]);
 
-  // Fetch active brokers if client requires broker assignment
-  useEffect(() => {
-    if (role === "client") {
-      async function fetchBrokers() {
-        try {
-          const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-          let res = await fetch(`${baseUrl}/api/brokers/`, { credentials: "include" });
-          if (!res.ok) {
-            res = await fetch(`${baseUrl}/api/bookings/brokers/`, { credentials: "include" });
-          }
-          if (res.ok) {
-            const data = await res.json();
-            const brokerList = Array.isArray(data) ? data : [];
-            setBrokers(brokerList);
-            if (brokerList.length > 0) {
-              setSelectedBrokerId(brokerList[0].user_id || brokerList[0].id || "");
-            }
-          }
-        } catch {
-          // Ignore silently if broker API is unavailable
-        }
-      }
-      fetchBrokers();
-    }
-  }, [role]);
-
   // ============================================================================
   // 4. PASSWORD VALIDATION & MATCHING LOGIC
   // ============================================================================
-  // Evaluate password mismatch whenever password or confirm password changes
-  useEffect(() => {
-    if (confirmPassword.length > 0 && password !== confirmPassword) {
-      setPasswordMismatchError("Password mismatch.");
-    } else {
-      setPasswordMismatchError("");
-    }
-  }, [password, confirmPassword]);
-
   // Compute password complexity criteria
   const pwChecks = useMemo(() => {
     const checks = {
@@ -198,7 +170,6 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
     // Validate password confirmation match
     if (password !== confirmPassword) {
       setErrorMsg("Password mismatch.");
-      setPasswordMismatchError("Password mismatch.");
       return;
     }
 
@@ -226,28 +197,44 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
 
       if (role === "broker") {
         payload.license_no = licenseNo.trim();
-      } else if (role === "client" && selectedBrokerId) {
-        payload.broker_id = selectedBrokerId;
       }
 
-      const res = await fetch(`${baseUrl}/api/auth/invitations/accept/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).catch(() => null);
+      let res: Response;
+      try {
+        res = await fetch(`${baseUrl}/api/auth/invitations/accept/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch {
+        throw new Error(
+          "Unable to reach the server. Please check your connection and try again.",
+        );
+      }
 
-      if (res && !res.ok) {
-        const data = await res.json();
+      if (!res.ok) {
+        let data: Record<string, unknown> = {};
+        try {
+          data = await res.json();
+        } catch {
+          // Non-JSON error body — fall through to the generic message.
+        }
+        const firstError = (value: unknown): string | undefined => {
+          if (typeof value === "string") return value;
+          if (Array.isArray(value) && typeof value[0] === "string") return value[0];
+          return undefined;
+        };
         const backendError =
-          data.password_confirm?.[0] ||
-          data.license_no?.[0] ||
-          data.token?.[0] ||
-          data.password?.[0] ||
-          data.first_name?.[0] ||
-          data.middle_name?.[0] ||
-          data.last_name?.[0] ||
-          data.email?.[0] ||
-          data.non_field_errors?.[0] ||
+          firstError(data.password_confirm) ||
+          firstError(data.license_no) ||
+          firstError(data.token) ||
+          firstError(data.password) ||
+          firstError(data.first_name) ||
+          firstError(data.middle_name) ||
+          firstError(data.last_name) ||
+          firstError(data.email) ||
+          firstError(data.non_field_errors) ||
+          firstError(data.detail) ||
           "Registration failed. Please try again.";
         throw new Error(backendError);
       }
@@ -466,31 +453,15 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
             </div>
           )}
 
-          {/* Client-only: Assign to Broker (if available) */}
-          {!isBroker && brokers.length > 0 && (
+          {/* Client-only: broker assigned by the inviter (read-only). */}
+          {!isBroker && (
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                ASSIGN TO BROKER
+                YOUR BROKER
               </label>
-              <select
-                value={selectedBrokerId}
-                onChange={(e) => setSelectedBrokerId(e.target.value)}
-                className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#4361EE] focus:ring-1 focus:ring-[#4361EE] focus:bg-white transition-all font-medium cursor-pointer"
-              >
-                {brokers.map((b, idx) => {
-                  const brokerId = b.user_id || b.id;
-                  const displayName =
-                    b.name ||
-                    `${b.first_name || ""} ${b.last_name || ""}`.trim() ||
-                    b.email ||
-                    `Broker #${idx + 1}`;
-                  return (
-                    <option key={brokerId || idx} value={brokerId}>
-                      {displayName} {b.email ? `(${b.email})` : ""}
-                    </option>
-                  );
-                })}
-              </select>
+              <div className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 font-medium">
+                {assignedBrokerName || "No broker assigned yet"}
+              </div>
             </div>
           )}
 

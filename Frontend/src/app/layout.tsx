@@ -21,6 +21,12 @@ export const metadata: Metadata = {
   keywords: ["Loan Brokerage", "Australia Home Loans", "Philippines Finance", "Loan Tracking", "BAI Finance"],
   icons: {
     icon: "/bai_logo_blue.png",
+    apple: "/bai_logo_blue.png",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "BAI Finance",
+    statusBarStyle: "default",
   },
 };
 

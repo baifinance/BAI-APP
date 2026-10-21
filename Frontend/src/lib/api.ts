@@ -283,6 +283,32 @@ export interface NotificationApiResponse {
     read_at: string | null;
 }
 
+export interface NotificationPreference {
+    push_enabled: boolean;
+    email_critical_enabled: boolean;
+    email_optional_enabled: boolean;
+    updated_at: string;
+}
+
+export interface PushConfig {
+    enabled: boolean;
+    public_key: string;
+}
+
+export interface PushSubscriptionPayload {
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+    user_agent?: string;
+}
+
+export interface EmailPreferences {
+    email?: string;
+    push_enabled?: boolean;
+    email_critical_enabled: boolean;
+    email_optional_enabled: boolean;
+}
+
 export const notificationsApi = {
     list: (unreadOnly = false) =>
       request<NotificationApiResponse[]>(
@@ -298,7 +324,50 @@ export const notificationsApi = {
       request<{ updated_count: number }>("/api/notifications/mark-all-read/", {
         method: "POST",
       }),
+
+    getPreferences: () =>
+      request<NotificationPreference>("/api/notifications/preferences/"),
+
+    updatePreferences: (data: Partial<NotificationPreference>) =>
+      request<NotificationPreference>("/api/notifications/preferences/", {
+        method: "PATCH",
+        json: data,
+      }),
+
+    getPushConfig: () =>
+      request<PushConfig>("/api/notifications/push/config/"),
+
+    subscribePush: (data: PushSubscriptionPayload) =>
+      request<{ subscribed: boolean; subscription_id: string }>(
+        "/api/notifications/push/subscribe/",
+        { method: "POST", json: data },
+      ),
+
+    unsubscribePush: (endpoint: string) =>
+      request<{ subscribed: boolean }>("/api/notifications/push/unsubscribe/", {
+        method: "POST",
+        json: { endpoint },
+      }),
+
+    sendTestPush: () =>
+      request<{ sent: number }>("/api/notifications/push/test/", {
+        method: "POST",
+      }),
 };
+
+export const emailPreferencesApi = {
+    get: (token: string) =>
+      request<EmailPreferences>(
+        `/api/notifications/email/preferences/?token=${encodeURIComponent(token)}`,
+      ),
+
+    update: (token: string, scope: "all" | "critical" | "optional") =>
+      request<EmailPreferences>("/api/notifications/email/preferences/", {
+        method: "POST",
+        json: { token, scope },
+      }),
+};
+
 
 /**
  * Live notification stream via SSE.

@@ -13,6 +13,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { LayoutDashboard, ClipboardList, ShieldAlert, Percent } from "lucide-react";
+import { unsubscribePushForLogout } from "@/lib/push";
 
 export type LoanProcessingTabType = "Dashboard" | "Application" | "AuditLog" | "Calculator" | "Notifications" | "Review";
 
@@ -30,6 +31,7 @@ export default function Sidebar({ activeTab }: SidebarProps) {
   ];
 
   const handleLogout = async () => {
+    await unsubscribePushForLogout();
     try {
       await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000") + "/api/auth/logout/", {
         method: "POST",

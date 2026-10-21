@@ -1,6 +1,10 @@
+from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from users.models import User
+
+SEEDED_EMAIL = "compliance@bai.finance"
+SEEDED_PASSWORD = "SuperSecretPassword123!"
 
 
 def _make_user(email, role="client"):
@@ -88,3 +92,26 @@ class ProfileUpdateStillWorksTests(APITestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.first_name, "Jane")
         self.assertEqual(self.user.last_name, "Doe")
+
+
+class SeededAccountTests(APITestCase):
+    @override_settings(TURNSTILE_ENABLED=False)
+    def test_published_seed_credentials_cannot_login(self):
+        resp = self.client.post(
+            "/api/auth/login/",
+            {
+                "username": SEEDED_EMAIL,
+                "password": SEEDED_PASSWORD,
+            },
+        )
+
+        self.assertNotEqual(resp.status_code, 200)
+
+    def test_seeded_account_is_neutralized(self):
+        user = User.objects.filter(email__iexact=SEEDED_EMAIL).first()
+
+        if user is not None:
+            self.assertFalse(user.is_active)
+            self.assertFalse(user.is_staff)
+            self.assertFalse(user.is_superuser)
+            self.assertFalse(user.has_usable_password())
