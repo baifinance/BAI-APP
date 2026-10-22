@@ -17,7 +17,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { CheckCheck, ChevronDown } from "lucide-react";
+import { Bell, CheckCheck, ChevronDown } from "lucide-react";
 import { useTimeAgo } from "@/lib/time";
 
 // ==============================================================================
@@ -138,16 +138,19 @@ export default function NotificationsTab({
       {/* ==================================================================== */}
       {/* NOTIFICATIONS CONTAINER CARD                                         */}
       {/* ==================================================================== */}
-      <div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-7 shadow-soft-xl space-y-4">
+      <div className="bg-white border border-slate-200/80 rounded-[15px] shadow-soft-xl overflow-hidden">
         
         {/* ================================================================== */}
-        {/* CONTAINER HEADER: TITLE (LEFT), FILTER & MARK AS READ (RIGHT)     */}
+        {/* CONTAINER HEADER: GRADIENT BANNER WITH TITLE & CONTROLS            */}
         {/* ================================================================== */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+        <div className="bg-gradient-to-r from-[#061C65] via-[#0A2881] to-[#0024A8] px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
           
-          {/* Title on the Left: "Notifications" */}
+          {/* Title on the Left: Icon & "Notifications" */}
           <div className="flex items-center gap-2.5">
-            <h2 className="font-extrabold text-slate-800 text-lg sm:text-xl tracking-tight">
+            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white">
+              <Bell className="w-4 h-4 text-white" />
+            </div>
+            <h2 className="font-extrabold text-white text-base sm:text-lg tracking-tight">
               Notifications
             </h2>
             {computedUnreadCount > 0 && (
@@ -166,27 +169,27 @@ export default function NotificationsTab({
                 id="notification-type-filter"
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value)}
-                className="appearance-none pl-3 pr-8 py-2 text-xs font-bold rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0024A8]/20 focus:border-[#0024A8]"
+                className="appearance-none pl-3 pr-8 py-2 text-xs font-bold rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/30"
                 aria-label="Filter by notification type"
               >
-                <option value="ALL">All Types</option>
+                <option value="ALL" className="bg-[#0A2881] text-white">All Types</option>
                 {availableTypes.map((type) => (
-                  <option key={type} value={type}>
+                  <option key={type} value={type} className="bg-[#0A2881] text-white">
                     {type}
                   </option>
                 ))}
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-white/70 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
 
             {/* Mark as Read Action Button */}
             <button
               type="button"
               onClick={handleMarkAllRead}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-[#0024A8] hover:text-white text-slate-700 text-xs font-bold transition-all duration-150 cursor-pointer border border-transparent shadow-xs active:scale-[0.98]"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-all duration-150 cursor-pointer border border-white/20 shadow-xs active:scale-[0.98]"
               title="Mark all notifications as read"
             >
-              <CheckCheck className="w-3.5 h-3.5 shrink-0" />
+              <CheckCheck className="w-3.5 h-3.5 shrink-0 text-white" />
               <span>Mark as read</span>
             </button>
           </div>
@@ -195,7 +198,7 @@ export default function NotificationsTab({
         {/* ================================================================== */}
         {/* NOTIFICATIONS LIST                                                 */}
         {/* ================================================================== */}
-        <div className="divide-y divide-slate-100 max-h-[620px] overflow-y-auto pr-1">
+        <div className="divide-y divide-slate-100 max-h-[620px] overflow-y-auto px-6 py-4">
           {filteredNotifications.length === 0 ? (
             <div className="py-14 text-center text-slate-400 text-xs font-semibold">
               {selectedType === "ALL"

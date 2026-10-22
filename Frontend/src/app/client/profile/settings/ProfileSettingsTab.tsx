@@ -3,8 +3,9 @@
  * COMPONENT: ProfileSettingsTab.tsx
  * Path: src/app/client/profile/settings/ProfileSettingsTab.tsx
  * Description: Client Profile Settings page with a streamlined layout.
- *              Displays page header "Profile Settings" and a single card container
- *              with bold "Enable Two-Factor Authentication" and an interactive
+ *              Displays page header "Profile Settings", Section 1 Notification
+ *              Preferences (critical/optional email alerts and browser push),
+ *              and Section 2 Two-Factor Authentication (2FA) with an interactive
  *              slider button (#0A2881 when on, dark red #8B0000 when off).
  *              Integrates full backend MFA functionality including OTP verification,
  *              countdown timer, resend, and password-authenticated disable flow.
@@ -333,7 +334,13 @@ export default function ProfileSettingsTab({
       </div>
 
       {/* ==================================================================== */}
-      {/* CONTAINER: Enable Two-Factor Authentication with Slider Toggle        */}
+      {/* SECTION 1: NOTIFICATION PREFERENCES & DEVICE PUSH                    */}
+      {/* Configure critical/optional email alerts and browser push on device  */}
+      {/* ==================================================================== */}
+      <NotificationSettings />
+
+      {/* ==================================================================== */}
+      {/* SECTION 2: TWO-FACTOR AUTHENTICATION (2FA) WITH SLIDER TOGGLE        */}
       {/* Slider turns #0A2881 when on and dark red (#8B0000) when off          */}
       {/* ==================================================================== */}
       <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 sm:p-7 flex items-center justify-between gap-4">
@@ -369,8 +376,6 @@ export default function ProfileSettingsTab({
           />
         </button>
       </div>
-
-      <NotificationSettings />
 
       {/* Error banner (if an error occurs outside of modals) */}
       {mfaError && !showMfaEnable && !showDisableModal && (

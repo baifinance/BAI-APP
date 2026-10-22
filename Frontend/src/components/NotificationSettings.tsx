@@ -1,3 +1,13 @@
+/**
+ * ==============================================================================
+ * COMPONENT: NotificationSettings.tsx
+ * Path: src/components/NotificationSettings.tsx
+ * Description: Notification & Web Push configuration panel.
+ *              Allows users to toggle critical email alerts, optional email updates,
+ *              and browser Web Push on the current device.
+ * ==============================================================================
+ */
+
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
@@ -14,6 +24,9 @@ import {
   isPushSupported,
 } from "@/lib/push";
 
+// ==============================================================================
+// SUB-COMPONENT: Accessible Switch Toggle Button
+// ==============================================================================
 function Toggle({
   checked,
   disabled,
@@ -46,6 +59,9 @@ function Toggle({
   );
 }
 
+// ==============================================================================
+// MAIN COMPONENT: NotificationSettings
+// ==============================================================================
 export default function NotificationSettings() {
   const [preference, setPreference] = useState<NotificationPreference | null>(null);
   const [hasPushSubscription, setHasPushSubscription] = useState(false);
@@ -140,9 +156,12 @@ export default function NotificationSettings() {
     }
   };
 
+  // ----------------------------------------------------------------------------
+  // Loading & Error States
+  // ----------------------------------------------------------------------------
   if (loading) {
     return (
-      <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-soft-xl">
+      <div className="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
           <Loader2 className="w-4 h-4 animate-spin" />
           Loading notification settings...
@@ -153,7 +172,7 @@ export default function NotificationSettings() {
 
   if (!preference) {
     return (
-      <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-soft-xl text-sm font-semibold text-rose-600">
+      <div className="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm text-sm font-semibold text-rose-600">
         {message || "Notification settings are unavailable."}
       </div>
     );
@@ -161,8 +180,11 @@ export default function NotificationSettings() {
 
   const pushOn = hasPushSubscription && preference.push_enabled;
 
+  // ----------------------------------------------------------------------------
+  // Render Main Notification Settings Card
+  // ----------------------------------------------------------------------------
   return (
-    <section className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-7 shadow-soft-xl space-y-5">
+    <section className="bg-white border border-slate-200/80 rounded-xl p-6 sm:p-7 shadow-sm space-y-5">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-2xl bg-blue-50 text-[#0A2881] flex items-center justify-center shrink-0">
           <Bell className="w-5 h-5" />

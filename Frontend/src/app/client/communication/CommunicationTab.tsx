@@ -203,7 +203,7 @@ export default function CommunicationTab() {
 
   return (
     <div className="w-full h-full flex-1 flex flex-col min-h-0 bg-white border-0 rounded-none shadow-none overflow-hidden">
-      <header className="px-4 sm:px-6 py-3.5 bg-[#0A2881] border-b border-[#001D85] flex items-center justify-between gap-3 shrink-0">
+      <header className="px-4 sm:px-6 py-3.5 bg-gradient-to-r from-[#061C65] via-[#0A2881] to-[#0024A8] border-b border-white/10 flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-2xl bg-[#E4BA37] text-[#0A2881] flex items-center justify-center shadow-sm shrink-0">
             <Headphones className="w-5 h-5 text-[#0A2881]" />

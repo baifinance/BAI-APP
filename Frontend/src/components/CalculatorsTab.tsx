@@ -88,18 +88,34 @@ function LoanBalanceChart({
 
   const maxVal = Math.max(
     totalCostOfLoan > 0 ? totalCostOfLoan : loanAmount * 1.5,
-    loanAmount * 1.2
+    loanAmount * 1.05
   );
-  const roundTo = maxVal > 1000000 ? 500000 : 100000;
-  const yMax = Math.ceil((maxVal * 1.05) / roundTo) * roundTo;
+
+  // Pick the tightest clean round tick ceiling so the curve fills the chart height with no dead space
+  const yMax = useMemo(() => {
+    const target = maxVal * 1.02; // only 2% margin above the peak
+    const niceHalfSteps = [
+      25_000, 50_000, 75_000, 100_000, 125_000, 150_000, 200_000, 250_000,
+      300_000, 350_000, 400_000, 500_000, 600_000, 700_000, 750_000, 800_000,
+      900_000, 1_000_000, 1_200_000, 1_250_000, 1_500_000, 1_750_000, 2_000_000,
+      2_500_000, 3_000_000, 4_000_000, 5_000_000, 7_500_000, 10_000_000
+    ];
+    for (const halfStep of niceHalfSteps) {
+      const candidate = halfStep * 2;
+      if (candidate >= target) {
+        return candidate;
+      }
+    }
+    return Math.ceil(target / 500_000) * 500_000;
+  }, [maxVal]);
 
   // Chart dimensions & padding: larger viewBox in floating view for high clarity
   const viewBoxWidth = isExpanded ? 840 : 520;
-  const viewBoxHeight = isExpanded ? 420 : 290;
+  const viewBoxHeight = isExpanded ? 400 : 260;
   const padLeft = isExpanded ? 80 : 65;
   const padRight = isExpanded ? 30 : 20;
-  const padTop = isExpanded ? 30 : 25;
-  const padBottom = isExpanded ? 50 : 45;
+  const padTop = isExpanded ? 16 : 12;
+  const padBottom = isExpanded ? 45 : 40;
   const chartW = viewBoxWidth - padLeft - padRight;
   const chartH = viewBoxHeight - padTop - padBottom;
 
@@ -141,45 +157,24 @@ function LoanBalanceChart({
   const yTicks = [0, yMax / 2, yMax];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* ---------------------------------------------------------------------- */}
-      {/* CHART TOP CONTROLS: Floating badge & Eye/Close action button           */}
-      {/* (Sentence 'Loan Balance Chart' removed as requested)                   */}
+      {/* FLOATING VIEW TOP CONTROLS: Only displayed when modal view is open     */}
       {/* ---------------------------------------------------------------------- */}
-      {(onExpand || isExpanded) && (
+      {isExpanded && (
         <div className="flex items-center justify-between pb-1">
-          {isExpanded ? (
-            <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0A2881] border border-blue-200/60 tracking-wider">
-              Floating View
-            </span>
-          ) : (
-            <div />
-          )}
-
-          {/* Action Button: Eye Icon to Expand when normal, 'X' Exit Button when in floating window */}
-          {isExpanded ? (
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:bg-slate-200 rounded-lg transition-colors cursor-pointer border border-slate-200/80 shadow-2xs flex items-center justify-center"
-              title="Exit floating window"
-              aria-label="Exit floating window"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          ) : (
-            onExpand && (
-              <button
-                type="button"
-                onClick={onExpand}
-                className="p-1.5 text-slate-400 hover:text-[#0A2881] hover:bg-blue-50/80 active:bg-blue-100 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-blue-100 flex items-center justify-center"
-                title="View graph in floating window"
-                aria-label="View graph in floating window"
-              >
-                <Eye className="w-4 h-4" />
-              </button>
-            )
-          )}
+          <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0A2881] border border-blue-200/60 tracking-wider">
+            Floating View
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:bg-slate-200 rounded-lg transition-colors cursor-pointer border border-slate-200/80 shadow-2xs flex items-center justify-center"
+            title="Exit floating window"
+            aria-label="Exit floating window"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -388,19 +383,35 @@ function LoanBalanceChart({
       </div>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* CHART FOOTER: Legends positioned on the bottom left of the container   */}
+      {/* CHART FOOTER: Legends on bottom left, Eye button on bottom right       */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="flex items-center justify-start gap-4 text-xs font-bold pt-3 border-t border-slate-100">
-        {/* Legend 1: Loan Balance */}
-        <div className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded-xs bg-[#0B2369]" />
-          <span className="text-slate-700">Loan Balance</span>
+      <div className="flex items-center justify-between gap-4 text-xs font-bold pt-3 border-t border-slate-100">
+        {/* Left: Legends */}
+        <div className="flex items-center gap-4">
+          {/* Legend 1: Loan Balance */}
+          <div className="flex items-center gap-1.5">
+            <span className="w-3.5 h-3.5 rounded-xs bg-[#0B2369]" />
+            <span className="text-slate-700">Loan Balance</span>
+          </div>
+          {/* Legend 2: Total Payment */}
+          <div className="flex items-center gap-1.5">
+            <span className="w-3.5 h-3.5 rounded-xs bg-[#16A34A]" />
+            <span className="text-slate-700">Total Payment</span>
+          </div>
         </div>
-        {/* Legend 2: Total Payment */}
-        <div className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded-xs bg-[#16A34A]" />
-          <span className="text-slate-700">Total Payment</span>
-        </div>
+
+        {/* Right: Eye Icon button to view in floating window */}
+        {onExpand && !isExpanded && (
+          <button
+            type="button"
+            onClick={onExpand}
+            className="p-1.5 text-slate-400 hover:text-[#0A2881] hover:bg-blue-50/80 active:bg-blue-100 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-blue-100 flex items-center justify-center shrink-0"
+            title="View graph in floating window"
+            aria-label="View graph in floating window"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -633,8 +644,8 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
           {/* Left Container: Calculator */}
           <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-[15px] shadow-soft-xl overflow-hidden flex flex-col justify-between">
-            {/* Full-width Blue Header with #E4BA37 Text */}
-            <div className="bg-[#0A2881] px-6 py-4 flex items-center gap-3 shrink-0">
+            {/* Full-width Gradient Header with #E4BA37 Text */}
+            <div className="bg-gradient-to-r from-[#061C65] via-[#0A2881] to-[#0024A8] px-6 py-4 flex items-center gap-3 shrink-0">
               <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-[#E4BA37]">
                 <Calculator className="w-4 h-4 text-[#E4BA37]" />
               </div>
@@ -761,8 +772,8 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
         {/* Bottom Container: Calculation Results & Loan Balance Chart */}
         {/* Blue background similar to theme (#0A2881) for the main container */}
         <div className="bg-[#0A2881] border border-[#001D85] rounded-[15px] shadow-soft-xl overflow-hidden">
-          {/* Full-width Blue Header with #E4BA37 Text and 'Calculation Results' */}
-          <div className="bg-[#0A2881] px-6 py-4 flex items-center justify-between shrink-0 border-b border-[#001D85]">
+          {/* Full-width Gradient Header with #E4BA37 Text and 'Calculation Results' */}
+          <div className="bg-gradient-to-r from-[#061C65] via-[#0A2881] to-[#0024A8] px-6 py-4 flex items-center justify-between shrink-0 border-b border-white/10">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-[#E4BA37]">
                 <BarChart3 className="w-4 h-4 text-[#E4BA37]" />
@@ -868,7 +879,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
               {/* ---------------------------------------------------------------- */}
               {/* RIGHT SIDE: Loan Balance Chart (Inline / Moved to Floating View) */}
               {/* ---------------------------------------------------------------- */}
-              <div className="lg:col-span-7 bg-white rounded-[15px] border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-center">
+              <div className="lg:col-span-7 bg-white rounded-[15px] border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
                 {isGraphExpanded ? (
                   /* Placeholder displayed in the page when graph view is moved to the floating window */
                   <div className="flex flex-col items-center justify-center py-20 px-4 text-center border-2 border-dashed border-blue-200/80 rounded-[15px] bg-blue-50/25">
