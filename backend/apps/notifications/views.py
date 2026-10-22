@@ -26,7 +26,8 @@ from otp.utils import get_redis_client
 
 
 NOTIFICATION_HISTORY_LIMIT = 100
-STREAM_MAX_LIFETIME_SECONDS = 1800
+# Keep well below the proxy idle timeout; the client reconnects with backoff.
+STREAM_MAX_LIFETIME_SECONDS = 300
 
 
 class EventStreamRenderer(BaseRenderer):
@@ -113,18 +114,21 @@ class NotificationStreamView(APIView):
     renderer_classes = [EventStreamRenderer]
 
     def get(self, request):
-        pubsub = get_redis_client().pubsub()
-        pubsub.subscribe(f"notify:{request.user.id}")
-
         def event_stream():
+            # Subscribe inside the generator so the Redis connection is
+            # created (and released) on the streaming worker, not during
+            # request handling.
+            pubsub = get_redis_client().pubsub()
+            pubsub.subscribe(f"notify:{request.user.id}")
             try:
                 yield "retry: 3000\n\n"
                 yield f"event: snapshot\ndata: {json.dumps({'ok': True})}\n\n"
                 deadline = time.monotonic() + STREAM_MAX_LIFETIME_SECONDS
                 while time.monotonic() < deadline:
+                    remaining = max(0, deadline - time.monotonic())
                     message = pubsub.get_message(
                         ignore_subscribe_messages=True,
-                        timeout=25,
+                        timeout=min(25, remaining),
                     )
                     if message and message.get("type") == "message":
                         data = message["data"]
@@ -136,6 +140,10 @@ class NotificationStreamView(APIView):
                         yield ": keepalive\n\n" # keep proxies/NAT alive
 
             finally:
+                try:
+                    pubsub.unsubscribe(f"notify:{request.user.id}")
+                except Exception:
+                    pass
                 pubsub.close()
 
         response = StreamingHttpResponse(
@@ -204,7 +212,7 @@ class PushSubscribeView(APIView):
         serializer = PushSubscriptionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        subscription, _ = PushSubscription.objects.update_or_create(
+        subscription, created = PushSubscription.objects.get_or_create(
             endpoint=serializer.validated_data["endpoint"],
             defaults={
                 "user": request.user,
@@ -213,6 +221,20 @@ class PushSubscribeView(APIView):
                 "user_agent": serializer.validated_data.get("user_agent", ""),
             },
         )
+
+        if not created and subscription.user_id != request.user.id:
+            # An endpoint is bound to the first account that registered it;
+            # never let another account take over (or receive) its pushes.
+            return Response(
+                {"detail": "This push subscription belongs to another account."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        if not created:
+            subscription.p256dh = serializer.validated_data["p256dh"]
+            subscription.auth = serializer.validated_data["auth"]
+            subscription.user_agent = serializer.validated_data.get("user_agent", "")
+            subscription.save(update_fields=["p256dh", "auth", "user_agent", "updated_at"])
 
         preference, _ = NotificationPreference.objects.get_or_create(
             user=request.user

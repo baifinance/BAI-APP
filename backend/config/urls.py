@@ -1,4 +1,3 @@
-from django.contrib import admin
 from django.urls import include, path, re_path
 from bookings.views import BrokerListView
 from health.views import HealthView
@@ -10,7 +9,8 @@ from authentication.views import (
 )
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    # Django admin is intentionally disabled. Administration is done through the
+    # application's role-based portals and the Django shell instead.
 
     # Custom login response; keep distinct name to avoid colliding with dj_rest_auth's rest_login.
     path("api/auth/login/", LoginView.as_view(), name="custom-login"),

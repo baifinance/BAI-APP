@@ -9,6 +9,7 @@
 # -----------------------------------------------------------------------
 
 from rest_framework import serializers  # noqa: F401
+from dj_rest_auth.serializers import LoginSerializer
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
@@ -18,6 +19,16 @@ from authentication.models import Invitation
 from authentication.choices import InviteStatus
 
 User = get_user_model()
+
+
+class ActiveUserLoginSerializer(LoginSerializer):
+    """Only active accounts may log in; suspended/inactive are rejected."""
+
+    def validate_auth_user_status(self, user):
+        super().validate_auth_user_status(user)
+        if user.status != UserStatus.ACTIVE:
+            raise serializers.ValidationError("User account is disabled.")
+
 
 class LoanProcessingAccountCreateSerializer(serializers.Serializer):
     username = None # disable username field

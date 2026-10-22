@@ -122,9 +122,35 @@ def _render_email(delivery):
     return message
 
 
+def _claim_delivery(delivery):
+    """Atomically claim a pending row so only one worker sends it.
+
+    The outbox is drained both inline and by a scheduled job. Claiming via a
+    conditional UPDATE (no extra column/migration) moves ``next_attempt_at``
+    into the future; a concurrent worker's UPDATE then matches no rows.
+    """
+    now = timezone.now()
+    claim_until = now + timedelta(
+        minutes=getattr(settings, "NOTIFICATION_EMAIL_CLAIM_MINUTES", 10)
+    )
+    claimed = EmailDelivery.objects.filter(
+        pk=delivery.pk,
+        status=EmailDelivery.Status.PENDING,
+    ).filter(
+        Q(next_attempt_at__isnull=True) | Q(next_attempt_at__lte=now)
+    ).update(next_attempt_at=claim_until)
+    if not claimed:
+        return False
+    delivery.next_attempt_at = claim_until
+    return True
+
+
 def send_email_delivery(delivery):
     """Attempt one outbox row. Returns True when it was sent."""
     if delivery.status != EmailDelivery.Status.PENDING:
+        return False
+
+    if not _claim_delivery(delivery):
         return False
 
     if EmailSuppression.objects.filter(

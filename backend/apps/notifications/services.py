@@ -40,9 +40,15 @@ def publish_stream_notification(user_id, notification=None, loan_status=None):
     """
     payload = {
         "notification_id": str(getattr(notification, "pk", "") or ""),
+        "notification_type": getattr(notification, "notification_type", None),
         "loan_status": loan_status,
         "title": getattr(notification, "title", None),
         "message": getattr(notification, "message", None),
+        "created_at": (
+            notification.created_at.isoformat()
+            if getattr(notification, "created_at", None)
+            else None
+        ),
     }
     try:
         get_redis_client().publish(f"notify:{user_id}", json.dumps(payload))

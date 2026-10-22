@@ -92,11 +92,19 @@ def _render_transcript(conversation: Conversation, messages, customer_name: str)
 
 # Fields masked when AI_REDACT_PROFILE_PII is on (the assistant can still
 # reason about loan amount/goal/status, which are not individually identifying).
-_REDACTED_PROFILE_FIELDS = {"Email", "Mobile", "Address", "DOB", "Visa expiry"}
+_REDACTED_PROFILE_FIELDS = {
+    "Name",
+    "Email",
+    "Mobile",
+    "Address",
+    "DOB",
+    "Visa",
+    "Visa expiry",
+}
 
 
 def _build_profile_context(user) -> str | None:
-    if not getattr(settings, "AI_PROFILE_CONTEXT_ENABLED", True):
+    if not getattr(settings, "AI_PROFILE_CONTEXT_ENABLED", False):
         return None
     if getattr(user, "role", None) != "client":
         return None
@@ -127,7 +135,7 @@ def _build_profile_context(user) -> str | None:
         ("Goal", getattr(profile, "goal", None)),
         ("Loan status", getattr(profile, "loan_status", None)),
     ]
-    redact = getattr(settings, "AI_REDACT_PROFILE_PII", False)
+    redact = getattr(settings, "AI_REDACT_PROFILE_PII", True)
     for label, value in fields:
         if value:
             if redact and label in _REDACTED_PROFILE_FIELDS:

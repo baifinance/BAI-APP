@@ -34,13 +34,20 @@ class ProfileContextEgressTests(TestCase):
     def test_disabled_returns_none(self):
         self.assertIsNone(_build_profile_context(self.user))
 
-    def test_default_includes_loan_context(self):
+    def test_profile_context_is_off_by_default(self):
+        self.assertIsNone(_build_profile_context(self.user))
+
+    @override_settings(AI_PROFILE_CONTEXT_ENABLED=True)
+    def test_enabled_includes_loan_context(self):
         ctx = _build_profile_context(self.user)
         self.assertIsNotNone(ctx)
         self.assertIn("750000", ctx)
         self.assertIn("Under Review", ctx)
 
-    @override_settings(AI_REDACT_PROFILE_PII=True)
+    @override_settings(
+        AI_PROFILE_CONTEXT_ENABLED=True,
+        AI_REDACT_PROFILE_PII=True,
+    )
     def test_redaction_masks_identifying_fields(self):
         ctx = _build_profile_context(self.user)
 

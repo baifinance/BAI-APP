@@ -1,6 +1,6 @@
 import redis
 
-from django.test import override_settings
+from django.test import RequestFactory, override_settings
 from rest_framework.test import APITestCase
 
 from audit.models import AuditLog
@@ -221,3 +221,45 @@ class AuditOtpGateTests(APITestCase):
         otp_utils.mark_otp_verified(self.compliance.id)
 
         self.assertEqual(self.client.get(self.URL).status_code, 200)
+
+
+class AuditHardeningTests(APITestCase):
+    def _request(self, **extra):
+        return RequestFactory().get("/", **extra)
+
+    def test_forwarded_for_is_ignored_by_default(self):
+        request = self._request(
+            REMOTE_ADDR="203.0.113.9",
+            HTTP_X_FORWARDED_FOR="198.51.100.7",
+        )
+
+        row = log_action("IP_ACTION", request=request)
+
+        self.assertEqual(row.ip_address, "203.0.113.9")
+
+    @override_settings(AUDIT_TRUST_X_FORWARDED_FOR=True)
+    def test_forwarded_for_is_used_when_trusted(self):
+        request = self._request(
+            REMOTE_ADDR="203.0.113.9",
+            HTTP_X_FORWARDED_FOR="198.51.100.7, 10.0.0.1",
+        )
+
+        row = log_action("IP_ACTION", request=request)
+
+        self.assertEqual(row.ip_address, "198.51.100.7")
+
+    def test_invalid_ip_is_dropped(self):
+        request = self._request(REMOTE_ADDR="not-an-ip")
+
+        row = log_action("IP_ACTION", request=request)
+
+        self.assertIsNone(row.ip_address)
+
+    def test_rows_are_immutable(self):
+        row = log_action("IMMUTABLE_ACTION")
+        row.action = "TAMPERED"
+
+        with self.assertRaises(ValueError):
+            row.save()
+        with self.assertRaises(ValueError):
+            row.delete()

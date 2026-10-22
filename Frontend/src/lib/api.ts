@@ -378,21 +378,25 @@ export const emailPreferencesApi = {
  */
 export interface StreamPush {
   notification_id?: string;
+  notification_type?: string | null;
   loan_status?: string;
   title?: string | null;
   message?: string | null;
+  created_at?: string | null;
 }
 
 export function subscribeToNotificationStream(
   onPush: (push: StreamPush, event: string) => void
 ): () => void {
   let cancelled = false;
+  let stopped = false;
   let controller: AbortController | null = null;
   let retryTimer: number | undefined;
-  const RECONNECT_MS = 3000;
+  let reconnectDelay = 3000;
+  const MAX_RECONNECT_MS = 60_000;
 
   const connect = async () => {
-    if (cancelled) return;
+    if (cancelled || stopped) return;
     controller = new AbortController();
 
     try {
@@ -401,8 +405,18 @@ export function subscribeToNotificationStream(
         headers: { Accept: "text/event-stream" },
         signal: controller.signal,
       });
-      if (!res.ok || !res.body) throw new Error(`notification stream ${res.status}`);
+      if (!res.ok || !res.body) {
+        if (res.status === 401 || res.status === 403) {
+          // Reconnecting cannot fix an invalid/blocked session.
+          stopped = true;
+          if (res.status === 401 && typeof window !== "undefined") {
+            window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+          }
+        }
+        throw new Error(`notification stream ${res.status}`);
+      }
 
+      reconnectDelay = 3000;
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -438,7 +452,10 @@ export function subscribeToNotificationStream(
       // Connection dropped — fall through to the reconnect timer.
     } finally {
       controller = null;
-      if (!cancelled) retryTimer = window.setTimeout(connect, RECONNECT_MS);
+      if (!cancelled && !stopped) {
+        retryTimer = window.setTimeout(connect, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_MS);
+      }
     }
   };
 

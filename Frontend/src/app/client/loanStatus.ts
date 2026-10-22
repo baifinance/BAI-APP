@@ -2,19 +2,19 @@
  * Shared loan-status resolution for the Client Portal.
  *
  * Maps the backend `loan_status` value (derived from the Asana section)
- * onto the 13-step pipeline shown in the Client profile / loan-status pages.
+ * onto the 15-step pipeline shown in the Client profile / loan-status pages.
  */
 
 export type StepState = "completed" | "in_process" | "upcoming";
 
 export interface LoanStatusResolution {
-  /** State for each of the 13 pipeline steps (1..13). */
+  /** State for each of the 15 pipeline steps (1..15). */
   states: StepState[];
   /** Header text shown as the current progress title. */
   header: string;
   /** 1-based step number currently in progress, null when none. */
   activeStepIndex: number | null;
-  /** Total steps rendered (14 when withdrawn, otherwise 13). */
+  /** Total active pipeline steps rendered (always 15). */
   totalSteps: number;
   /** True when the application has been withdrawn (terminal state). */
   withdrawn: boolean;

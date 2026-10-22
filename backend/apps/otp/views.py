@@ -7,6 +7,7 @@ from django.conf import settings
 
 from audit.services import log_action
 from authentication.cookies import issue_session_cookies
+from authentication.tokens import revoke_user_tokens
 from users.models import User
 from .serializers import (
     OtpSendSerializer,
@@ -165,6 +166,17 @@ class PasswordResetView(generics.GenericAPIView):
 
         # A password change invalidates any prior MFA verification for this user.
         clear_otp_verified(user.id)
+
+        # A reset may be performed by someone other than the account owner;
+        # force every existing session to re-authenticate.
+        revoke_user_tokens(user)
+        log_action(
+            "PASSWORD_RESET",
+            actor=user,
+            entity_type="User",
+            entity_id=user.id,
+            request=request,
+        )
 
         return Response(
             {"message": "Password reset successfully."},

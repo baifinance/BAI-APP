@@ -4,7 +4,10 @@ Audit writes are best-effort: a logging failure must never break the business
 operation that triggered it.
 """
 
+import ipaddress
 import logging
+
+from django.conf import settings
 
 from audit.models import AuditLog
 
@@ -14,10 +17,17 @@ logger = logging.getLogger(__name__)
 def _client_ip(request):
     if request is None:
         return None
-    xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if xff:
-        return xff.split(",")[0].strip() or None
-    return request.META.get("REMOTE_ADDR") or None
+    candidate = request.META.get("REMOTE_ADDR")
+    if getattr(settings, "AUDIT_TRUST_X_FORWARDED_FOR", False):
+        xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
+        if xff:
+            candidate = xff.split(",")[0].strip() or candidate
+    if not candidate:
+        return None
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        return None
 
 
 def log_action(

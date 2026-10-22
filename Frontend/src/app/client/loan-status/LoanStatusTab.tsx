@@ -5,7 +5,7 @@
  * Description: Main Loan Status page component for the Client Portal.
  *              - Main container background: White
  *              - Top: ProgressStatus component (Centered bold title + Step container)
- *              - Center: LoanProgressStepper component (Vertical 13-step Stepper)
+ *              - Center: LoanProgressStepper component (Vertical 15-step Stepper)
  * ==============================================================================
  */
 
@@ -14,7 +14,7 @@
 import React from "react";
 import { Ban, FileSearch } from "lucide-react";
 import { ClientData } from "../types";
-import { resolveLoanStatus } from "../loanStatus";
+import { PIPELINE, resolveLoanStatus } from "../loanStatus";
 import ProgressStatus from "./components/ProgressStatus";
 import LoanProgressStepper, { StepperStep } from "./components/LoanProgressStepper";
 
@@ -41,7 +41,7 @@ export default function LoanStatusTab({
   client,
 }: LoanStatusTabProps) {
   // ----------------------------------------------------------------------------
-  // 1. 13-STAGE LOAN STATUS STEPS WORKFLOW
+  // 1. 15-STAGE LOAN STATUS STEPS WORKFLOW
   // ----------------------------------------------------------------------------
   const baseSteps: Omit<StepperStep, "status" | "date">[] = [
     {
@@ -112,17 +112,35 @@ export default function LoanStatusTab({
     },
     {
       id: 12,
+      title: "Conversion to Unconditional Approval",
+      subtitle: "Conditions cleared",
+      description: "All lender conditions are satisfied and the file is prepared for formal unconditional approval.",
+    },
+    {
+      id: 13,
+      title: "Unconditional Approval",
+      subtitle: "Formal lender approval",
+      description: "Lender issues the unconditional loan offer; only legal and settlement steps remain.",
+    },
+    {
+      id: 14,
       title: "Settlement",
       subtitle: "Legal & booking phase",
       description: "Lender, solicitors, and incoming/outgoing banks coordinate settlement booking.",
     },
     {
-      id: 13,
+      id: 15,
       title: "Settled",
       subtitle: "Disbursement / Closed",
       description: "Loan funds disbursed and facility active, or application file concluded.",
     },
   ];
+
+  if (process.env.NODE_ENV !== "production" && baseSteps.length !== PIPELINE.length) {
+    console.warn(
+      `LoanStatusTab renders ${baseSteps.length} steps but PIPELINE defines ${PIPELINE.length}.`,
+    );
+  }
 
   const resolution = resolveLoanStatus(client.loan?.currentStatus);
 
@@ -132,7 +150,7 @@ export default function LoanStatusTab({
     (client.loan?.statusHistory ?? []).map((entry) => [entry.status, entry.changed_at]),
   );
 
-  // stepperSteps: the 13 pipeline steps colored by the real loan status.
+  // stepperSteps: the 15 pipeline steps colored by the real loan status.
   // Withdrawn applications skip the stepper entirely and get a dedicated card.
   const stepperSteps: StepperStep[] = baseSteps.map((step, i) => {
     const changedAt = historyByStatus.get(step.title);
@@ -159,7 +177,7 @@ export default function LoanStatusTab({
       </section>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* PART 2: 13-STAGE VERTICAL LOAN PROGRESS STEPPER COMPONENT              */}
+      {/* PART 2: 15-STAGE VERTICAL LOAN PROGRESS STEPPER COMPONENT              */}
       {/* OR a Withdrawn / empty-state screen for terminal and no-app cases.     */}
       {/* ---------------------------------------------------------------------- */}
       <section aria-label="Loan Progress Stepper" className="max-w-5xl mx-auto px-6 sm:px-8 pt-2">

@@ -2,6 +2,7 @@
 
 import logging
 
+from django.db import transaction
 from django.utils import timezone
 
 from audit.services import log_action
@@ -39,27 +40,30 @@ def apply_loan_status_change(user, status, *, actor=None, when=None):
     if not status:
         return None, False
 
-    try:
-        profile = user.client_profile
-    except ClientProfile.DoesNotExist:
-        return None, False
+    with transaction.atomic():
+        try:
+            # Lock the profile row so concurrent webhook retries cannot both
+            # observe the old status and record/notify the same transition.
+            profile = ClientProfile.objects.select_for_update().get(user=user)
+        except ClientProfile.DoesNotExist:
+            return None, False
 
-    history = dict(profile.loan_status_history or {})
+        history = dict(profile.loan_status_history or {})
 
-    if profile.loan_status == status and status in history:
-        return profile, False
+        if profile.loan_status == status and status in history:
+            return profile, False
 
-    history[status] = (when or timezone.now()).isoformat()
-    profile.loan_status = status
-    profile.loan_status_history = history
-    profile.save(update_fields=["loan_status", "loan_status_history"])
+        history[status] = (when or timezone.now()).isoformat()
+        profile.loan_status = status
+        profile.loan_status_history = history
+        profile.save(update_fields=["loan_status", "loan_status_history"])
 
-    log_action(
-        "LOAN_STATUS_CHANGED",
-        actor=actor,
-        entity_type="ClientProfile",
-        entity_id=profile.pk,
-    )
+        log_action(
+            "LOAN_STATUS_CHANGED",
+            actor=actor,
+            entity_type="ClientProfile",
+            entity_id=profile.pk,
+        )
 
     # The cached Asana profile still carries the previous loan_status; drop it
     # so a /api/loans/current-status/ read falls back to a fresh Asana lookup.

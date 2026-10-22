@@ -2,7 +2,7 @@
  * ==============================================================================
  * COMPONENT: LoanProgressStepper.tsx
  * Path: src/app/client/loan-status/components/LoanProgressStepper.tsx
- * Description: Vertical 13-stage loan progress stepper.
+ * Description: Vertical 15-stage loan progress stepper.
  *              - Blends seamlessly into the background (no shadow/outline)
  *              - Number in circle replaces with check icon when completed
  *              - Completed cards: Theme blue (#0024A8) background with white text
@@ -25,7 +25,7 @@ export interface StepperStep {
   description?: string;
 }
 
-export const default13Steps: StepperStep[] = [
+export const defaultSteps: StepperStep[] = [
   {
     id: 1,
     title: "Pending",
@@ -138,7 +138,7 @@ interface LoanProgressStepperProps {
 }
 
 export default function LoanProgressStepper({
-  steps = default13Steps,
+  steps = defaultSteps,
 }: LoanProgressStepperProps) {
   return (
     /* ------------------------------------------------------------------------ */

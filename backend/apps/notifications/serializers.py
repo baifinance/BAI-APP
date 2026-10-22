@@ -43,6 +43,9 @@ class PushSubscriptionSerializer(serializers.ModelSerializer):
         fields = ["endpoint", "p256dh", "auth", "user_agent"]
         extra_kwargs = {
             "user_agent": {"required": False, "allow_blank": True},
+            # Uniqueness is enforced in the view so an endpoint owned by a
+            # different account returns 409 instead of a generic validation error.
+            "endpoint": {"validators": []},
         }
 
 

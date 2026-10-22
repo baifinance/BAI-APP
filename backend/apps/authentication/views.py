@@ -34,6 +34,7 @@ from authentication.cookies import (
 )
 from authentication.permissions import IsLoanProcessingTeam, IsOtpVerified
 from authentication.serializers import LoanProcessingAccountCreateSerializer
+from authentication.tokens import revoke_user_tokens
 from audit.services import log_action
 
 from users.models import User
@@ -172,6 +173,9 @@ class LoginView(DjRestAuthLoginView):
             # be bounced back into a portal that rejects every IsOtpVerified
             # request (login → portal → 403 → login loop).
             clear_session_cookies(response)
+            # Defense in depth: never leave a Django login session usable
+            # after a login that still requires the second factor.
+            self.request.session.flush()
             try:
                 issue_otp(
                     user.email,
@@ -226,6 +230,10 @@ class PasswordChangeView(DjRestAuthPasswordChangeView):
         if user is not None and getattr(user, "is_authenticated", False):
             clear_otp_verified(user.id)
             if response.status_code < 400:
+                # A password change must invalidate every existing refresh
+                # token so a stolen credential cannot keep a session alive.
+                revoke_user_tokens(user)
+                clear_session_cookies(response)
                 log_action(
                     "PASSWORD_CHANGED",
                     actor=user,

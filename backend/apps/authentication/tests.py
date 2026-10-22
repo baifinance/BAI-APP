@@ -319,3 +319,63 @@ class InviteThrottleTest(APITestCase):
         self.assertIs(SendInviteView.throttle_classes[0], InviteThrottle)
         self.assertEqual(InviteThrottle.scope, "invite")
         self.assertEqual(SendInviteView.throttle_scope, "invite")
+
+@override_settings(TURNSTILE_ENABLED=False)
+class AccountStatusAuthTests(APITestCase):
+    """Account.status gates both login and already-issued access tokens."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="status@example.com",
+            username="status@example.com",
+            password="pw12345678",
+            role="client",
+            is_active=True,
+        )
+
+    def test_suspended_user_cannot_log_in(self):
+        self.user.status = "suspended"
+        self.user.save(update_fields=["status"])
+
+        resp = self.client.post(
+            "/api/auth/login/",
+            {"username": self.user.email, "password": "pw12345678"},
+        )
+
+        self.assertEqual(resp.status_code, 400)
+
+    def test_suspended_user_access_token_is_rejected(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        access = str(RefreshToken.for_user(self.user).access_token)
+        self.user.status = "suspended"
+        self.user.save(update_fields=["status"])
+
+        resp = self.client.get(
+            "/api/bookings/",
+            HTTP_AUTHORIZATION=f"Bearer {access}",
+        )
+
+        self.assertEqual(resp.status_code, 401)
+
+
+class TokenRevocationTests(APITestCase):
+    def test_revoke_blacklists_all_outstanding_tokens(self):
+        from authentication.tokens import revoke_user_tokens
+        from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        user = User.objects.create_user(
+            email="revoke@example.com",
+            username="revoke@example.com",
+            password="pw12345678",
+            role="client",
+            is_active=True,
+        )
+        RefreshToken.for_user(user)
+
+        revoke_user_tokens(user)
+
+        self.assertEqual(
+            BlacklistedToken.objects.filter(token__user=user).count(), 1
+        )

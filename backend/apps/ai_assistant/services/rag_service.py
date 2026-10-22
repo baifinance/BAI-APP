@@ -13,7 +13,7 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 DEFAULT_COLLECTION_NAME = "bai_finance_knowledge_base"
-DEFAULT_GROQ_MODEL = "llama3-8b-8192" # Valid Groq default
+DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant"
 
 class RAGService:
     """Service to handle vector embedding, ChromaDB retrieval, and Groq LLM generation."""
@@ -24,13 +24,22 @@ class RAGService:
         self.jina_api_key = os.getenv("JINA_API_KEY")
         
         # Groq client
-        self.groq_client = Groq(api_key=self.groq_api_key) if self.groq_api_key else None
+        self.groq_client = (
+            Groq(api_key=self.groq_api_key, timeout=30.0, max_retries=2)
+            if self.groq_api_key
+            else None
+        )
         
         self._collection = None
 
-        # Setup persistent HTTP session with retry logic for API resilience
+        # Setup persistent HTTP session with retry logic for API resilience.
         self.http_session = requests.Session()
-        retries = Retry(total=3, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504])
+        retries = Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=frozenset(["POST"]),
+        )
         self.http_session.mount("https://", HTTPAdapter(max_retries=retries))
 
     def _get_chroma_client(self):

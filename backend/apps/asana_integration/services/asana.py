@@ -132,7 +132,7 @@ class AsanaProfileService:
                 options,
             )
 
-            for task in tasks:
+            for task in tasks.items():
                 profile = self.parse_task(task, self.project_gid)
 
                 task_email = self.normalize_email(
@@ -171,9 +171,9 @@ class AsanaProfileService:
             "opt_fields": (
                 "gid,name,notes,"
                 "memberships.project.gid,"
-                "memberships.section.gid,",
+                "memberships.section.gid,"
                 "memberships.section.name"
-            )
+            ),
         }
         section_options = {
             "limit": 100,
@@ -187,7 +187,7 @@ class AsanaProfileService:
                 task_options,
             )
 
-            for task in tasks:
+            for task in tasks.items():
                 profile = self.parse_task(task, self.project_gid)
                 if self.normalize_email(profile.get("email", "")) == normalized_email:
                     matching_task = task
@@ -204,7 +204,7 @@ class AsanaProfileService:
                 section_options,
             )
 
-            for section in sections:
+            for section in sections.items():
                 if section.get("name") == loan_status:
                     target_section = section
                     break
@@ -435,8 +435,8 @@ def get_client_asana_profile(email):
     return profile
 
 
-_TASK_EMAIL_CACHE_TTL = 60 * 60 * 24
-_SECTION_NAME_CACHE_TTL = 60 * 60 * 24
+_TASK_EMAIL_CACHE_TTL = 60 * 15
+_SECTION_NAME_CACHE_TTL = 60 * 15
 
 _section_name_cache = {}
 
@@ -577,7 +577,7 @@ def handle_task_moved_event(event):
         title="Loan status updated",
         message=(
             f"Your loan status has been updated to "
-            f"{section_name.replace('_', '').title()}."
+            f"{section_name.replace('_', ' ').title()}."
         )
     )
 

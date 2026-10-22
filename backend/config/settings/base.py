@@ -103,7 +103,7 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
+    # Django admin is intentionally not installed (see config/urls.py).
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -127,7 +127,8 @@ INSTALLED_APPS = [
     "otp",
     "ai_assistant",
     "asana_integration",
-    "notifications"
+    "notifications",
+    "health",
 ]
 
 # Force the in-memory email backend for every test run so a dev .env pointing
@@ -143,6 +144,12 @@ REST_AUTH = {
     "JWT_AUTH_SAMESITE": "Lax",       # CSRF protection
     "JWT_AUTH_RETURN_EXPIRATION": True,
     "USER_DETAILS_SERIALIZER": "users.serializers.UserSerializer",
+    "LOGIN_SERIALIZER": "authentication.serializers.ActiveUserLoginSerializer",
+    # Changing a password must prove knowledge of the current one.
+    "OLD_PASSWORD_FIELD_ENABLED": True,
+    # JWT cookies are the only credential. Do not also create a Django
+    # login session, which would survive an unverified MFA challenge.
+    "SESSION_LOGIN": False,
 }
 
 MIDDLEWARE = [
@@ -187,8 +194,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
    "DEFAULT_AUTHENTICATION_CLASSES": (
-       "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+       "authentication.authentication.ActiveUserJWTCookieAuthentication",
+        "authentication.authentication.ActiveUserJWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
@@ -310,11 +317,11 @@ ASANA_WEBHOOK_ALLOW_ROTATION = env.bool(
 # redaction to mask the most identifying fields while keeping loan context.
 AI_PROFILE_CONTEXT_ENABLED = env.bool(
     "AI_PROFILE_CONTEXT_ENABLED",
-    default=True,
+    default=False,
 )
 AI_REDACT_PROFILE_PII = env.bool(
     "AI_REDACT_PROFILE_PII",
-    default=False,
+    default=True,
 )
 
 # OTP configuration
@@ -335,9 +342,14 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "authentication.validators.StrongPasswordValidator"},
 ]
 
-SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = "DENY"
 SECURE_CONTENT_TYPE_NOSNIFF = True
+# Audit rows store the immediate peer address unless the app is definitely
+# behind a trusted reverse proxy; otherwise X-Forwarded-For is spoofable.
+AUDIT_TRUST_X_FORWARDED_FOR = env.bool(
+    "AUDIT_TRUST_X_FORWARDED_FOR",
+    default=False,
+)
 # CSP nonce-based is set via middleware/headers in production; deny framing and sniffing by default
 SECURE_HSTS_SECONDS = 63072000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True

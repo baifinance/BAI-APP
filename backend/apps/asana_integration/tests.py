@@ -9,7 +9,10 @@ from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from asana_integration.models import AsanaWebhookSecret
-from asana_integration.services.asana import handle_task_moved_event
+from asana_integration.services.asana import (
+    AsanaProfileService,
+    handle_task_moved_event,
+)
 from notifications.models import EmailDelivery, Notification
 from users.models import ClientProfile
 
@@ -344,3 +347,87 @@ class AsanaTaskMovedNotificationTests(APITestCase):
         )
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(EmailDelivery.objects.count(), 1)
+
+
+class _FakePage:
+    """Mimic the SDK's PageIterator: iteration yields pages, items() yields tasks."""
+
+    def __init__(self, items):
+        self._items = items
+
+    def __iter__(self):
+        raise AssertionError("PageIterator must be consumed via items()")
+
+    def items(self):
+        return iter(self._items)
+
+
+class _FakeTasksApi:
+    def __init__(self, tasks):
+        self._tasks = tasks
+
+    def get_tasks_for_project(self, *_args, **_kwargs):
+        return _FakePage(self._tasks)
+
+
+class _FakeSectionsApi:
+    def __init__(self, sections):
+        self._sections = sections
+        self.added = []
+
+    def get_sections_for_project(self, *_args, **_kwargs):
+        return _FakePage(self._sections)
+
+    def add_task_for_section(self, section_gid, body):
+        self.added.append((section_gid, body))
+
+
+@override_settings(ASANA_ACCESS_TOKEN="token", ASANA_PROJECT_GID="project")
+class AsanaPaginationTests(APITestCase):
+    def test_find_profile_iterates_task_items(self):
+        service = AsanaProfileService()
+        service.tasks_api = _FakeTasksApi(
+            [
+                {
+                    "gid": "1",
+                    "name": "Client",
+                    "notes": "Email: client@example.com",
+                    "memberships": [],
+                }
+            ]
+        )
+
+        profile = service.find_profile_by_email("client@example.com")
+
+        self.assertIsNotNone(profile)
+        self.assertEqual(profile["email"], "client@example.com")
+
+    def test_move_status_iterates_task_and_section_items(self):
+        service = AsanaProfileService()
+        service.tasks_api = _FakeTasksApi(
+            [
+                {
+                    "gid": "1",
+                    "name": "Client",
+                    "notes": "Email: client@example.com",
+                    "memberships": [
+                        {
+                            "project": {"gid": "project"},
+                            "section": {"gid": "s1", "name": "Pending"},
+                        }
+                    ],
+                }
+            ]
+        )
+        sections = _FakeSectionsApi(
+            [
+                {"gid": "s1", "name": "Pending"},
+                {"gid": "s2", "name": "Settled"},
+            ]
+        )
+        service.sections_api = sections
+
+        result = service.move_task_to_status("client@example.com", "Settled")
+
+        self.assertEqual(result["section_gid"], "s2")
+        self.assertEqual(sections.added[0][0], "s2")

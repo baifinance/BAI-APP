@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -156,6 +157,9 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
 
   const [toasts, setToasts] = useState<PortalNotification[]>([]);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  // One toast per notification id per session, regardless of how many SSE
+  // frames, refetches, or reconnects report the same item.
+  const seenToastIdsRef = useRef<Set<string>>(new Set());
 
   const profileQuery = useQuery({
     queryKey: clientKeys.profile,
@@ -269,8 +273,20 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   // Bursts of events are coalesced into a single list refresh.
   useEffect(() => {
     let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    let flushing = false;
+
+    const enqueueToasts = (items: PortalNotification[]) => {
+      const unseen = items.filter(
+        (n) => n.id && !seenToastIdsRef.current.has(n.id),
+      );
+      if (!unseen.length) return;
+      unseen.forEach((n) => seenToastIdsRef.current.add(n.id));
+      setToasts((prev) => [...unseen.slice(0, 3), ...prev].slice(0, 4));
+    };
 
     const flushNotifications = async () => {
+      if (flushing) return;
+      flushing = true;
       try {
         const previous =
           queryClient.getQueryData<NotificationApiResponse[]>(clientKeys.notifications);
@@ -283,11 +299,11 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
 
         const previousIds = new Set(previous.map((n) => n.id));
         const newOnes = fresh.filter((n) => !previousIds.has(n.id));
-        if (newOnes.length) {
-          setToasts((prev) => [...newOnes.slice(0, 3).map(mapNotification), ...prev].slice(0, 4));
-        }
+        enqueueToasts(newOnes.map(mapNotification));
       } catch (error) {
         console.error("Failed to refresh notifications:", error);
+      } finally {
+        flushing = false;
       }
     };
 
@@ -313,6 +329,21 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       // `snapshot` is the synthetic "connected" frame sent on every (re)connect;
       // it carries no notification content, so don't fetch or toast on it.
       if (event === "snapshot") return;
+
+      if (event === "notification" && push.notification_id) {
+        // Toast from the frame itself so delivery does not depend on a
+        // follow-up list fetch; the ref prevents the same id being shown again.
+        enqueueToasts([
+          {
+            id: push.notification_id,
+            type: push.notification_type ?? "system",
+            title: push.title ?? "",
+            message: push.message ?? "",
+            created_at: push.created_at ?? new Date().toISOString(),
+            is_read: false,
+          },
+        ]);
+      }
 
       if (refreshTimer) clearTimeout(refreshTimer);
       refreshTimer = setTimeout(flushNotifications, 400);

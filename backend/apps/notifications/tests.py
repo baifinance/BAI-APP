@@ -78,6 +78,7 @@ from django.test import override_settings
 from notifications.email import (
     enqueue_notification_email,
     send_due_notification_emails,
+    send_email_delivery,
 )
 from notifications.models import EmailDelivery, NotificationPreference, PushSubscription
 from notifications.tokens import make_email_preferences_token
@@ -159,6 +160,35 @@ class NotificationPreferenceApiTests(APITestCase):
             NotificationPreference.objects.get(user=self.user).push_enabled
         )
 
+    @override_settings(PUSH_NOTIFICATIONS_ENABLED=True)
+    def test_endpoint_cannot_be_taken_over_by_another_user(self):
+        endpoint = "https://push.example.com/subscription/shared"
+        payload = {
+            "endpoint": endpoint,
+            "p256dh": "p256dh-key",
+            "auth": "auth-secret",
+        }
+        self.client.post(
+            "/api/notifications/push/subscribe/", payload, format="json"
+        )
+
+        other = User.objects.create_user(
+            email="other@example.com",
+            username="other@example.com",
+            password="StrongPassword123!",
+            role="client",
+            is_active=True,
+        )
+        self.client.force_authenticate(user=other)
+        response = self.client.post(
+            "/api/notifications/push/subscribe/", payload, format="json"
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(
+            PushSubscription.objects.get(endpoint=endpoint).user, self.user
+        )
+
 
 @override_settings(
     EMAIL_NOTIFICATIONS_ENABLED=True,
@@ -206,6 +236,16 @@ class NotificationEmailTests(APITestCase):
         self.assertIn("Loan status updated", mail.outbox[0].subject)
         delivery = EmailDelivery.objects.get(notification=notification)
         self.assertEqual(delivery.status, EmailDelivery.Status.SENT)
+
+    def test_claimed_delivery_is_not_sent_twice_by_a_second_worker(self):
+        notification = self._notification()
+        delivery = enqueue_notification_email(notification)
+        stale = EmailDelivery.objects.get(pk=delivery.pk)
+
+        self.assertTrue(send_email_delivery(delivery))
+        self.assertFalse(send_email_delivery(stale))
+
+        self.assertEqual(len(mail.outbox), 1)
 
     def test_signed_link_disables_email(self):
         token = make_email_preferences_token(self.user)
