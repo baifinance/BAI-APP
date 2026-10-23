@@ -1,16 +1,20 @@
 import hashlib
 import hmac
+import json
+from datetime import timedelta
 from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.db import connection
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from asana_integration.models import AsanaWebhookSecret
 from asana_integration.services.asana import (
     AsanaProfileService,
+    claim_event,
     handle_task_moved_event,
 )
 from notifications.models import EmailDelivery, Notification
@@ -93,6 +97,42 @@ class AsanaWebhookReceiverTests(APITestCase):
         )
 
         self.assertEqual(resp.status_code, 403)
+
+    def _deliver_event(self, event):
+        self._store_secret("stored-secret")
+        body = json.dumps({"events": [event]}).encode()
+        return self.client.post(
+            self.URL,
+            data=body,
+            content_type="application/json",
+            HTTP_X_HOOK_SIGNATURE=_sign("stored-secret", body),
+        )
+
+    @mock.patch("asana_integration.views._event_executor")
+    @mock.patch(
+        "asana_integration.views.claim_event",
+        return_value=("digest", True),
+    )
+    def test_event_is_dispatched_off_request_thread(self, _claim, executor):
+        resp = self._deliver_event(
+            {"action": "changed", "created_at": timezone.now().isoformat()}
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        executor.submit.assert_called_once()
+
+    @mock.patch("asana_integration.views._event_executor")
+    @mock.patch(
+        "asana_integration.views.claim_event",
+        return_value=("digest", False),
+    )
+    def test_duplicate_event_is_not_dispatched(self, _claim, executor):
+        resp = self._deliver_event(
+            {"action": "changed", "created_at": timezone.now().isoformat()}
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        executor.submit.assert_not_called()
 
 
 @override_settings(
@@ -308,9 +348,14 @@ class AsanaTaskMovedNotificationTests(APITestCase):
             loan_status_history={"Pending": "2026-01-01T00:00:00+00:00"},
         )
 
-    def _event(self, section="Under Review"):
+    def _event(self, section="Under Review", created_at=None):
+        created_at = created_at or timezone.now()
+        if hasattr(created_at, "isoformat"):
+            created_at = created_at.isoformat()
+
         return {
             "action": "changed",
+            "created_at": created_at,
             "resource": {"gid": "task-gid-1"},
             "change": {
                 "field": "memberships",
@@ -339,8 +384,9 @@ class AsanaTaskMovedNotificationTests(APITestCase):
         self.assertEqual(delivery.status, EmailDelivery.Status.SENT)
 
     def test_repeated_event_does_not_notify_or_email_twice(self):
-        self._handle(self._event())
-        self._handle(self._event())
+        event = self._event()
+        self._handle(event)
+        self._handle(event)
 
         self.assertEqual(
             Notification.objects.filter(recipient=self.client_user).count(), 1
@@ -348,18 +394,79 @@ class AsanaTaskMovedNotificationTests(APITestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(EmailDelivery.objects.count(), 1)
 
+    def test_stale_event_does_not_flip_current_status(self):
+        latest = timezone.now() - timedelta(minutes=10)
+        ClientProfile.objects.filter(user=self.client_user).update(
+            loan_status="Settled",
+            loan_status_history={"Settled": latest.isoformat()},
+        )
 
-class _FakePage:
-    """Mimic the SDK's PageIterator: iteration yields pages, items() yields tasks."""
+        self._handle(
+            self._event(
+                section="Under Review",
+                created_at=latest - timedelta(minutes=5),
+            )
+        )
 
-    def __init__(self, items):
-        self._items = items
+        profile = ClientProfile.objects.get(user=self.client_user)
+        self.assertEqual(profile.loan_status, "Settled")
+        self.assertFalse(
+            Notification.objects.filter(recipient=self.client_user).exists()
+        )
 
-    def __iter__(self):
-        raise AssertionError("PageIterator must be consumed via items()")
+    def test_event_older_than_max_age_is_ignored(self):
+        self._handle(
+            self._event(
+                section="Under Review",
+                created_at=timezone.now() - timedelta(hours=2),
+            )
+        )
 
-    def items(self):
-        return iter(self._items)
+        profile = ClientProfile.objects.get(user=self.client_user)
+        self.assertEqual(profile.loan_status, "Pending")
+        self.assertFalse(
+            Notification.objects.filter(recipient=self.client_user).exists()
+        )
+
+    def test_newer_event_still_notifies_and_records_event_time(self):
+        event_at = timezone.now() + timedelta(seconds=1)
+
+        self._handle(self._event(section="Settled", created_at=event_at))
+
+        profile = ClientProfile.objects.get(user=self.client_user)
+        self.assertEqual(profile.loan_status, "Settled")
+        self.assertEqual(
+            profile.loan_status_history["Settled"],
+            event_at.isoformat(),
+        )
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.client_user).count(), 1
+        )
+
+
+class AsanaEventFingerprintTests(APITestCase):
+    @mock.patch("asana_integration.services.asana.get_redis_client")
+    def test_claim_event_uses_setnx_with_ttl(self, get_redis_client):
+        client = get_redis_client.return_value
+        client.set.return_value = True
+
+        digest, claimed = claim_event({"action": "changed", "resource": {"gid": "1"}})
+
+        self.assertTrue(claimed)
+        self.assertEqual(len(digest), 64)
+        _, kwargs = client.set.call_args
+        self.assertTrue(kwargs["nx"])
+        self.assertEqual(kwargs["ex"], 60 * 60 * 24)
+
+    @mock.patch("asana_integration.services.asana.get_redis_client")
+    def test_claim_event_reports_duplicate(self, get_redis_client):
+        get_redis_client.return_value.set.return_value = None
+
+        _digest, claimed = claim_event(
+            {"action": "changed", "resource": {"gid": "1"}}
+        )
+
+        self.assertFalse(claimed)
 
 
 class _FakeTasksApi:
@@ -367,7 +474,10 @@ class _FakeTasksApi:
         self._tasks = tasks
 
     def get_tasks_for_project(self, *_args, **_kwargs):
-        return _FakePage(self._tasks)
+        # Asana SDK 5.x returns PageIterator.items(), which is already a
+        # generator of item dicts. A plain iterator has no .items() method,
+        # so this fails loudly if the service regresses to calling it.
+        return iter(self._tasks)
 
 
 class _FakeSectionsApi:
@@ -376,7 +486,7 @@ class _FakeSectionsApi:
         self.added = []
 
     def get_sections_for_project(self, *_args, **_kwargs):
-        return _FakePage(self._sections)
+        return iter(self._sections)
 
     def add_task_for_section(self, section_gid, body):
         self.added.append((section_gid, body))
@@ -384,7 +494,7 @@ class _FakeSectionsApi:
 
 @override_settings(ASANA_ACCESS_TOKEN="token", ASANA_PROJECT_GID="project")
 class AsanaPaginationTests(APITestCase):
-    def test_find_profile_iterates_task_items(self):
+    def test_find_profile_iterates_tasks(self):
         service = AsanaProfileService()
         service.tasks_api = _FakeTasksApi(
             [
@@ -402,7 +512,7 @@ class AsanaPaginationTests(APITestCase):
         self.assertIsNotNone(profile)
         self.assertEqual(profile["email"], "client@example.com")
 
-    def test_move_status_iterates_task_and_section_items(self):
+    def test_move_status_iterates_tasks_and_sections(self):
         service = AsanaProfileService()
         service.tasks_api = _FakeTasksApi(
             [

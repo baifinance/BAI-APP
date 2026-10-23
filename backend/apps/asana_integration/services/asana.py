@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import inspect
 import json
 import logging
 import os
 import re
+from datetime import datetime, timezone as datetime_timezone
 
 import asana
 from asana.rest import ApiException
@@ -132,7 +134,7 @@ class AsanaProfileService:
                 options,
             )
 
-            for task in tasks.items():
+            for task in tasks:
                 profile = self.parse_task(task, self.project_gid)
 
                 task_email = self.normalize_email(
@@ -187,7 +189,7 @@ class AsanaProfileService:
                 task_options,
             )
 
-            for task in tasks.items():
+            for task in tasks:
                 profile = self.parse_task(task, self.project_gid)
                 if self.normalize_email(profile.get("email", "")) == normalized_email:
                     matching_task = task
@@ -204,7 +206,7 @@ class AsanaProfileService:
                 section_options,
             )
 
-            for section in sections.items():
+            for section in sections:
                 if section.get("name") == loan_status:
                     target_section = section
                     break
@@ -471,6 +473,64 @@ def _section_name(section_gid):
     return name
 
 
+_EVENT_FINGERPRINT_TTL = 60 * 60 * 24
+
+
+def _event_fingerprint(event):
+    """Return a stable SHA-256 digest for one webhook event payload."""
+    canonical = json.dumps(
+        event,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def claim_event(event):
+    """Claim an event for processing, returning ``(digest, claimed)``.
+
+    Exact retries of the same delivery share a fingerprint, so only the first
+    copy is processed. Redis failures never block processing; the stale-event
+    guard in ``apply_loan_status_change`` remains the durable backstop.
+    """
+    digest = _event_fingerprint(event)
+    try:
+        claimed = get_redis_client().set(
+            f"asana:webhook:{digest}",
+            "1",
+            nx=True,
+            ex=_EVENT_FINGERPRINT_TTL,
+        )
+    except Exception:
+        logger.exception("Could not claim Asana webhook event %s", digest)
+        return digest, True
+    return digest, bool(claimed)
+
+
+def release_event(digest):
+    """Release a fingerprint so a failed event can be retried."""
+    if not digest:
+        return
+    try:
+        get_redis_client().delete(f"asana:webhook:{digest}")
+    except Exception:
+        logger.exception("Could not release Asana webhook event %s", digest)
+
+
+def _parse_event_created_at(event):
+    """Parse the top-level Asana event ``created_at`` timestamp."""
+    raw = event.get("created_at")
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=datetime_timezone.utc)
+    return parsed
+
+
 def handle_task_moved_event(event):
     """
     Process one Asana webhook ``task.moved`` event.
@@ -479,6 +539,14 @@ def handle_task_moved_event(event):
     owning client. Never raises: the webhook receiver feeds every event
     through here and must stay healthy.
     """
+
+    event_at = _parse_event_created_at(event)
+    if event_at is None:
+        logger.warning(
+            "Asana event skipped: missing or invalid created_at resource=%s",
+            (event.get("resource") or {}).get("gid"),
+        )
+        return
 
     action = event.get("action")
     if action not in ("moved", "changed", "added"):
@@ -552,14 +620,19 @@ def handle_task_moved_event(event):
         return
 
     logger.info(
-        "Asana event processed: action=%s task=%s section=%s client=%s",
+        "Asana event received: action=%s task=%s section=%s client=%s",
         action,
         task_gid,
         section_name,
         client.id,
     )
 
-    _profile, changed = apply_loan_status_change(client, section_name)
+    _profile, changed = apply_loan_status_change(
+        client,
+        section_name,
+        when=event_at,
+        asana_event_at=event_at,
+    )
     if not changed:
         # Asana retries webhook deliveries. The client is already in this
         # section, so this is a repeat of a move that was already handled.

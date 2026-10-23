@@ -349,9 +349,10 @@ export const notificationsApi = {
         json: { endpoint },
       }),
 
-    sendTestPush: () =>
+    sendTestPush: (endpoint?: string) =>
       request<{ sent: number }>("/api/notifications/push/test/", {
         method: "POST",
+        json: endpoint ? { endpoint } : undefined,
       }),
 };
 

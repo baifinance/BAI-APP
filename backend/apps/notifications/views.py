@@ -276,7 +276,25 @@ class PushTestView(APIView):
     def post(self, request):
         from notifications.push import send_test_push
 
-        sent = send_test_push(request.user)
+        endpoint = request.data.get("endpoint")
+        if endpoint is not None and not isinstance(endpoint, str):
+            return Response(
+                {"sent": 0, "detail": "Invalid push subscription endpoint."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if endpoint and not PushSubscription.objects.filter(
+            user=request.user,
+            endpoint=endpoint,
+        ).exists():
+            return Response(
+                {
+                    "sent": 0,
+                    "detail": "This browser is not registered for push on this account.",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        sent = send_test_push(request.user, endpoint=endpoint or None)
         if sent == 0:
             return Response(
                 {"sent": 0, "detail": "No active push subscriptions."},

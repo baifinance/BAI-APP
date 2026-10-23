@@ -1,7 +1,9 @@
 """Service helpers for user profiles."""
 
 import logging
+from datetime import datetime, timezone as datetime_timezone
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -22,7 +24,37 @@ def _invalidate_asana_profile_cache(email):
         logger.warning("Could not invalidate Asana profile cache", exc_info=True)
 
 
-def apply_loan_status_change(user, status, *, actor=None, when=None):
+def _parse_history_timestamp(value):
+    """Parse an ISO timestamp stored in ``loan_status_history``."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=datetime_timezone.utc)
+    return parsed
+
+
+def _latest_history_at(history):
+    """Return the newest recorded transition time in ``history``."""
+    latest = None
+    for value in history.values():
+        parsed = _parse_history_timestamp(value)
+        if parsed is not None and (latest is None or parsed > latest):
+            latest = parsed
+    return latest
+
+
+def apply_loan_status_change(
+    user,
+    status,
+    *,
+    actor=None,
+    when=None,
+    asana_event_at=None,
+):
     """Record a loan-status transition and report whether anything changed.
 
     Persists a ``{status: ISO-timestamp}`` map on the client's ``ClientProfile``
@@ -36,6 +68,12 @@ def apply_loan_status_change(user, status, *, actor=None, when=None):
     Callers use ``changed`` to avoid duplicate notifications: Asana retries
     webhook deliveries, and every retry would otherwise notify and email the
     client again for a move that already happened.
+
+    When ``asana_event_at`` is supplied, the event is treated as authoritative
+    only if it happened after the newest recorded transition and within
+    ``ASANA_WEBHOOK_MAX_EVENT_AGE_SECONDS``. This rejects replays of old
+    distinct events, which an "already in this status" check alone cannot
+    catch.
     """
     if not status:
         return None, False
@@ -49,6 +87,48 @@ def apply_loan_status_change(user, status, *, actor=None, when=None):
             return None, False
 
         history = dict(profile.loan_status_history or {})
+
+        if asana_event_at is not None:
+            if asana_event_at.tzinfo is None:
+                asana_event_at = asana_event_at.replace(
+                    tzinfo=datetime_timezone.utc
+                )
+
+            try:
+                max_age = int(
+                    getattr(
+                        settings,
+                        "ASANA_WEBHOOK_MAX_EVENT_AGE_SECONDS",
+                        3600,
+                    )
+                )
+            except (TypeError, ValueError):
+                max_age = 3600
+
+            if max_age > 0:
+                age = (timezone.now() - asana_event_at).total_seconds()
+                if age > max_age:
+                    logger.info(
+                        "Stale Asana event ignored: user=%s status=%s age=%.0fs",
+                        user.pk,
+                        status,
+                        age,
+                    )
+                    return profile, False
+
+            latest = _latest_history_at(history)
+            if latest is not None and asana_event_at <= latest:
+                logger.info(
+                    "Out-of-order Asana event ignored: user=%s status=%s "
+                    "event_at=%s latest=%s",
+                    user.pk,
+                    status,
+                    asana_event_at.isoformat(),
+                    latest.isoformat(),
+                )
+                return profile, False
+
+            when = asana_event_at
 
         if profile.loan_status == status and status in history:
             return profile, False

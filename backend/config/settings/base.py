@@ -220,7 +220,7 @@ REST_FRAMEWORK = {
         "invite": "20/hour",
         "session": "10/hour",
         "transcript": "5/hour",
-        "push_test": "10/hour",
+        "push_test": os.getenv("PUSH_TEST_THROTTLE_RATE", "100/hour"),
     },
 }
 
@@ -309,6 +309,21 @@ ASANA_WEBHOOK_HANDSHAKE_ENABLED = env.bool(
 
 ASANA_WEBHOOK_ALLOW_ROTATION = env.bool(
     "ASANA_WEBHOOK_ALLOW_ROTATION",
+    default=False,
+)
+
+# Asana retries undelivered events for up to 24 hours, so a backlog can replay
+# moves from days ago. Events older than this are ignored rather than allowed
+# to flip the client's current status back in time.
+ASANA_WEBHOOK_MAX_EVENT_AGE_SECONDS = env.int(
+    "ASANA_WEBHOOK_MAX_EVENT_AGE_SECONDS",
+    default=3600,
+)
+
+# Tests set this to True to process deliveries inline. Production keeps the
+# request thread free so Asana gets its ACK well within the 10-second limit.
+ASANA_WEBHOOK_SYNC = env.bool(
+    "ASANA_WEBHOOK_SYNC",
     default=False,
 )
 

@@ -143,14 +143,34 @@ export default function NotificationSettings() {
     setBusy("test");
     setMessage("");
     try {
-      const result = await notificationsApi.sendTestPush();
+      const subscription = await getPushSubscription();
+      if (!subscription) {
+        console.warn("[push-test] no active subscription");
+        setMessage("No active push subscription was found.");
+        return;
+      }
+      console.log("[push-test] sending", {
+        endpointHost: new URL(subscription.endpoint).host,
+      });
+      const result = await notificationsApi.sendTestPush(subscription.endpoint);
+      console.log("[push-test] response", result);
       setMessage(
         result.sent > 0
           ? "Test notification sent to this device."
           : "No active push subscription was found.",
       );
-    } catch {
-      setMessage("Test notification could not be sent.");
+    } catch (error) {
+      console.error("[push-test] failed", error);
+      const detail = error instanceof Error ? error.message : "";
+      const retry = detail.match(/Expected available in (\d+) seconds?/i);
+      if (retry) {
+        const minutes = Math.max(1, Math.ceil(Number(retry[1]) / 60));
+        setMessage(
+          `Too many test notifications. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+        );
+      } else {
+        setMessage(detail || "Test notification could not be sent.");
+      }
     } finally {
       setBusy(null);
     }

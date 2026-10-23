@@ -3,17 +3,59 @@ import hmac
 import json
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 from django.conf import settings
+from django.db import close_old_connections
 from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 
-from asana_integration.services.asana import handle_task_moved_event
+from asana_integration.services.asana import (
+    claim_event,
+    handle_task_moved_event,
+    release_event,
+)
 
 logger = logging.getLogger(__name__)
 
 MAX_HOOK_SECRET_LENGTH = 256
+
+# Asana retries any delivery that does not receive a success response within
+# 10 seconds. Process events off the request thread so a slow Asana API call,
+# push dispatch, or SMTP send can never hold the ACK open.
+_event_executor = ThreadPoolExecutor(
+    max_workers=4,
+    thread_name_prefix="asana-webhook",
+)
+
+
+def _process_event(event, digest):
+    try:
+        close_old_connections()
+        handle_task_moved_event(event)
+    except Exception:  # noqa: BLE001 - background work must never crash
+        release_event(digest)
+        logger.exception("Failed to process Asana event: %s", event)
+    finally:
+        close_old_connections()
+
+
+def _dispatch_event(event):
+    digest, claimed = claim_event(event)
+    if not claimed:
+        logger.info("Skipped duplicate Asana webhook event %s", digest)
+        return
+
+    if getattr(settings, "ASANA_WEBHOOK_SYNC", False):
+        _process_event(event, digest)
+        return
+
+    try:
+        _event_executor.submit(_process_event, event, digest)
+    except Exception:  # noqa: BLE001 - e.g. executor already shut down
+        release_event(digest)
+        logger.exception("Could not queue Asana event: %s", event)
 
 # Each environment (deployment) stores its own handshake secret under a label
 # carried in the target URL as ``?hook=<label>``. Asana sends the full target
@@ -162,8 +204,8 @@ class AsanaWebhookReceiver(APIView):
         for event in payload.get("events") or []:
             try:
                 logger.info("RAW EVENT: %s", json.dumps(event, sort_keys=True))
-                handle_task_moved_event(event)
-            except Exception: #noqa: BLE001 - keep the webhook alive
-                logger.exception("Failed to process Asana event: %s", event)
+                _dispatch_event(event)
+            except Exception:  # noqa: BLE001 - keep the webhook alive
+                logger.exception("Failed to dispatch Asana event: %s", event)
 
         return HttpResponse(status=200)

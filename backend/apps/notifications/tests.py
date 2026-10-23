@@ -189,6 +189,47 @@ class NotificationPreferenceApiTests(APITestCase):
             PushSubscription.objects.get(endpoint=endpoint).user, self.user
         )
 
+    @override_settings(
+        PUSH_NOTIFICATIONS_ENABLED=True,
+        VAPID_PUBLIC_KEY="public-test-key",
+        VAPID_PRIVATE_KEY="private-test-key",
+    )
+    @mock.patch("notifications.push._send_to_subscriptions", return_value=1)
+    def test_test_push_targets_current_browser(self, send):
+        first = PushSubscription.objects.create(
+            user=self.user,
+            endpoint="https://push.example.com/one",
+            p256dh="p256dh-one",
+            auth="auth-one",
+        )
+        PushSubscription.objects.create(
+            user=self.user,
+            endpoint="https://push.example.com/two",
+            p256dh="p256dh-two",
+            auth="auth-two",
+        )
+
+        response = self.client.post(
+            "/api/notifications/push/test/",
+            {"endpoint": first.endpoint},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["sent"], 1)
+        subscriptions = send.call_args.args[0]
+        self.assertEqual([s.endpoint for s in subscriptions], [first.endpoint])
+
+    @override_settings(PUSH_NOTIFICATIONS_ENABLED=True)
+    def test_test_push_rejects_unregistered_browser_endpoint(self):
+        response = self.client.post(
+            "/api/notifications/push/test/",
+            {"endpoint": "https://push.example.com/unregistered"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+
 
 @override_settings(
     EMAIL_NOTIFICATIONS_ENABLED=True,

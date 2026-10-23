@@ -1,5 +1,6 @@
 from unittest import mock
 
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from audit.models import AuditLog
@@ -173,6 +174,7 @@ class AsanaWebhookHistoryTests(APITestCase):
         handle_task_moved_event(
             {
                 "action": "changed",
+                "created_at": timezone.now().isoformat(),
                 "change": {
                     "field": "memberships",
                     "new_section": {"name": "Under Review"},

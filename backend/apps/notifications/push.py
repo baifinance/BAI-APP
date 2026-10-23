@@ -1,5 +1,7 @@
 import json
 import logging
+import uuid
+from urllib.parse import urlparse
 
 from django.conf import settings
 
@@ -95,23 +97,36 @@ def send_push_notification(notification):
     )
 
 
-def send_test_push(user):
+def send_test_push(user, endpoint=None):
     """Send a test payload to the current user's registered devices."""
     if not getattr(settings, "PUSH_NOTIFICATIONS_ENABLED", False):
         return 0
     if not _vapid_private_key() or not getattr(settings, "VAPID_PUBLIC_KEY", ""):
         return 0
 
-    subscriptions = list(PushSubscription.objects.filter(user=user))
+    subscriptions = PushSubscription.objects.filter(user=user)
+    if endpoint:
+        subscriptions = subscriptions.filter(endpoint=endpoint)
+    subscriptions = list(subscriptions)
     if not subscriptions:
+        logger.info("Test push skipped for user %s: no subscriptions", user.pk)
         return 0
 
-    return _send_to_subscriptions(
+    logger.info(
+        "Test push requested for user %s: subscriptions=%d target=%s",
+        user.pk,
+        len(subscriptions),
+        urlparse(endpoint).netloc if endpoint else "all devices",
+    )
+    sent = _send_to_subscriptions(
         subscriptions,
         {
             "title": "BAI Finance notifications are on",
             "body": "This device will receive BAI Finance alerts.",
             "url": notification_path_for_user(user),
-            "tag": "bai-test-notification",
+            "tag": f"bai-test-{uuid.uuid4().hex[:12]}",
+            "renotify": True,
         },
     )
+    logger.info("Test push result for user %s: sent=%d", user.pk, sent)
+    return sent

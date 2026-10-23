@@ -98,7 +98,8 @@ Access tokens live 15 minutes, refresh tokens 7 days, with rotation and blacklis
 | `otp:{purpose}:{email}` | `OTP_TTL` (180s) or `OTP_LOGIN_EXPIRY` (120s for `login_2fa`) | The code itself, `setex` |
 | `otp_verified:{user_id}` | `OTP_VERIFIED_FLAG_TTL` (4h) | "Already passed 2FA" flag set by `mark_otp_verified()` |
 | `notify:{user_id}` | — | Pub/sub channel backing the SSE stream |
-| `asana_task:{gid}` / `asana_section:{gid}` | 24h | Memoised Asana lookups |
+| `asana_task:{gid}` / `asana_section:{gid}` | 15m | Memoised Asana lookups |
+| `asana:webhook:{sha256}` | 24h | Exact webhook delivery dedupe (`SET NX`) |
 
 `IsOtpVerified` is a permission class, not middleware: it passes when `user.mfa_enabled` is `False`, otherwise it requires the Redis flag. It guards `bookings`, `notifications`, `users.profile`, staff administration, and audit reads. A wrong code costs a strike; three strikes lock the key.
 
@@ -364,12 +365,14 @@ Read from `backend/.env` by `django-environ` and `os.getenv`. Grouped by feature
 | `ASANA_PROFILE_LOOKUP_ENABLED` | Master switch for Asana profile lookup | `False` |
 | `ASANA_ACCESS_TOKEN` | Personal access token / service-account token | `""` |
 | `ASANA_PROJECT_GID` | Project containing the loan tasks | `""` |
-| `ASANA_WEBHOOK_ENABLED` | Required by `manage.py register_asana_webhook` | `False` |
+| `ASANA_WEBHOOK_ENABLED` | Required by `manage.py register_asana_webhook`; when false, verified deliveries are ACKed and discarded | `False` |
 | `ASANA_WEBHOOK_HANDSHAKE_ENABLED` | Accept Asana's `X-Hook-Secret` handshake (enable only while registering) | `False` |
 | `ASANA_WEBHOOK_ALLOW_ROTATION` | Allow replacing an already-stored webhook secret | `False` |
+| `ASANA_WEBHOOK_MAX_EVENT_AGE_SECONDS` | Ignore events older than this (Asana retries for up to 24h) | `3600` |
+| `ASANA_WEBHOOK_SYNC` | Process deliveries inline instead of on the background executor (tests only) | `False` |
 
 > [!NOTE]
-> `ASANA_REQUEST_TIMEOUT` appears in `.env.example` but is **never read by any code**. It is safe to delete.
+> `ASANA_REQUEST_TIMEOUT` is applied to SDK calls by `AsanaProfileService` (clamped to 2–30s).
 
 ### AI / RAG
 
@@ -819,7 +822,7 @@ Serializer `purpose` choices: `login`, `reset_password`, `login_2fa`, `invite_ve
 
 | Method | Path | View | Description | Permission |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/api/asana/webhook/` | `AsanaWebhookReceiver` | On registration, echoes (and stores) the `X-Hook-Secret` handshake header — only while `ASANA_WEBHOOK_HANDSHAKE_ENABLED=True`, and never replacing an existing secret unless `ASANA_WEBHOOK_ALLOW_ROTATION=True`; otherwise `403`. Other deliveries verify the `X-Hook-Signature` HMAC over the raw body against the stored secret, then iterate `payload["events"]` → `handle_task_moved_event`. Verified deliveries return a bare `200`; missing/invalid signatures return `403` (fail-closed) | Public, **throttling disabled** so webhook bursts are never 429'd |
+| `POST` | `/api/asana/webhook/` | `AsanaWebhookReceiver` | On registration, echoes (and stores) the `X-Hook-Secret` handshake header — only while `ASANA_WEBHOOK_HANDSHAKE_ENABLED=True`, and never replacing an existing secret unless `ASANA_WEBHOOK_ALLOW_ROTATION=True`; otherwise `403`. Other deliveries verify the `X-Hook-Signature` HMAC over the raw body against the stored secret, drop exact duplicate event fingerprints, enqueue the rest on a background executor, and return `200` immediately (Asana retries when an ACK takes over 10s). Events older than `ASANA_WEBHOOK_MAX_EVENT_AGE_SECONDS` or older than the client's newest recorded transition are ignored, so retries cannot flip the status back. Missing/invalid signatures return `403` (fail-closed) | Public, **throttling disabled** so webhook bursts are never 429'd |
 
 ### Throttle scopes
 
