@@ -381,6 +381,7 @@ export interface StreamPush {
   notification_id?: string;
   notification_type?: string | null;
   loan_status?: string;
+  application_id?: string | null;
   title?: string | null;
   message?: string | null;
   created_at?: string | null;
@@ -559,6 +560,23 @@ export interface LoanStatusUpdateResponse {
   section_gid: string;
 }
 
+export interface LoanApplication {
+  id: string;
+  asana_project_gid?: string | null;
+  asana_project_name?: string | null;
+  asana_task_gid?: string | null;
+  asana_task_name?: string | null;
+  amount?: number | null;
+  status?: string;
+  asana_status?: string | null;
+  asana_status_history?: Record<string, string>;
+  asana_created_at?: string | null;
+  asana_synced_at?: string | null;
+  is_primary?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export const loansApi = {
   getCurrentStatus: () =>
     request<CurrentLoanStatusResponse>("/api/loans/current-status/"),
@@ -571,6 +589,21 @@ export const loansApi = {
         loan_status: loanStatus,
       },
     }),
+
+  listApplications: () =>
+    request<LoanApplication[]>("/api/loans/applications/"),
+
+  getApplication: (id: string) =>
+    request<LoanApplication>(`/api/loans/applications/${id}/`),
+
+  updateApplicationStatus: (id: string, loanStatus: string) =>
+    request<{ application_id: string; message: string; loan_status: string }>(
+      `/api/loans/applications/${id}/status/`,
+      {
+        method: "PATCH",
+        json: { loan_status: loanStatus },
+      }
+    ),
 };
 
 export interface AIChatResponse {

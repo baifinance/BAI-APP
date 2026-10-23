@@ -32,7 +32,7 @@ def create_notification(
     )
 
 
-def publish_stream_notification(user_id, notification=None, loan_status=None):
+def publish_stream_notification(user_id, notification=None, loan_status=None, application_id=None):
     """Ping the user's live SSE channel and fan out side channels.
 
     Push and email are best-effort: a delivery failure must never roll back the
@@ -42,6 +42,7 @@ def publish_stream_notification(user_id, notification=None, loan_status=None):
         "notification_id": str(getattr(notification, "pk", "") or ""),
         "notification_type": getattr(notification, "notification_type", None),
         "loan_status": loan_status,
+        "application_id": str(application_id) if application_id is not None else None,
         "title": getattr(notification, "title", None),
         "message": getattr(notification, "message", None),
         "created_at": (

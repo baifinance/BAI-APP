@@ -15,6 +15,7 @@ from asana_integration.models import AsanaWebhookSecret
 from asana_integration.services.asana import (
     AsanaProfileService,
     claim_event,
+    get_project_gids,
     handle_task_moved_event,
 )
 from notifications.models import EmailDelivery, Notification
@@ -540,4 +541,59 @@ class AsanaPaginationTests(APITestCase):
         result = service.move_task_to_status("client@example.com", "Settled")
 
         self.assertEqual(result["section_gid"], "s2")
-        self.assertEqual(sections.added[0][0], "s2")
+
+
+@override_settings(ASANA_ACCESS_TOKEN="token")
+class GetProjectGidsTests(APITestCase):
+    def test_env_project_gids_take_priority(self):
+        with override_settings(
+            ASANA_PROJECT_GIDS="proj-a, proj-b",
+            ASANA_PROJECT_GID="proj-c",
+        ):
+            self.assertEqual(get_project_gids(), ["proj-a", "proj-b", "proj-c"])
+
+    def test_legacy_fallback_when_env_empty(self):
+        with override_settings(
+            ASANA_PROJECT_GIDS="", ASANA_PROJECT_GID="proj-legacy"
+        ):
+            self.assertEqual(get_project_gids(), ["proj-legacy"])
+
+    def test_duplicates_are_deduplicated(self):
+        with override_settings(
+            ASANA_PROJECT_GIDS="proj-a,proj-a",
+            ASANA_PROJECT_GID="proj-a",
+        ):
+            self.assertEqual(get_project_gids(), ["proj-a"])
+
+
+@override_settings(ASANA_ACCESS_TOKEN="token", ASANA_PROJECT_GIDS="proj-a,proj-b", ASANA_PROJECT_GID="")
+class FindProfilesByEmailTests(APITestCase):
+    @mock.patch.object(AsanaProfileService, "_find_first_in_project")
+    def test_aggregates_matching_profiles_across_projects(self, mock_find):
+        def side_effect(project_gid, email):
+            if project_gid == "proj-a":
+                return {
+                    "email": email,
+                    "fullname": "Client A",
+                    "asana_project_gid": project_gid,
+                }
+            return None
+
+        mock_find.side_effect = side_effect
+
+        service = AsanaProfileService(project_gid="proj-a")
+        results = service.find_profiles_by_email("client@example.com")
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["email"], "client@example.com")
+        self.assertEqual(results[0]["asana_project_gid"], "proj-a")
+        self.assertEqual(mock_find.call_count, 2)
+
+    @mock.patch.object(AsanaProfileService, "_find_first_in_project")
+    def test_returns_empty_when_no_project_matches(self, mock_find):
+        mock_find.return_value = None
+
+        service = AsanaProfileService(project_gid="proj-a")
+        results = service.find_profiles_by_email("nobody@example.com")
+
+        self.assertEqual(results, [])

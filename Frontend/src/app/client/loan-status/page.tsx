@@ -10,9 +10,16 @@ const LoanStatusTab = dynamic(() => import("./LoanStatusTab"), {
 });
 
 export default function ClientLoanStatusPage() {
-  const { client, handleLogAction, loading } = useClientData();
+  const { client, handleLogAction, setSelectedApplicationId, loading } =
+    useClientData();
 
   if (loading) return <PageSkeleton rows={6} />;
 
-  return <LoanStatusTab client={client} onLogAction={handleLogAction} />;
+  return (
+    <LoanStatusTab
+      client={client}
+      onLogAction={handleLogAction}
+      setSelectedApplicationId={setSelectedApplicationId}
+    />
+  );
 }

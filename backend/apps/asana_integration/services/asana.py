@@ -15,7 +15,11 @@ from django.contrib.auth import get_user_model
 from notifications.choices import NotificationType
 from notifications.services import create_notification, publish_stream_notification
 from otp.utils import get_redis_client
-from users.services import apply_loan_status_change
+from users.services import (
+    apply_application_status_change,
+    apply_loan_status_change,
+    _latest_history_at,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +46,48 @@ LOAN_STATUSES = {
 }
 
 
+def get_project_gids():
+    """Return the ordered, deduplicated list of Asana project GIDs to search.
+
+    Sources (in priority order):
+      1. Comma-separated ``ASANA_PROJECT_GIDS`` setting.
+      2. Legacy ``ASANA_PROJECT_GID`` setting.
+      3. Distinct ``asana_project_gid`` values already stored on
+         :class:`~loans.models.LoanApplication` rows.
+    """
+    gids = []
+
+    env_gids = getattr(settings, "ASANA_PROJECT_GIDS", "") or ""
+    for raw in str(env_gids).split(","):
+        gid = raw.strip()
+        if gid and gid not in gids:
+            gids.append(gid)
+
+    legacy = getattr(settings, "ASANA_PROJECT_GID", "") or ""
+    for raw in str(legacy).split(","):
+        gid = raw.strip()
+        if gid and gid not in gids:
+            gids.append(gid)
+
+    if not gids:
+        try:
+            from loans.models import LoanApplication
+
+            gids = list(
+                LoanApplication.objects.exclude(
+                    asana_project_gid__isnull=True
+                )
+                .exclude(asana_project_gid="")
+                .values_list("asana_project_gid", flat=True)
+                .distinct()
+            )
+        except Exception:  # noqa: BLE001 - DB may not be ready at import time
+            logger.exception("Could not resolve Asana project GIDs from DB")
+            gids = []
+
+    return gids
+
+
 class AsanaProfileService:
     """
     Asana integration using the official Asana Python SDK.
@@ -50,18 +96,19 @@ class AsanaProfileService:
     each task description, and can move a task between project sections.
     """
 
-    def __init__(self):
+    def __init__(self, project_gid=None):
         access_token = getattr(
             settings,
             "ASANA_ACCESS_TOKEN",
             "",
         )
 
-        project_gid = getattr(
-            settings,
-            "ASANA_PROJECT_GID",
-            "",
-        )
+        if project_gid is None:
+            project_gid = getattr(
+                settings,
+                "ASANA_PROJECT_GID",
+                "",
+            )
 
         if not access_token:
             raise AsanaProfileError(
@@ -112,7 +159,33 @@ class AsanaProfileService:
         """
         Search the configured Asana project and return the first task 
         whose description email matches the supplied email.
+
+        Kept for backward compatibility: searches ``self.project_gid`` only.
+        Use :meth:`find_profiles_by_email` to search all configured projects.
         """
+        return self._find_first_in_project(self.project_gid, email)
+
+    def find_profiles_by_email(self, email):
+        """
+        Search every configured Asana project and return a list of public
+        profiles whose task description email matches ``email``.
+
+        Each returned dict includes ``asana_project_gid`` and
+        ``asana_project_name`` so callers can group results by loan project.
+        """
+        normalized_email = self.normalize_email(email)
+        results = []
+
+        for project_gid in get_project_gids():
+            profile = self._find_first_in_project(project_gid, email)
+            if profile is not None:
+                profile["asana_project_gid"] = project_gid
+                results.append(profile)
+
+        return results
+
+    def _find_first_in_project(self, project_gid, email):
+        """Return the first matching public profile within one project, or None."""
         normalized_email = self.normalize_email(email)
 
         options = {
@@ -130,44 +203,125 @@ class AsanaProfileService:
 
         try:
             tasks = self.tasks_api.get_tasks_for_project(
-                self.project_gid,
+                project_gid,
                 options,
             )
 
             for task in tasks:
-                profile = self.parse_task(task, self.project_gid)
+                profile = self.parse_task(task, project_gid)
 
                 task_email = self.normalize_email(
                     profile.get("email", "")
                 )
 
                 if task_email == normalized_email:
-                    return self.to_public_profile(profile)
+                    public = self.to_public_profile(profile)
+                    public["asana_project_gid"] = project_gid
+                    public["asana_project_name"] = (
+                        profile.get("asana_project_name")
+                        or self._project_name(project_gid)
+                    )
+                    return public
 
         except ApiException as error:
             logger.warning(
-                "ASANA API request failed: status=%s reason %s",
+                "ASANA API request failed: project=%s status=%s reason=%s",
+                project_gid,
                 getattr(error, "status", None),
                 getattr(error, "reason", str(error)),
             )
-
             raise AsanaProfileError(
                 "unable to retrieve the client profile from Asana."
             ) from error
 
         return None
 
-    def move_task_to_status(self, email, loan_status):
+    @staticmethod
+    def _project_name(project_gid):
+        """Best-effort project name lookup without an extra API round-trip."""
+        return None
+
+    def move_task_to_status(self, email, loan_status, *, task_gid=None, project_gid=None):
         """
         Move the client's task to the Asana section matching ``loan_status``.
 
-        The task is located by the email in its description, and the target
-        section is located by its exact name in the configured project.
+        Resolution order:
+          1. ``task_gid`` (exact task) - project is taken from memberships.
+          2. ``project_gid`` (search only that project).
+          3. Legacy email-only search across ``self.project_gid``.
+
+        Raises ``ValueError`` when the task/section is missing or the legacy
+        email-only search matches multiple applications (ambiguous).
         """
         if loan_status not in LOAN_STATUSES:
             raise ValueError(f"Unsupported loan status: {loan_status}")
 
         normalized_email = self.normalize_email(email)
+
+        if task_gid:
+            return self._move_task_by_gid(task_gid, loan_status, normalized_email)
+
+        if project_gid:
+            return self._move_task_in_project(
+                project_gid, loan_status, normalized_email
+            )
+
+        # Legacy path: email-only search within the configured project.
+        return self._move_task_in_project(
+            self.project_gid, loan_status, normalized_email, legacy_ambiguous=True
+        )
+
+    def _move_task_by_gid(self, task_gid, loan_status, normalized_email):
+        """Move a specific task, resolving its project from memberships."""
+        task_options = {
+            "opt_fields": (
+                "gid,name,notes,"
+                "memberships.project.gid,"
+                "memberships.section.gid,"
+                "memberships.section.name"
+            ),
+        }
+
+        try:
+            task = self.tasks_api.get_task(task_gid, task_options)
+        except ApiException as error:
+            logger.warning(
+                "ASANA get_task failed: task=%s status=%s reason=%s",
+                task_gid,
+                getattr(error, "status", None),
+                getattr(error, "reason", str(error)),
+            )
+            raise AsanaProfileError(
+                "Unable to retrieve the Asana task."
+            ) from error
+
+        profile = self.parse_task(task, None)
+        task_email = self.normalize_email(profile.get("email", ""))
+        if task_email != normalized_email:
+            raise ValueError(
+                f"No Asana task found for client email: {email}"
+            )
+
+        target_project_gid = None
+        for membership in (task.get("memberships") or []):
+            project = (membership.get("project") or {})
+            if project.get("gid"):
+                target_project_gid = project["gid"]
+                break
+
+        if not target_project_gid:
+            target_project_gid = self.project_gid
+
+        return self._move_task_in_project(
+            target_project_gid, loan_status, normalized_email,
+            task_gid=task_gid, task=task,
+        )
+
+    def _move_task_in_project(
+        self, project_gid, loan_status, normalized_email,
+        task_gid=None, task=None, legacy_ambiguous=False
+    ):
+        """Locate and move a task within one project."""
         task_options = {
             "limit": 100,
             "opt_fields": (
@@ -183,26 +337,36 @@ class AsanaProfileService:
         }
 
         try:
-            matching_task = None
-            tasks = self.tasks_api.get_tasks_for_project(
-                self.project_gid,
-                task_options,
-            )
-
-            for task in tasks:
-                profile = self.parse_task(task, self.project_gid)
-                if self.normalize_email(profile.get("email", "")) == normalized_email:
-                    matching_task = task
-                    break
-
-            if matching_task is None:
-                raise ValueError(
-                    f"No Asana task found for client email: {email}"
+            if task is None:
+                tasks = self.tasks_api.get_tasks_for_project(
+                    project_gid,
+                    task_options,
                 )
+
+                matching_tasks = []
+                for candidate in tasks:
+                    candidate_profile = self.parse_task(candidate, project_gid)
+                    if self.normalize_email(
+                        candidate_profile.get("email", "")
+                    ) == normalized_email:
+                        matching_tasks.append(candidate)
+
+                if legacy_ambiguous and len(matching_tasks) > 1:
+                    raise ValueError(
+                        "Multiple Asana tasks match this email across configured "
+                        "projects. Specify application_id, task_gid, or project_gid."
+                    )
+
+                if not matching_tasks:
+                    raise ValueError(
+                        f"No Asana task found for client email: {email}"
+                    )
+
+                task = matching_tasks[0]
 
             target_section = None
             sections = self.sections_api.get_sections_for_project(
-                self.project_gid,
+                project_gid,
                 section_options,
             )
 
@@ -219,7 +383,7 @@ class AsanaProfileService:
             current_section = next(
                 (
                     membership.get("section") or {}
-                    for membership in (matching_task.get("memberships") or [])
+                    for membership in (task.get("memberships") or [])
                     if (membership.get("section") or {}).get("gid")
                 ),
                 {},
@@ -227,25 +391,28 @@ class AsanaProfileService:
 
             if current_section.get("gid") == target_section["gid"]:
                 return {
-                    "task_gid": matching_task["gid"],
+                    "task_gid": task["gid"],
+                    "project_gid": project_gid,
                     "loan_status": loan_status,
                     "section_gid": target_section["gid"],
                 }
 
             self.sections_api.add_task_for_section(
                 target_section["gid"],
-                {"body": {"task": matching_task["gid"]}},
+                {"body": {"task": task["gid"]}},
             )
 
             return {
-                "task_gid": matching_task["gid"],
+                "task_gid": task["gid"],
+                "project_gid": project_gid,
                 "loan_status": loan_status,
                 "section_gid": target_section["gid"],
             }
 
         except ApiException as error:
             logger.warning(
-                "ASANA status update failed: status=%s reason=%s",
+                "ASANA status update failed: project=%s status=%s reason=%s",
+                project_gid,
                 getattr(error, "status", None),
                 getattr(error, "reason", str(error)),
             )
@@ -531,13 +698,14 @@ def _parse_event_created_at(event):
     return parsed
 
 
-def handle_task_moved_event(event):
+def handle_task_moved_event(event, project_gid=None):
     """
     Process one Asana webhook ``task.moved`` event.
 
-    A task section change maps to a loan-status notification for the
-    owning client. Never raises: the webhook receiver feeds every event
-    through here and must stay healthy.
+    Upserts the owning client's :class:`~loans.models.LoanApplication` for the
+    project/task, records the per-application status transition, mirrors the
+    primary application to ``ClientProfile``, and publishes an SSE payload
+    that includes ``application_id``. Never raises.
     """
 
     event_at = _parse_event_created_at(event)
@@ -603,7 +771,7 @@ def handle_task_moved_event(event):
     if not task_gid:
         logger.info("Asana event skipped: no task gid")
         return
-    
+
     email = _task_email(task_gid)
     if not email:
         logger.warning("No email resolvable for Asana task %s", task_gid)
@@ -619,24 +787,80 @@ def handle_task_moved_event(event):
         logger.info("No active client account for Asana task %s", task_gid)
         return
 
+    project_gid = project_gid or None
+    if not project_gid:
+        gids = get_project_gids()
+        project_gid = gids[0] if gids else None
+
     logger.info(
-        "Asana event received: action=%s task=%s section=%s client=%s",
+        "Asana event received: action=%s task=%s section=%s project=%s client=%s",
         action,
         task_gid,
         section_name,
+        project_gid,
         client.id,
     )
 
-    _profile, changed = apply_loan_status_change(
-        client,
-        section_name,
-        when=event_at,
-        asana_event_at=event_at,
-    )
+    from loans.choices import ApplicationStatus
+    from loans.models import LoanApplication
+
+    client_profile = getattr(client, "client_profile", None)
+
+    # Never let a stale or out-of-order webhook delivery flip the client's
+    # recorded progress backward, even for a brand-new application.
+    if client_profile is not None and event_at is not None:
+        latest_profile = _latest_history_at(
+            client_profile.loan_status_history or {}
+        )
+        if latest_profile is not None and event_at <= latest_profile:
+            logger.info(
+                "Stale Asana event ignored: client=%s event_at=%s latest=%s",
+                client.id,
+                event_at.isoformat(),
+                latest_profile.isoformat(),
+            )
+            return
+
+    application = None
+    if client_profile is not None:
+        try:
+            application = LoanApplication.objects.filter(
+                client=client_profile,
+                asana_project_gid=project_gid,
+                asana_task_gid=task_gid,
+            ).first()
+        except LoanApplication.DoesNotExist:
+            application = None
+
+        if application is None:
+            task_name = _task_name(task_gid)
+            has_any = LoanApplication.objects.filter(
+                client=client_profile
+            ).exists()
+            application = LoanApplication.objects.create(
+                client=client_profile,
+                asana_project_gid=project_gid,
+                asana_task_gid=task_gid,
+                asana_task_name=task_name,
+                asana_status=section_name,
+                asana_status_history={},
+                status=ApplicationStatus.DRAFT,
+                is_primary=not has_any,
+                created_by=None,
+                amount=None,
+            )
+
+    changed = False
+    if application is not None:
+        application, changed = apply_application_status_change(
+            application,
+            section_name,
+            asana_event_at=event_at,
+        )
+
     if not changed:
-        # Asana retries webhook deliveries. The client is already in this
+        # Asana retries webhook deliveries. The application is already in this
         # section, so this is a repeat of a move that was already handled.
-        # Notifying again would duplicate the in-app entry and the email.
         logger.info(
             "Asana event ignored: status unchanged client=%s status=%s",
             client.id,
@@ -658,32 +882,55 @@ def handle_task_moved_event(event):
         client.id,
         notification,
         loan_status=section_name,
+        application_id=str(application.id) if application is not None else None,
     )
 
-def _task_email(task_gid):
-    """Resolve the client email for an Asana task, cached per task GID"""
-    cache_key = f"asana_task:{task_gid}"
-    cached = get_redis_client().get(cache_key)
-    if cached is not None:
-        return cached.decode()
-    
+def _fetch_task_details(task_gid):
+    """Return ``(email, name)`` for an Asana task, cached per task GID."""
+    email_cache_key = f"asana_task:{task_gid}"
+    name_cache_key = f"asana_task_name:{task_gid}"
+    cached_email = get_redis_client().get(email_cache_key)
+    cached_name = get_redis_client().get(name_cache_key)
+    if cached_email is not None and cached_name is not None:
+        return cached_email.decode(), (cached_name.decode() or None)
+
     try:
         service = AsanaProfileService()
-        task = service.tasks_api.get_task(task_gid, {"opt_fields": "notes"})
+        task = service.tasks_api.get_task(
+            task_gid, {"opt_fields": "notes,name"}
+        )
     except ApiException as error:
         logger.warning(
             "Failed to fetch Asana task %s: status=%s reason=%s",
             task_gid,
             getattr(error, "status", None),
-            getattr(error, "reason", str(error))
+            getattr(error, "reason", str(error)),
         )
-        return None
+        return None, None
 
     profile = service.parse_task(task, service.project_gid)
     email = profile.get("email")
-    if not email:
-        return None
+    name = task.get("name")
 
-    email = service.normalize_email(email)
-    get_redis_client().setex(cache_key, _TASK_EMAIL_CACHE_TTL, email)
+    if email:
+        email = service.normalize_email(email)
+        get_redis_client().setex(
+            email_cache_key, _TASK_EMAIL_CACHE_TTL, email
+        )
+    if name:
+        get_redis_client().setex(
+            name_cache_key, _TASK_EMAIL_CACHE_TTL, name
+        )
+    return email, name
+
+
+def _task_email(task_gid):
+    """Resolve the client email for an Asana task, cached per task GID."""
+    email, _name = _fetch_task_details(task_gid)
     return email
+
+
+def _task_name(task_gid):
+    """Resolve the Asana task name, cached per task GID."""
+    _email, name = _fetch_task_details(task_gid)
+    return name

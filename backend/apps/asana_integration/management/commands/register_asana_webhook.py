@@ -5,16 +5,27 @@ import asana
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
+from asana_integration.services.asana import get_project_gids
+
 DEFAULT_HOOK_KEY = "asana"
 HOOK_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
 
 
+def _split_projects(value):
+    """Split a comma-separated --project value into a list of non-empty GIDs."""
+    if not value:
+        return []
+    return [g.strip() for g in str(value).split(",") if g.strip()]
+
+
 class Command(BaseCommand):
     help = (
-        "Register, list, or delete the Asana webhook for loan-status events. "
+        "Register, list, or delete Asana webhooks for loan-status events. "
         "Each environment uses its own --hook label (stored in the target URL as "
         "?hook=<label>) so several deployments can keep separate signing secrets. "
-        "Set ASANA_WEBHOOK_HANDSHAKE_ENABLED=True in .env before registering so "
+        "Pass --project <gid> (repeatable or comma-separated) to register one "
+        "webhook per project with ?project=<gid> in the target. Set "
+        "ASANA_WEBHOOK_HANDSHAKE_ENABLED=True in .env before registering so "
         "the incoming X-Hook-Secret handshake is accepted, then turn it back off."
     )
 
@@ -32,6 +43,13 @@ class Command(BaseCommand):
             "--target as ?hook=<label>.",
         )
         parser.add_argument(
+            "--project",
+            dest="projects",
+            action="append",
+            help="Asana project GID to register a webhook for. Repeatable or "
+            "comma-separated. Defaults to ASANA_PROJECT_GIDS / ASANA_PROJECT_GID.",
+        )
+        parser.add_argument(
             "--list",
             dest="list_webhooks",
             action="store_true",
@@ -40,8 +58,8 @@ class Command(BaseCommand):
         parser.add_argument(
             "--delete",
             dest="webhook_gid",
-            help="Delete an existing webhook by GID. Pass --hook to also clear "
-            "that label's stored secret.",
+            help="Delete an existing webhook by GID. Pass --hook/--project to also "
+            "clear that label's stored secret.",
         )
 
     def _validate_hook(self, hook):
@@ -73,12 +91,24 @@ class Command(BaseCommand):
         return asana.ApiClient(configuration)
 
     def handle(self, *args, **options):
-        if not settings.ASANA_ACCESS_TOKEN or not settings.ASANA_PROJECT_GID:
-            raise CommandError(
-                "ASANA_ACCESS_TOKEN / ASANA_PROJECT_GID are not configured."
-            )
+        if not settings.ASANA_ACCESS_TOKEN:
+            raise CommandError("ASANA_ACCESS_TOKEN is not configured.")
         if not settings.ASANA_WEBHOOK_ENABLED:
             raise CommandError("Set ASANA_WEBHOOK_ENABLED=True in .env first.")
+
+        hook = self._validate_hook(options["hook"])
+
+        project_values = []
+        for value in options["projects"] or []:
+            project_values.extend(_split_projects(value))
+        if not project_values:
+            project_values = get_project_gids()
+        if not project_values:
+            raise CommandError(
+                "No Asana project GIDs configured. Pass --project <gid>, set "
+                "ASANA_PROJECT_GIDS/ASANA_PROJECT_GID, or create a LoanApplication "
+                "with asana_project_gid so the command can fall back to the DB."
+            )
 
         client = self._client()
         api = asana.WebhooksApi(client)
@@ -88,12 +118,16 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.SUCCESS(f"Deleted webhook {options['webhook_gid']}")
             )
-            if options["hook"]:
-                key = self._validate_hook(options["hook"])
-                from asana_integration.models import AsanaWebhookSecret
+            project = None
+            if options["projects"]:
+                first = _split_projects(options["projects"][0])
+                if first:
+                    project = first[0]
+            secret_key = f"{hook}:{project}" if project else hook
+            from asana_integration.models import AsanaWebhookSecret
 
-                AsanaWebhookSecret.objects.filter(key=key).delete()
-                self.stdout.write(f"Cleared stored secret for hook '{key}'")
+            AsanaWebhookSecret.objects.filter(key=secret_key).delete()
+            self.stdout.write(f"Cleared stored secret for hook '{secret_key}'")
             return
 
         if options["list_webhooks"]:
@@ -104,34 +138,45 @@ class Command(BaseCommand):
         if not target:
             raise CommandError("--target is required to register a webhook.")
 
-        hook = self._validate_hook(options["hook"])
-        target = self._with_hook(target, hook)
-
         if not settings.ASANA_WEBHOOK_HANDSHAKE_ENABLED:
             raise CommandError(
                 "Set ASANA_WEBHOOK_HANDSHAKE_ENABLED=True in .env, restart, and "
                 "re-run so Asana's X-Hook-Secret handshake is accepted."
             )
 
-        result = api.create_webhook(
-            {
-                "data": {
-                    "resource": settings.ASANA_PROJECT_GID,
-                    "target": target,
-                    "filters": [
-                        {"resource_type": "task", "action": "changed"},
-                        {"resource_type": "task", "action": "added"},
-                        {"resource_type": "task", "action": "removed"},
-                    ],
-                }
-            },
-            {},
-        )
+        filters = [
+            {"resource_type": "task", "action": "changed"},
+            {"resource_type": "task", "action": "added"},
+            {"resource_type": "task", "action": "removed"},
+        ]
 
-        gid = result.get("gid") or result.get("data", {}).get("gid") or "unknown"
-        self.stdout.write(
-            self.style.SUCCESS(f"Registered webhook {gid} [{hook}] -> {target}")
-        )
+        for project_gid in project_values:
+            target_with_query = self._with_hook(target, hook)
+            parts = urlsplit(target_with_query)
+            query = dict(parse_qsl(parts.query, keep_blank_values=True))
+            query["project"] = project_gid
+            target_with_query = urlunsplit(
+                (parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment)
+            )
+
+            result = api.create_webhook(
+                {
+                    "data": {
+                        "resource": project_gid,
+                        "target": target_with_query,
+                        "filters": filters,
+                    }
+                },
+                {},
+            )
+
+            gid = result.get("gid") or result.get("data", {}).get("gid") or "unknown"
+            secret_key = f"{hook}:{project_gid}"
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Registered webhook {gid} [{hook}:{project_gid}] -> {target_with_query}"
+                )
+            )
 
     def _list_webhooks(self, client, api):
         project = asana.ProjectsApi(client).get_project(
@@ -156,12 +201,12 @@ class Command(BaseCommand):
 
         for item in webhooks:
             target = item.get("target") or ""
-            hook = dict(parse_qsl(urlsplit(target).query)).get(
-                "hook", DEFAULT_HOOK_KEY
-            )
+            query = dict(parse_qsl(urlsplit(target).query))
+            hook = query.get("hook", DEFAULT_HOOK_KEY)
+            project = query.get("project", "")
             self.stdout.write(
-                f"{item.get('gid')}  hook={hook}  active={item.get('active')}  "
-                f"target={target}"
+                f"{item.get('gid')}  hook={hook}  project={project}  "
+                f"active={item.get('active')}  target={target}"
             )
             if item.get("last_failure_at"):
                 self.stdout.write(

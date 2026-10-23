@@ -13,7 +13,7 @@ class AsanaWebhookSecret(models.Model):
     active, matching the single-project webhook this integration runs.
     """
 
-    key = models.CharField(max_length=32, primary_key=True, default="asana", editable=False)
+    key = models.CharField(max_length=128, primary_key=True, default="asana", editable=False)
     secret = EncryptedCharField(max_length=512)
     updated_at = models.DateTimeField(auto_now=True)
 

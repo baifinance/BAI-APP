@@ -28,6 +28,23 @@ export interface LoanStatusHistoryEntry {
   changed_at: string;
 }
 
+export interface ClientApplication {
+  id: string;
+  asanaProjectGid?: string | null;
+  asanaProjectName?: string | null;
+  asanaTaskGid?: string | null;
+  asanaTaskName?: string | null;
+  amount?: number | null;
+  status?: string;
+  asanaStatus?: string | null;
+  asanaStatusHistory?: LoanStatusHistoryEntry[];
+  asanaCreatedAt?: string | null;
+  asanaSyncedAt?: string | null;
+  isPrimary?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ClientLoanFields {
   requestedAmount?: number;
   purpose: string;
@@ -42,6 +59,8 @@ export interface ClientData {
   phone: string;
   profile: ClientProfileFields;
   loan: ClientLoanFields;
+  applications: ClientApplication[];
+  selectedApplicationId: string | null;
 }
 
 export function emptyClient(): ClientData {
@@ -70,6 +89,8 @@ export function emptyClient(): ClientData {
       currentStatus: undefined,
       statusHistory: [],
     },
+    applications: [],
+    selectedApplicationId: null,
   };
 }
 

@@ -22,11 +22,12 @@ import {
   toISOSlotTime,
   NotificationApiResponse,
   CurrentLoanStatusResponse,
+  LoanApplication,
   notificationsApi,
   subscribeToNotificationStream,
 } from "@/lib/api";
 
-import { AsanaProfile, Booking, ClientData, emptyClient } from "./types";
+import { AsanaProfile, Booking, ClientApplication, ClientData, emptyClient } from "./types";
 
 type PortalNotification = {
   id: string;
@@ -54,6 +55,8 @@ interface ClientDataContextType {
   claimSlot: (slotId: string) => Promise<void>;
   handleLogAction: (actionText: string) => void;
   loading: boolean;
+  selectedApplicationId: string | null;
+  setSelectedApplicationId: (id: string) => void;
 }
 
 interface NotificationsContextType {
@@ -73,6 +76,7 @@ const NotificationsContext = createContext<NotificationsContextType | undefined>
 const clientKeys = {
   profile: ["client", "profile"] as const,
   loanStatus: ["client", "loan-status"] as const,
+  applications: ["client", "loan-applications"] as const,
   bookings: ["client", "bookings"] as const,
   publishedSlots: ["client", "published-slots"] as const,
   notifications: ["client", "notifications"] as const,
@@ -103,6 +107,30 @@ function apiBookingToBooking(b: BookingApiResponse): Booking {
     type: b.consultation_type,
     platform: b.meeting_platform,
     notes: b.notes || undefined,
+  };
+}
+
+function mapApplication(a: LoanApplication): ClientApplication {
+  const history = a.asana_status_history
+    ? Object.entries(a.asana_status_history).map(
+        ([status, changed_at]) => ({ status, changed_at })
+      )
+    : [];
+  return {
+    id: a.id,
+    asanaProjectGid: a.asana_project_gid ?? null,
+    asanaProjectName: a.asana_project_name ?? null,
+    asanaTaskGid: a.asana_task_gid ?? null,
+    asanaTaskName: a.asana_task_name ?? null,
+    amount: a.amount ?? null,
+    status: a.status,
+    asanaStatus: a.asana_status ?? null,
+    asanaStatusHistory: history,
+    asanaCreatedAt: a.asana_created_at ?? null,
+    asanaSyncedAt: a.asana_synced_at ?? null,
+    isPrimary: a.is_primary ?? false,
+    createdAt: a.created_at,
+    updatedAt: a.updated_at,
   };
 }
 
@@ -157,6 +185,9 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
 
   const [toasts, setToasts] = useState<PortalNotification[]>([]);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [selectedApplicationId, setSelectedApplicationId] = useState<
+    string | null
+  >(null);
   // One toast per notification id per session, regardless of how many SSE
   // frames, refetches, or reconnects report the same item.
   const seenToastIdsRef = useRef<Set<string>>(new Set());
@@ -171,6 +202,13 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   const loanQuery = useQuery({
     queryKey: clientKeys.loanStatus,
     queryFn: loansApi.getCurrentStatus,
+    staleTime: 30_000,
+    meta: { persist: false },
+  });
+
+  const applicationsQuery = useQuery({
+    queryKey: clientKeys.applications,
+    queryFn: loansApi.listApplications,
     staleTime: 30_000,
     meta: { persist: false },
   });
@@ -195,6 +233,19 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     staleTime: 30_000,
     meta: { persist: false },
   });
+
+  const applications = useMemo<ClientApplication[]>(() => {
+    return (applicationsQuery.data ?? []).map(mapApplication);
+  }, [applicationsQuery.data]);
+
+  const selectedApplication = useMemo<ClientApplication | null>(() => {
+    if (selectedApplicationId) {
+      const found = applications.find((a) => a.id === selectedApplicationId);
+      if (found) return found;
+    }
+    if (applications.length === 1) return applications[0];
+    return null;
+  }, [applications, selectedApplicationId]);
 
   const client = useMemo<ClientData>(() => {
     let next = emptyClient();
@@ -222,19 +273,48 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
-    const loanStatus = loanQuery.data?.loan_status;
-    if (loanStatus) {
-      next = { ...next, loan: { ...next.loan, currentStatus: loanStatus } };
+    // Prefer the selected application as the source of truth for the loan
+    // stepper. Fall back to the legacy single-status query when there are no
+    // applications yet.
+    if (selectedApplication) {
+      next = {
+        ...next,
+        loan: {
+          ...next.loan,
+          requestedAmount:
+            selectedApplication.amount ?? next.loan.requestedAmount,
+          currentStatus:
+            selectedApplication.asanaStatus ?? next.loan.currentStatus,
+          statusHistory:
+            selectedApplication.asanaStatusHistory ?? [],
+        },
+      };
+    } else {
+      const loanStatus = loanQuery.data?.loan_status;
+      if (loanStatus) {
+        next = { ...next, loan: { ...next.loan, currentStatus: loanStatus } };
+      }
+      next = {
+        ...next,
+        loan: {
+          ...next.loan,
+          statusHistory:
+            loanQuery.data?.status_history ?? next.loan.statusHistory,
+        },
+      };
     }
-    next = {
+
+    return {
       ...next,
-      loan: {
-        ...next.loan,
-        statusHistory: loanQuery.data?.status_history ?? next.loan.statusHistory,
-      },
+      applications,
+      selectedApplicationId: selectedApplication?.id ?? null,
     };
-    return next;
-  }, [profileQuery.data, loanQuery.data]);
+  }, [
+    profileQuery.data,
+    loanQuery.data,
+    applications,
+    selectedApplication,
+  ]);
 
   const lastLoanStatusUpdate = loanQuery.data
     ? new Date(loanQuery.dataUpdatedAt).toISOString()
@@ -308,6 +388,31 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     };
 
     const unsubscribe = subscribeToNotificationStream((push, event) => {
+      if (push.application_id) {
+        // Follow the status push to the application it belongs to.
+        setSelectedApplicationId(push.application_id);
+        queryClient.setQueryData<ClientApplication[]>(
+          clientKeys.applications,
+          (prev) =>
+            (prev ?? []).map((app) => {
+              if (app.id !== push.application_id) return app;
+              const history = push.loan_status
+                ? [
+                    ...(app.asanaStatusHistory ?? []).filter(
+                      (e) => e.status !== push.loan_status
+                    ),
+                    { status: push.loan_status, changed_at: new Date().toISOString() },
+                  ]
+                : app.asanaStatusHistory;
+              return {
+                ...app,
+                asanaStatus: push.loan_status ?? app.asanaStatus,
+                asanaStatusHistory: history,
+              };
+            })
+        );
+      }
+
       if (push.loan_status) {
         const status = push.loan_status;
         // Apply the pushed status immediately so the stepper moves without a
@@ -453,7 +558,8 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   const loading =
     profileQuery.isPending ||
     bookingsQuery.isPending ||
-    publishedSlotsQuery.isPending;
+    publishedSlotsQuery.isPending ||
+    applicationsQuery.isPending;
 
   const dataValue = useMemo<ClientDataContextType>(
     () => ({
@@ -468,6 +574,8 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       claimSlot,
       handleLogAction,
       loading,
+      selectedApplicationId,
+      setSelectedApplicationId,
     }),
     [
       client,
@@ -481,6 +589,8 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       claimSlot,
       handleLogAction,
       loading,
+      selectedApplicationId,
+      setSelectedApplicationId,
     ],
   );
 

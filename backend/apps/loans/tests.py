@@ -4,6 +4,8 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from audit.models import AuditLog
+from loans.choices import ApplicationStatus
+from loans.models import LoanApplication
 from otp.utils import get_redis_client
 from users.models import ClientProfile, User
 from users.services import apply_loan_status_change, record_loan_status_change
@@ -220,3 +222,119 @@ class LoanStatusUpdateAuditActorTests(APITestCase):
             entity_id=self.client_user.client_profile.pk,
         )
         self.assertEqual(row.actor, self.staff)
+
+
+class LoanApplicationListTests(APITestCase):
+    def setUp(self):
+        self.user = _make_user("client@example.com")
+        self.profile = ClientProfile.objects.create(user=self.user)
+        self.client.force_authenticate(self.user)
+
+        self.app1 = LoanApplication.objects.create(
+            client=self.profile,
+            asana_project_gid="proj-a",
+            asana_project_name="Project A",
+            asana_task_gid="task-a",
+            asana_task_name="Task A",
+            asana_status="Under Review",
+            asana_status_history={"Under Review": "2026-01-01T00:00:00+00:00"},
+            status=ApplicationStatus.IN_REVIEW,
+            is_primary=True,
+        )
+        self.app2 = LoanApplication.objects.create(
+            client=self.profile,
+            asana_project_gid="proj-b",
+            asana_project_name="Project B",
+            asana_task_gid="task-b",
+            asana_task_name="Task B",
+            asana_status="Pending",
+            asana_status_history={"Pending": "2026-01-02T00:00:00+00:00"},
+            status=ApplicationStatus.SUBMITTED,
+            is_primary=False,
+        )
+
+    def test_list_returns_client_applications(self):
+        resp = self.client.get("/api/loans/applications/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data), 2)
+        ids = {item["id"] for item in resp.data}
+        self.assertEqual(ids, {str(self.app1.id), str(self.app2.id)})
+
+
+class LoanApplicationStatusUpdateTests(APITestCase):
+    def setUp(self):
+        self.client_user = _make_user("client@example.com")
+        self.profile = ClientProfile.objects.create(user=self.client_user)
+        self.application = LoanApplication.objects.create(
+            client=self.profile,
+            asana_project_gid="proj-a",
+            asana_task_gid="task-a",
+            asana_status="Pending",
+            asana_status_history={"Pending": "2026-01-01T00:00:00+00:00"},
+            status=ApplicationStatus.SUBMITTED,
+            is_primary=True,
+        )
+        self.staff = _make_user("staff@example.com", role="loan_processing")
+        self.client.force_authenticate(self.staff)
+
+    @mock.patch("loans.views.publish_stream_notification")
+    @mock.patch("loans.views.create_notification")
+    @mock.patch("loans.views.AsanaProfileService")
+    def test_staff_updates_application_status(
+        self, asana_service, _create_notification, _publish
+    ):
+        asana_service.return_value.move_task_to_status.return_value = {
+            "task_gid": "task-a",
+            "project_gid": "proj-a",
+            "loan_status": "Under Review",
+            "section_gid": "s2",
+        }
+
+        resp = self.client.patch(
+            f"/api/loans/applications/{self.application.id}/status/",
+            {"loan_status": "Under Review"},
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.asana_status, "Under Review")
+        self.assertEqual(self.application.status, ApplicationStatus.IN_REVIEW)
+        self.assertIn("Under Review", self.application.asana_status_history)
+        _publish.assert_called_once()
+        _, kwargs = _publish.call_args
+        self.assertEqual(kwargs["application_id"], str(self.application.id))
+
+
+class LegacyStatusUpdateAmbiguousTests(APITestCase):
+    def setUp(self):
+        self.client_user = _make_user("client@example.com")
+        self.profile = ClientProfile.objects.create(user=self.client_user)
+        LoanApplication.objects.create(
+            client=self.profile,
+            asana_project_gid="proj-a",
+            asana_task_gid="task-a",
+            asana_status="Pending",
+            status=ApplicationStatus.SUBMITTED,
+            is_primary=True,
+        )
+        LoanApplication.objects.create(
+            client=self.profile,
+            asana_project_gid="proj-b",
+            asana_task_gid="task-b",
+            asana_status="Pending",
+            status=ApplicationStatus.SUBMITTED,
+            is_primary=False,
+        )
+        self.staff = _make_user("staff@example.com", role="loan_processing")
+        self.client.force_authenticate(self.staff)
+
+    def test_email_only_with_multiple_applications_returns_409(self):
+        resp = self.client.patch(
+            "/api/loans/status/",
+            {"email": "client@example.com", "loan_status": "Under Review"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 409)
+        self.assertIn("applications", resp.data)
+        self.assertEqual(len(resp.data["applications"]), 2)

@@ -166,3 +166,154 @@ def record_loan_status_change(user, status, *, actor=None, when=None):
         when=when,
     )
     return profile
+
+
+def _map_asana_status_to_application_status(asana_status):
+    """Map an Asana section name to a coarse ApplicationStatus value."""
+    from loans.choices import ApplicationStatus
+
+    mapping = {
+        "Settlement": ApplicationStatus.SETTLED,
+        "Settled": ApplicationStatus.SETTLED,
+        "Withdraw": ApplicationStatus.WITHDRAWN,
+        "Rejected": ApplicationStatus.REJECTED,
+        "Submitted": ApplicationStatus.SUBMITTED,
+        "Conditional Approval": ApplicationStatus.APPROVED,
+        "Conversion to Unconditional Approval": ApplicationStatus.APPROVED,
+        "Unconditional Approval": ApplicationStatus.APPROVED,
+        "Under Review": ApplicationStatus.IN_REVIEW,
+        "Assessment": ApplicationStatus.IN_REVIEW,
+        "Collection of Documents": ApplicationStatus.IN_REVIEW,
+        "Docs for Sign": ApplicationStatus.IN_REVIEW,
+        "For Lodgment": ApplicationStatus.IN_REVIEW,
+        "Proceeding": ApplicationStatus.IN_REVIEW,
+        "Revisit": ApplicationStatus.IN_REVIEW,
+        "Appointment Booked": ApplicationStatus.SUBMITTED,
+        "Pending": ApplicationStatus.SUBMITTED,
+    }
+    return mapping.get(asana_status, ApplicationStatus.DRAFT)
+
+
+def _mirror_application_to_client_profile(app, status, when, actor=None):
+    """Mirror a primary application's status onto its ClientProfile."""
+    try:
+        profile = ClientProfile.objects.select_for_update().get(user=app.client.user)
+    except ClientProfile.DoesNotExist:
+        return
+
+    history = dict(profile.loan_status_history or {})
+
+    latest = _latest_history_at(history)
+    if latest is not None and when <= latest:
+        # Never flip the client profile back to an older status.
+        return
+
+    history[status] = when.isoformat()
+    profile.loan_status = status
+    profile.loan_status_history = history
+    profile.save(update_fields=["loan_status", "loan_status_history"])
+
+    _invalidate_asana_profile_cache(profile.user.email)
+
+    log_action(
+        "LOAN_STATUS_CHANGED",
+        actor=actor,
+        entity_type="ClientProfile",
+        entity_id=profile.pk,
+    )
+
+
+def apply_application_status_change(
+    application,
+    status,
+    *,
+    actor=None,
+    when=None,
+    asana_event_at=None,
+):
+    """Record an application-level status transition.
+
+    Persists ``asana_status``, coarse ``status``, and per-application
+    ``asana_status_history`` on :class:`~loans.models.LoanApplication`.
+    Mirrors the primary application to ``ClientProfile`` so the legacy
+    single-status API and UI keep working.
+
+    Safe to call repeatedly: consecutive duplicates of the current status are
+    ignored. Returns ``(application, changed)``.
+    """
+    from loans.models import LoanApplication
+
+    if not status:
+        return application, False
+
+    with transaction.atomic():
+        app = LoanApplication.objects.select_for_update().get(pk=application.pk)
+
+        history = dict(app.asana_status_history or {})
+
+        if asana_event_at is not None:
+            if asana_event_at.tzinfo is None:
+                asana_event_at = asana_event_at.replace(
+                    tzinfo=datetime_timezone.utc
+                )
+
+            try:
+                max_age = int(
+                    getattr(
+                        settings,
+                        "ASANA_WEBHOOK_MAX_EVENT_AGE_SECONDS",
+                        3600,
+                    )
+                )
+            except (TypeError, ValueError):
+                max_age = 3600
+
+            if max_age > 0:
+                age = (timezone.now() - asana_event_at).total_seconds()
+                if age > max_age:
+                    logger.info(
+                        "Stale Asana event ignored: app=%s status=%s age=%.0fs",
+                        app.pk,
+                        status,
+                        age,
+                    )
+                    return app, False
+
+            latest = _latest_history_at(history)
+            if latest is not None and asana_event_at <= latest:
+                logger.info(
+                    "Out-of-order Asana event ignored: app=%s status=%s "
+                    "event_at=%s latest=%s",
+                    app.pk,
+                    status,
+                    asana_event_at.isoformat(),
+                    latest.isoformat(),
+                )
+                return app, False
+
+            when = asana_event_at
+
+        if app.asana_status == status and status in history:
+            return app, False
+
+        history[status] = (when or timezone.now()).isoformat()
+        app.asana_status = status
+        app.asana_status_history = history
+        app.status = _map_asana_status_to_application_status(status)
+        app.asana_synced_at = timezone.now()
+        app.save(
+            update_fields=[
+                "asana_status",
+                "asana_status_history",
+                "status",
+                "asana_synced_at",
+                "updated_at",
+            ]
+        )
+
+        if app.is_primary:
+            _mirror_application_to_client_profile(
+                app, status, when or timezone.now(), actor=actor
+            )
+
+    return app, True
