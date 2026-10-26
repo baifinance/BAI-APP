@@ -3,7 +3,6 @@ import hmac
 import json
 import logging
 import re
-from concurrent.futures import ThreadPoolExecutor
 
 from django.conf import settings
 from django.db import close_old_connections
@@ -11,9 +10,9 @@ from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 
+from asana_integration.queue import enqueue_webhook_event
 from asana_integration.services.asana import (
     claim_event,
-    handle_task_moved_event,
     release_event,
 )
 
@@ -22,23 +21,12 @@ logger = logging.getLogger(__name__)
 MAX_HOOK_SECRET_LENGTH = 256
 
 # Asana retries any delivery that does not receive a success response within
-# 10 seconds. Process events off the request thread so a slow Asana API call,
-# push dispatch, or SMTP send can never hold the ACK open.
-_event_executor = ThreadPoolExecutor(
-    max_workers=4,
-    thread_name_prefix="asana-webhook",
-)
+# 10 seconds. Enqueue events to RQ so a slow Asana API call, push dispatch, or
+# SMTP send never holds the ACK open.
 
 
-def _process_event(event, digest, project_gid=None):
-    try:
-        close_old_connections()
-        handle_task_moved_event(event, project_gid=project_gid)
-    except Exception:  # noqa: BLE001 - background work must never crash
-        release_event(digest)
-        logger.exception("Failed to process Asana event: %s", event)
-    finally:
-        close_old_connections()
+class QueueUnavailable(Exception):
+    """Raised when an Asana event cannot be enqueued for background processing."""
 
 
 def _dispatch_event(event, project_gid=None):
@@ -48,14 +36,23 @@ def _dispatch_event(event, project_gid=None):
         return
 
     if getattr(settings, "ASANA_WEBHOOK_SYNC", False):
-        _process_event(event, digest, project_gid=project_gid)
+        close_old_connections()
+        from asana_integration.services.asana import (
+            process_webhook_event_job,
+        )
+
+        try:
+            process_webhook_event_job(event, digest, project_gid=project_gid)
+        finally:
+            close_old_connections()
         return
 
     try:
-        _event_executor.submit(_process_event, event, digest, project_gid=project_gid)
-    except Exception:  # noqa: BLE001 - e.g. executor already shut down
+        enqueue_webhook_event(event, digest, project_gid=project_gid)
+    except Exception:  # noqa: BLE001 - RQ/Redis must not kill the webhook
         release_event(digest)
         logger.exception("Could not queue Asana event: %s", event)
+        raise QueueUnavailable()
 
 # Each environment (deployment) stores its own handshake secret under a label
 # carried in the target URL as ``?hook=<label>``. Asana sends the full target
@@ -224,6 +221,9 @@ class AsanaWebhookReceiver(APIView):
             try:
                 logger.info("RAW EVENT: %s", json.dumps(event, sort_keys=True))
                 _dispatch_event(event, project_gid=project_gid)
+            except QueueUnavailable:
+                logger.exception("Asana webhook queue unavailable")
+                return HttpResponse(status=503)
             except Exception:  # noqa: BLE001 - keep the webhook alive
                 logger.exception("Failed to dispatch Asana event: %s", event)
 

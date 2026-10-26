@@ -37,6 +37,8 @@ from authentication.serializers import LoanProcessingAccountCreateSerializer
 from authentication.tokens import revoke_user_tokens
 from audit.services import log_action
 
+from asana_integration.services.loan_sync import enqueue_login_sync
+
 from users.models import User
 from users.choices import UserStatus
 from users.choices import UserRole
@@ -198,6 +200,7 @@ class LoginView(DjRestAuthLoginView):
             # while the Next.js proxy can still read it server-side. The backend
             # enforces RBAC regardless, so this is a routing hint, not authZ.
             set_role_cookie(response, user)
+            enqueue_login_sync(user, response)
 
         return response
 

@@ -117,6 +117,13 @@ export interface LoginResponse {
   refresh_expiration?: string;
   otp_required?: boolean;
   otp_expires_in?: number;
+  applications_sync_queued?: boolean;
+}
+
+export interface OtpVerifyResponse {
+  message: string;
+  verified: boolean;
+  applications_sync_queued?: boolean;
 }
 
 export const authApi = {

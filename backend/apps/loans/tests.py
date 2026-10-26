@@ -165,13 +165,26 @@ class AsanaWebhookHistoryTests(APITestCase):
         self.user = _make_user("client@example.com")
         self.profile = ClientProfile.objects.create(user=self.user)
 
-    @mock.patch("asana_integration.services.asana.publish_stream_notification")
     @mock.patch(
-        "asana_integration.services.asana._task_email",
-        return_value="client@example.com",
+        "asana_integration.services.asana._task_project_gid",
+        return_value="proj-a",
     )
-    def test_records_history(self, _email, _publish):
+    @mock.patch(
+        "asana_integration.services.asana.AsanaProfileService._project_name",
+        return_value=None,
+    )
+    def test_records_history(self, _project_name, _task_project_gid):
         from asana_integration.services.asana import handle_task_moved_event
+
+        LoanApplication.objects.create(
+            client=self.profile,
+            asana_project_gid="proj-a",
+            asana_task_gid="123",
+            asana_status="Pending",
+            asana_status_history={"Pending": "2026-01-01T00:00:00+00:00"},
+            status=ApplicationStatus.SUBMITTED,
+            is_primary=True,
+        )
 
         handle_task_moved_event(
             {

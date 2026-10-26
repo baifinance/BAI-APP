@@ -183,6 +183,13 @@ class LoanApplicationStatusUpdateView(APIView):
 
         client_user = application.client.user
 
+        related_applications = list(
+            LoanApplication.objects.filter(
+                asana_project_gid=application.asana_project_gid,
+                asana_task_gid=application.asana_task_gid,
+            ).select_related("client__user")
+        )
+
         try:
             result = AsanaProfileService(
                 project_gid=application.asana_project_gid
@@ -197,34 +204,39 @@ class LoanApplicationStatusUpdateView(APIView):
         except AsanaProfileError as error:
             return Response({"error": str(error)}, status=status.HTTP_502_BAD_GATEWAY)
 
-        application, changed = apply_application_status_change(
-            application,
-            loan_status,
-            actor=request.user,
-            asana_event_at=None,
-        )
-
-        if changed:
-            notification = create_notification(
-                recipient=client_user,
-                notification_type=NotificationType.LOAN_STATUS,
-                title="Loan status updated",
-                message=(
-                    f"Your loan status has been updated to "
-                    f"{loan_status.replace('_', ' ').title()}."
-                ),
+        application_ids = [str(app.id) for app in related_applications]
+        changed_any = False
+        for app in related_applications:
+            app, changed = apply_application_status_change(
+                app,
+                loan_status,
+                actor=request.user,
+                asana_event_at=None,
             )
-            publish_stream_notification(
-                client_user.id,
-                notification,
-                loan_status=loan_status,
-                application_id=str(application.id),
-            )
+            if changed:
+                changed_any = True
+                notification = create_notification(
+                    recipient=app.client.user,
+                    notification_type=NotificationType.LOAN_STATUS,
+                    title="Loan status updated",
+                    message=(
+                        f"Your loan status has been updated to "
+                        f"{loan_status.replace('_', ' ').title()}."
+                    ),
+                )
+                publish_stream_notification(
+                    app.client.user_id,
+                    notification,
+                    loan_status=loan_status,
+                    application_id=str(app.id),
+                )
 
         return Response(
             {
                 "message": "Loan application status updated.",
                 "application_id": str(application.id),
+                "application_ids": application_ids,
+                "changed": changed_any,
                 **result,
             },
             status=status.HTTP_200_OK,

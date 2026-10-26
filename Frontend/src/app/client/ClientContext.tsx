@@ -351,6 +351,34 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     [notifications],
   );
 
+  // Bounded post-login refresh when the backend queued an Asana sync for a
+  // client with no local applications yet.
+  // `queryClient` is stable for the component lifetime, so this effect runs
+  // once on mount.
+  useEffect(() => {
+    if (typeof sessionStorage === "undefined") return;
+    if (sessionStorage.getItem("bai:applications_sync_queued") !== "1") return;
+    sessionStorage.removeItem("bai:applications_sync_queued");
+
+    let attempts = 0;
+    const id = setInterval(async () => {
+      attempts += 1;
+      try {
+        const data = await queryClient.fetchQuery({
+          queryKey: clientKeys.applications,
+          queryFn: () => loansApi.listApplications(),
+          staleTime: 0,
+        });
+        if (Array.isArray(data) && data.length > 0) clearInterval(id);
+      } catch {
+        // Retry until the sync job completes or attempts are exhausted.
+      }
+      if (attempts >= 3) clearInterval(id);
+    }, 2000);
+
+    return () => clearInterval(id);
+  }, [queryClient]);
+
   // Live updates arrive over SSE; refetch-on-focus comes from React Query.
   // Bursts of events are coalesced into a single list refresh.
   useEffect(() => {
@@ -391,13 +419,13 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribe = subscribeToNotificationStream((push, event) => {
       if (push.application_id) {
-        // Follow the status push to the application it belongs to.
-        setSelectedApplicationId(push.application_id);
+        let updated = false;
         queryClient.setQueryData<ClientApplication[]>(
           clientKeys.applications,
           (prev) =>
             (prev ?? []).map((app) => {
               if (app.id !== push.application_id) return app;
+              updated = true;
               const history = push.loan_status
                 ? [
                     ...(app.asanaStatusHistory ?? []).filter(
@@ -413,6 +441,14 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
               };
             })
         );
+        if (updated) {
+          setSelectedApplicationId(push.application_id);
+        } else {
+          // A push arrived for an application not yet in the cache (for
+          // example after a login-triggered sync). Refetch so the portal
+          // renders the new application instead of showing an empty state.
+          queryClient.invalidateQueries({ queryKey: clientKeys.applications });
+        }
       }
 
       if (push.loan_status) {

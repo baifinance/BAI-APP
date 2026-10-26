@@ -4,6 +4,8 @@ import json
 from datetime import timedelta
 from unittest import mock
 
+import asana
+
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.db import connection
@@ -18,6 +20,12 @@ from asana_integration.services.asana import (
     get_project_gids,
     handle_task_moved_event,
 )
+from asana_integration.services.loan_sync import (
+    SyncResult,
+    _notify_status_change,
+    sync_client_applications,
+    sync_project_tasks,
+)
 from loans.choices import ApplicationStatus
 from loans.models import LoanApplication
 from notifications.models import EmailDelivery, Notification
@@ -28,6 +36,17 @@ User = get_user_model()
 
 def _sign(secret: str, body: bytes) -> str:
     return hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+
+
+def _patch_tasks_api(tasks_by_project):
+    def get_tasks_for_project(project_gid, options=None):
+        return iter(tasks_by_project.get(project_gid, []))
+
+    return mock.patch.object(
+        asana.TasksApi,
+        "get_tasks_for_project",
+        side_effect=get_tasks_for_project,
+    )
 
 
 @override_settings(
@@ -111,31 +130,31 @@ class AsanaWebhookReceiverTests(APITestCase):
             HTTP_X_HOOK_SIGNATURE=_sign("stored-secret", body),
         )
 
-    @mock.patch("asana_integration.views._event_executor")
+    @mock.patch("asana_integration.views.enqueue_webhook_event")
     @mock.patch(
         "asana_integration.views.claim_event",
         return_value=("digest", True),
     )
-    def test_event_is_dispatched_off_request_thread(self, _claim, executor):
+    def test_event_is_enqueued_for_background_processing(self, _claim, enqueue):
         resp = self._deliver_event(
             {"action": "changed", "created_at": timezone.now().isoformat()}
         )
 
         self.assertEqual(resp.status_code, 200)
-        executor.submit.assert_called_once()
+        enqueue.assert_called_once()
 
-    @mock.patch("asana_integration.views._event_executor")
+    @mock.patch("asana_integration.views.enqueue_webhook_event")
     @mock.patch(
         "asana_integration.views.claim_event",
         return_value=("digest", False),
     )
-    def test_duplicate_event_is_not_dispatched(self, _claim, executor):
+    def test_duplicate_event_is_not_enqueued(self, _claim, enqueue):
         resp = self._deliver_event(
             {"action": "changed", "created_at": timezone.now().isoformat()}
         )
 
         self.assertEqual(resp.status_code, 200)
-        executor.submit.assert_not_called()
+        enqueue.assert_not_called()
 
 
 @override_settings(
@@ -350,6 +369,7 @@ class AsanaTaskMovedNotificationTests(APITestCase):
             loan_status="Pending",
             loan_status_history={"Pending": "2026-01-01T00:00:00+00:00"},
         )
+        Notification.objects.filter(recipient=self.client_user).delete()
 
     def _event(self, section="Under Review", created_at=None):
         created_at = created_at or timezone.now()
@@ -367,9 +387,23 @@ class AsanaTaskMovedNotificationTests(APITestCase):
         }
 
     def _handle(self, event):
+        LoanApplication.objects.update_or_create(
+            client=ClientProfile.objects.get(user=self.client_user),
+            asana_project_gid="proj-a",
+            asana_task_gid="task-gid-1",
+            defaults={
+                "asana_status": "Pending",
+                "asana_status_history": {"Pending": "2026-01-01T00:00:00+00:00"},
+                "status": ApplicationStatus.SUBMITTED,
+                "is_primary": True,
+            },
+        )
         with mock.patch(
-            "asana_integration.services.asana._task_email",
-            return_value="moved@example.com",
+            "asana_integration.services.asana._task_project_gid",
+            return_value="proj-a",
+        ), mock.patch(
+            "asana_integration.services.asana.AsanaProfileService._project_name",
+            return_value=None,
         ), mock.patch("notifications.services.get_redis_client"), mock.patch(
             "users.services.get_redis_client"
         ):
@@ -397,6 +431,7 @@ class AsanaTaskMovedNotificationTests(APITestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(EmailDelivery.objects.count(), 1)
 
+    @override_settings(ASANA_WEBHOOK_MAX_EVENT_AGE_SECONDS=1)
     def test_stale_event_does_not_flip_current_status(self):
         latest = timezone.now() - timedelta(minutes=10)
         ClientProfile.objects.filter(user=self.client_user).update(
@@ -437,15 +472,27 @@ class AsanaTaskMovedNotificationTests(APITestCase):
             section="Pending",
             created_at=latest - timedelta(minutes=5),
         )
+
+        fake_task = {
+            "gid": "task-gid-1",
+            "name": "Secondary task",
+            "notes": "Email address: moved@example.com",
+            "created_at": latest.isoformat(),
+            "modified_at": timezone.now().isoformat(),
+            "memberships": [
+                {
+                    "project": {"gid": "proj-b"},
+                    "section": {"gid": "section-pending", "name": "Pending"},
+                }
+            ],
+        }
+
         with mock.patch(
-            "asana_integration.services.asana._task_email",
-            return_value="moved@example.com",
+            "asana.TasksApi.get_task", return_value=fake_task
         ), mock.patch(
-            "asana_integration.services.asana._task_name",
-            return_value="Secondary task",
-        ), mock.patch(
-            "notifications.services.get_redis_client"
-        ), mock.patch(
+            "asana_integration.services.asana.AsanaProfileService._project_name",
+            return_value=None,
+        ), mock.patch("notifications.services.get_redis_client"), mock.patch(
             "users.services.get_redis_client"
         ):
             handle_task_moved_event(event, project_gid="proj-b")
@@ -643,3 +690,167 @@ class FindProfilesByEmailTests(APITestCase):
         results = service.find_profiles_by_email("nobody@example.com")
 
         self.assertEqual(results, [])
+
+
+@override_settings(
+    ASANA_ACCESS_TOKEN="token",
+    ASANA_PROJECT_GIDS="proj-a",
+    ASANA_PROJECT_GID="",
+)
+class ParserTests(APITestCase):
+    def test_parse_description_captures_joint_emails_in_order(self):
+        notes = (
+            "Fullname: Jane Doe\n"
+            "Email address #1: a@x.com\n"
+            "Email #2: b@y.com\n"
+            "Mobile: 09152842125\n"
+        )
+        profile = AsanaProfileService.parse_description(notes)
+
+        self.assertEqual(profile["emails"], ["a@x.com", "b@y.com"])
+        self.assertEqual(profile["email"], "a@x.com")
+
+    def test_parse_description_applicant_email_label(self):
+        notes = "Applicant Email: c@x.com"
+        profile = AsanaProfileService.parse_description(notes)
+
+        self.assertEqual(profile["emails"], ["c@x.com"])
+        self.assertEqual(profile["email"], "c@x.com")
+
+
+@override_settings(
+    ASANA_ACCESS_TOKEN="token",
+    ASANA_PROJECT_GIDS="proj-a,proj-b",
+    ASANA_PROJECT_GID="",
+)
+class SyncClientApplicationsTests(APITestCase):
+    def setUp(self):
+        self.user_a = User.objects.create_user(
+            email="a@x.com",
+            username="a@x.com",
+            password="StrongPassword123!",
+            role="client",
+            is_active=True,
+        )
+        self.profile_a = ClientProfile.objects.create(user=self.user_a)
+        self.user_b = User.objects.create_user(
+            email="b@y.com",
+            username="b@y.com",
+            password="StrongPassword123!",
+            role="client",
+            is_active=True,
+        )
+        self.profile_b = ClientProfile.objects.create(user=self.user_b)
+
+    def _joint_task(self):
+        return {
+            "gid": "task-1",
+            "name": "Joint task",
+            "notes": "Email address #1: a@x.com\nEmail #2: b@y.com",
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "modified_at": "2026-01-01T00:00:00+00:00",
+            "memberships": [
+                {
+                    "project": {"gid": "proj-a"},
+                    "section": {"gid": "s1", "name": "Pending"},
+                }
+            ],
+        }
+
+    def test_login_sync_scans_all_projects_and_creates_app_for_requesting_client(
+        self,
+    ):
+        with _patch_tasks_api(
+            {"proj-a": [self._joint_task()], "proj-b": []}
+        ), mock.patch.object(
+            AsanaProfileService,
+            "_project_name",
+            return_value="Project A",
+        ):
+            result = sync_client_applications("a@x.com", publish=False)
+
+        self.assertEqual(result.created, 1)
+        app = LoanApplication.objects.get(
+            client=self.profile_a, asana_task_gid="task-1"
+        )
+        self.assertEqual(app.asana_project_gid, "proj-a")
+        self.assertEqual(LoanApplication.objects.filter(client=self.profile_b).count(), 0)
+
+    def test_login_sync_does_not_duplicate_on_repeat_call(self):
+        with _patch_tasks_api(
+            {"proj-a": [self._joint_task()], "proj-b": []}
+        ), mock.patch.object(
+            AsanaProfileService,
+            "_project_name",
+            return_value="Project A",
+        ):
+            sync_client_applications("a@x.com", publish=False)
+            sync_client_applications("a@x.com", publish=False)
+
+        self.assertEqual(
+            LoanApplication.objects.filter(client=self.profile_a).count(), 1
+        )
+
+
+@override_settings(
+    ASANA_ACCESS_TOKEN="token",
+    ASANA_PROJECT_GIDS="proj-a",
+    ASANA_PROJECT_GID="",
+)
+class SyncProjectTasksJointTest(APITestCase):
+    def setUp(self):
+        self.user_a = User.objects.create_user(
+            email="a@x.com",
+            username="a@x.com",
+            password="StrongPassword123!",
+            role="client",
+            is_active=True,
+        )
+        self.profile_a = ClientProfile.objects.create(user=self.user_a)
+        self.user_b = User.objects.create_user(
+            email="b@y.com",
+            username="b@y.com",
+            password="StrongPassword123!",
+            role="client",
+            is_active=True,
+        )
+        self.profile_b = ClientProfile.objects.create(user=self.user_b)
+
+    def test_reconciliation_creates_app_for_each_client_on_joint_task(self):
+        with _patch_tasks_api(
+            {
+                "proj-a": [
+                    {
+                        "gid": "task-1",
+                        "name": "Joint task",
+                        "notes": "Email address #1: a@x.com\nEmail #2: b@y.com",
+                        "created_at": "2026-01-01T00:00:00+00:00",
+                        "modified_at": "2026-01-01T00:00:00+00:00",
+                        "memberships": [
+                            {
+                                "project": {"gid": "proj-a"},
+                                "section": {"gid": "s1", "name": "Pending"},
+                            }
+                        ],
+                    }
+                ]
+            }
+        ), mock.patch.object(
+            AsanaProfileService,
+            "_project_name",
+            return_value="Project A",
+        ):
+            result = sync_project_tasks("proj-a", publish=False)
+
+        self.assertEqual(result.created, 2)
+        self.assertTrue(
+            LoanApplication.objects.filter(
+                client=self.profile_a, asana_task_gid="task-1"
+            ).exists()
+        )
+        self.assertTrue(
+            LoanApplication.objects.filter(
+                client=self.profile_b, asana_task_gid="task-1"
+            ).exists()
+        )
+

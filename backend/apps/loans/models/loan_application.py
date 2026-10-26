@@ -9,6 +9,7 @@ import uuid
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models import Q
 
 from loans.choices import ApplicationStatus
 
@@ -94,14 +95,23 @@ class LoanApplication(models.Model):
                 fields=["client", "asana_project_gid"],
                 name="loan_applic_client_proj_idx",
             ),
+            models.Index(
+                fields=["asana_project_gid", "asana_task_gid"],
+                name="loan_app_task_lookup_idx",
+            ),
             models.Index(fields=["broker", "status"]),
             models.Index(fields=["created_at"]),
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=["asana_project_gid", "asana_task_gid"],
-                name="unique_asana_project_task",
-            )
+                fields=["client", "asana_project_gid", "asana_task_gid"],
+                name="unique_client_asana_project_task",
+            ),
+            models.UniqueConstraint(
+                fields=["client"],
+                condition=Q(is_primary=True),
+                name="unique_primary_application_per_client",
+            ),
         ]
 
     def __str__(self):

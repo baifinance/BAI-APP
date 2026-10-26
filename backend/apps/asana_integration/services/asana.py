@@ -11,15 +11,7 @@ from datetime import datetime, timezone as datetime_timezone
 import asana
 from asana.rest import ApiException
 from django.conf import settings
-from django.contrib.auth import get_user_model
-from notifications.choices import NotificationType
-from notifications.services import create_notification, publish_stream_notification
 from otp.utils import get_redis_client
-from users.services import (
-    apply_application_status_change,
-    apply_loan_status_change,
-    _latest_history_at,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -104,11 +96,8 @@ class AsanaProfileService:
         )
 
         if project_gid is None:
-            project_gid = getattr(
-                settings,
-                "ASANA_PROJECT_GID",
-                "",
-            )
+            configured_gids = get_project_gids()
+            project_gid = configured_gids[0] if configured_gids else ""
 
         if not access_token:
             raise AsanaProfileError(
@@ -210,13 +199,16 @@ class AsanaProfileService:
 
             for task in tasks:
                 profile = self.parse_task(task, project_gid)
+                task_emails = {
+                    self.normalize_email(value)
+                    for value in profile.get("emails", [])
+                }
 
-                task_email = self.normalize_email(
-                    profile.get("email", "")
-                )
-
-                if task_email == normalized_email:
+                if normalized_email in task_emails:
                     public = self.to_public_profile(profile)
+                    public["email"] = normalized_email
+                    public["asana_task_gid"] = profile.get("asana_task_gid")
+                    public["asana_task_name"] = profile.get("asana_task_name")
                     public["asana_project_gid"] = project_gid
                     public["asana_project_name"] = (
                         profile.get("asana_project_name")
@@ -334,10 +326,13 @@ class AsanaProfileService:
             ) from error
 
         profile = self.parse_task(task, None)
-        task_email = self.normalize_email(profile.get("email", ""))
-        if task_email != normalized_email:
+        task_emails = {
+            self.normalize_email(value)
+            for value in profile.get("emails", [])
+        }
+        if normalized_email not in task_emails:
             raise ValueError(
-                f"No Asana task found for client email: {email}"
+                f"No Asana task found for client email: {normalized_email}"
             )
 
         target_project_gid = None
@@ -384,9 +379,11 @@ class AsanaProfileService:
                 matching_tasks = []
                 for candidate in tasks:
                     candidate_profile = self.parse_task(candidate, project_gid)
-                    if self.normalize_email(
-                        candidate_profile.get("email", "")
-                    ) == normalized_email:
+                    candidate_emails = {
+                        self.normalize_email(value)
+                        for value in candidate_profile.get("emails", [])
+                    }
+                    if normalized_email in candidate_emails:
                         matching_tasks.append(candidate)
 
                 if legacy_ambiguous and len(matching_tasks) > 1:
@@ -397,7 +394,7 @@ class AsanaProfileService:
 
                 if not matching_tasks:
                     raise ValueError(
-                        f"No Asana task found for client email: {email}"
+                        f"No Asana task found for client email: {normalized_email}"
                     )
 
                 task = matching_tasks[0]
@@ -521,7 +518,11 @@ class AsanaProfileService:
             r"(?:"
             r"(?P<fullname>full name|opportunity|(?<!\w)name)"
             r"|(?P<dob>date of birth|(?<!\w)dob\b)"
-            r"|(?P<email>email address|(?<!\w)e?-?mail\b)"
+            r"|(?P<email>"
+            r"applicant(?:'s)? email(?: address)?|"
+            r"email address|"
+            r"(?<!\w)e-?mail(?: address)?"
+            r")(?:\s*#?\s*\d+)?"
             r"|(?P<mobile>"
             r"mobile number|"
             r"mobile no\.?|"
@@ -548,6 +549,7 @@ class AsanaProfileService:
 
         matches = list(label_pattern.finditer(text))
         fields = {}
+        emails = []
 
         for index, match in enumerate(matches):
             key = next(
@@ -565,8 +567,25 @@ class AsanaProfileService:
             value = re.sub(r"\s+", " ", value)
             value = value.strip(" \t\r\n•·-─")
 
-            if value:
-                fields.setdefault(key, value)
+            if not value:
+                continue
+
+            if key == "email":
+                for found in re.findall(
+                    r"[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}",
+                    value,
+                    re.IGNORECASE,
+                ):
+                    normalized = found.casefold()
+                    if normalized not in emails:
+                        emails.append(normalized)
+                continue
+
+            fields.setdefault(key, value)
+
+        if emails:
+            fields["email"] = emails[0]
+            fields["emails"] = emails
 
         return fields
 
@@ -634,7 +653,8 @@ def get_client_asana_profile(email):
             return None
 
     service = AsanaProfileService()
-    profile = service.find_profile_by_email(email)
+    profiles = service.find_profiles_by_email(email)
+    profile = profiles[0] if profiles else None
     if profile is not None:
         get_redis_client().setex(
             cache_key, _ASANA_PROFILE_CACHE_TTL, json.dumps(profile)
@@ -736,29 +756,74 @@ def _parse_event_created_at(event):
     return parsed
 
 
-def _event_exceeds_max_age(event_at):
-    if event_at is None:
-        return False
+def _invalidate_task_cache(task_gid):
     try:
-        max_age = int(
-            getattr(settings, "ASANA_WEBHOOK_MAX_EVENT_AGE_SECONDS", 3600)
+        get_redis_client().delete(
+            f"asana_task:{task_gid}",
+            f"asana_task_name:{task_gid}",
         )
-    except (TypeError, ValueError):
-        max_age = 3600
-    if max_age <= 0:
-        return False
-    age = (datetime.now(tz=datetime_timezone.utc) - event_at).total_seconds()
-    return age > max_age
+    except Exception:
+        logger.warning("Could not invalidate Asana task cache", exc_info=True)
+
+
+def _task_project_gid(task_gid):
+    try:
+        task = AsanaProfileService().tasks_api.get_task(
+            task_gid,
+            {"opt_fields": "memberships.project.gid"},
+        )
+    except (ApiException, AsanaProfileError, ValueError):
+        logger.warning("Could not resolve Asana project for task %s", task_gid)
+        return None
+
+    configured = set(get_project_gids())
+    for membership in task.get("memberships") or []:
+        gid = (membership.get("project") or {}).get("gid")
+        if gid and (not configured or str(gid) in configured):
+            return str(gid)
+    return None
+
+
+def process_webhook_event_job(event, digest, project_gid=None):
+    """RQ job wrapper.
+
+    Releases the webhook fingerprint on permanent failure so Asana can
+    redeliver the event instead of silently dropping it.
+    """
+    try:
+        handle_task_moved_event(event, project_gid=project_gid)
+    except Exception:
+        release_event(digest)
+        raise
+
+
+def _sync_task_event(task_gid, project_gid, *, notify):
+    from asana_integration.services.loan_sync import sync_task_by_gid
+
+    result = sync_task_by_gid(
+        task_gid,
+        project_gid,
+        notify=notify,
+        publish=True,
+    )
+    logger.info(
+        "Asana task synced: task=%s created=%s updated=%s unchanged=%s skipped=%s",
+        task_gid,
+        result.created,
+        result.updated,
+        result.unchanged,
+        result.skipped,
+    )
+    return result
 
 
 def handle_task_moved_event(event, project_gid=None):
     """
-    Process one Asana webhook ``task.moved`` event.
+    Process one Asana webhook event.
 
-    Upserts the owning client's :class:`~loans.models.LoanApplication` for the
-    project/task, records the per-application status transition, mirrors the
-    primary application to ``ClientProfile``, and publishes an SSE payload
-    that includes ``application_id``. Never raises.
+    Section moves update every application sharing the task. Notes and task
+    additions fetch a fresh snapshot and create applications for every active
+    client email on the task. Removed tasks are retained and logged.
     """
 
     event_at = _parse_event_created_at(event)
@@ -770,7 +835,7 @@ def handle_task_moved_event(event, project_gid=None):
         return
 
     action = event.get("action")
-    if action not in ("moved", "changed", "added"):
+    if action not in ("moved", "changed", "added", "removed"):
         logger.info(
             "Asana event skipped: action=%s resource=%s",
             action,
@@ -778,31 +843,65 @@ def handle_task_moved_event(event, project_gid=None):
         )
         return
 
+    resource = event.get("resource") or {}
+    task_gid = resource.get("gid")
+    if not task_gid:
+        logger.info("Asana event skipped: no task gid")
+        return
+
+    parent = event.get("parent") or {}
     change = event.get("change") or {}
-    if change.get("field") == "memberships" or (
-        action == "added" and (event.get("parent") or {}).get("resource_type") == "section"
-    ):
-        section_name = (change.get("new_section") or {}).get("name") or ""
-        if not section_name:
-            # task.changed events nest the section under new_value.resource
-            new_value = change.get("new_value") or {}
-            section_name = (
-                new_value.get("name")
-                or (new_value.get("resource") or {}).get("name")
-                or ""
-            )
-        if not section_name:
-            # Real Asana drags carry no change block; the destination section
-            # arrives as a GID in parent.gid, so resolve it via the API.
-            parent = event.get("parent") or {}
-            section_name = _section_name(parent.get("gid"))
-    else:
+    field = change.get("field")
+
+    if action == "removed":
+        logger.info(
+            "Asana task removed; retaining local applications: task=%s project=%s",
+            task_gid,
+            project_gid,
+        )
+        return
+
+    if field in ("notes", "html_notes"):
+        _invalidate_task_cache(task_gid)
+        _sync_task_event(task_gid, project_gid, notify=True)
+        return
+
+    if action == "added" and parent.get("resource_type") != "section":
+        _invalidate_task_cache(task_gid)
+        _sync_task_event(task_gid, project_gid, notify=True)
+        return
+
+    if field == "name":
+        _invalidate_task_cache(task_gid)
+        _sync_task_event(task_gid, project_gid, notify=False)
+        return
+
+    is_section_event = (
+        field == "memberships"
+        or action == "moved"
+        or (
+            action == "added"
+            and parent.get("resource_type") == "section"
+        )
+    )
+    if not is_section_event:
         logger.info(
             "Asana event skipped: action=%s field=%s",
             action,
-            change.get("field"),
+            field,
         )
         return
+
+    section_name = (change.get("new_section") or {}).get("name") or ""
+    if not section_name:
+        new_value = change.get("new_value") or {}
+        section_name = (
+            new_value.get("name")
+            or (new_value.get("resource") or {}).get("name")
+            or ""
+        )
+    if not section_name:
+        section_name = _section_name(parent.get("gid"))
 
     if not section_name:
         logger.info(
@@ -819,39 +918,26 @@ def handle_task_moved_event(event, project_gid=None):
         )
         return
 
-    resource = event.get("resource") or {}
-    task_gid = resource.get("gid")
-    if not task_gid:
-        logger.info("Asana event skipped: no task gid")
-        return
-
-    email = _task_email(task_gid)
-    if not email:
-        logger.warning("No email resolvable for Asana task %s", task_gid)
-        return
-
-    User = get_user_model()
-    client = User.objects.filter(
-        email__iexact=email,
-        role="client",
-        is_active=True
-    ).first()
-    if client is None:
-        logger.info("No active client account for Asana task %s", task_gid)
-        return
-
-    project_gid = project_gid or None
+    project_gid = project_gid or _task_project_gid(task_gid)
     if not project_gid:
-        gids = get_project_gids()
-        project_gid = gids[0] if gids else None
+        logger.warning(
+            "Asana event skipped: no project for task %s",
+            task_gid,
+        )
+        return
+
+    from asana_integration.services.loan_sync import (
+        apply_task_status,
+        sync_task_by_gid,
+    )
+    from loans.models import LoanApplication
 
     logger.info(
-        "Asana event received: action=%s task=%s section=%s project=%s client=%s",
+        "Asana event received: action=%s task=%s section=%s project=%s",
         action,
         task_gid,
         section_name,
         project_gid,
-        client.id,
     )
 
     project_name = None
@@ -862,100 +948,35 @@ def handle_task_moved_event(event, project_gid=None):
     except AsanaProfileError:
         pass
 
-    from loans.choices import ApplicationStatus
-    from loans.models import LoanApplication
-
-    client_profile = getattr(client, "client_profile", None)
-
-    application = None
-    if client_profile is not None:
-        try:
-            application = LoanApplication.objects.filter(
-                client=client_profile,
-                asana_project_gid=project_gid,
-                asana_task_gid=task_gid,
-            ).first()
-        except LoanApplication.DoesNotExist:
-            application = None
-
-        if application is None:
-            if _event_exceeds_max_age(event_at):
-                logger.info(
-                    "Stale Asana event ignored: client=%s task=%s age exceeds max",
-                    client.id,
-                    task_gid,
-                )
-                return
-
-            has_any = LoanApplication.objects.filter(
-                client=client_profile
-            ).exists()
-            if not has_any and event_at is not None:
-                latest_profile = _latest_history_at(
-                    client_profile.loan_status_history or {}
-                )
-                if latest_profile is not None and event_at <= latest_profile:
-                    logger.info(
-                        "Stale Asana event ignored for primary application: "
-                        "client=%s event_at=%s latest=%s",
-                        client.id,
-                        event_at.isoformat(),
-                        latest_profile.isoformat(),
-                    )
-                    return
-
-            task_name = _task_name(task_gid)
-            application = LoanApplication.objects.create(
-                client=client_profile,
-                asana_project_gid=project_gid,
-                asana_project_name=project_name,
-                asana_task_gid=task_gid,
-                asana_task_name=task_name,
-                asana_status=section_name,
-                asana_status_history={},
-                status=ApplicationStatus.DRAFT,
-                is_primary=not has_any,
-                created_by=None,
-                amount=None,
-            )
-        elif project_name and application.asana_project_name != project_name:
-            application.asana_project_name = project_name
-            application.save(update_fields=["asana_project_name"])
-
-    changed = False
-    if application is not None:
-        application, changed = apply_application_status_change(
-            application,
-            section_name,
-            asana_event_at=event_at,
-        )
-
-    if not changed:
-        # Asana retries webhook deliveries. The application is already in this
-        # section, so this is a repeat of a move that was already handled.
-        logger.info(
-            "Asana event ignored: status unchanged client=%s status=%s",
-            client.id,
-            section_name,
+    has_applications = LoanApplication.objects.filter(
+        asana_project_gid=project_gid,
+        asana_task_gid=task_gid,
+    ).exists()
+    if not has_applications:
+        sync_task_by_gid(
+            task_gid,
+            project_gid,
+            notify=True,
+            publish=True,
         )
         return
 
-    notification = create_notification(
-        recipient=client,
-        notification_type=NotificationType.LOAN_STATUS,
-        title="Loan status updated",
-        message=(
-            f"Your loan status has been updated to "
-            f"{section_name.replace('_', ' ').title()}."
+    changed = apply_task_status(
+        project_gid,
+        task_gid,
+        section_name,
+        event_at,
+        project_name=project_name,
+        notify=True,
+        publish=True,
+    )
+    if not changed:
+        logger.info(
+            "Asana event ignored: status unchanged task=%s status=%s",
+            task_gid,
+            section_name,
         )
-    )
 
-    publish_stream_notification(
-        client.id,
-        notification,
-        loan_status=section_name,
-        application_id=str(application.id) if application is not None else None,
-    )
 
 def _fetch_task_details(task_gid):
     """Return ``(email, name)`` for an Asana task, cached per task GID."""

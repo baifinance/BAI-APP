@@ -21,6 +21,8 @@ from .utils import (
 )
 from .services import issue_otp
 
+from asana_integration.services.loan_sync import enqueue_login_sync
+
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +126,7 @@ class OtpVerifyView(generics.GenericAPIView):
             # Login does not issue JWTs until MFA succeeds; this is where the
             # session becomes usable.
             issue_session_cookies(response, user)
+            enqueue_login_sync(user, response)
             return response
 
         return Response(

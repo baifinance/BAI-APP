@@ -105,6 +105,9 @@ export default function ClientLoginPage() {
   const finalizeLogin = useCallback(
     (data: LoginResponse) => {
       // The backend sets the (HttpOnly) user-role routing cookie on login.
+      if (data.applications_sync_queued && typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem("bai:applications_sync_queued", "1");
+      }
       router.push(getRoleRedirect(data.user.role));
     },
     [router]
@@ -171,9 +174,18 @@ export default function ClientLoginPage() {
     setOtpSending(true);
     setOtpError("");
     try {
-      await otpApi.verify(otpEmail, targetCode, "login_2fa");
+      const verifyData = await otpApi.verify(otpEmail, targetCode, "login_2fa");
       if (loginData) {
-        finalizeLogin(loginData);
+        if (
+          verifyData.applications_sync_queued &&
+          typeof sessionStorage !== "undefined"
+        ) {
+          sessionStorage.setItem("bai:applications_sync_queued", "1");
+        }
+        finalizeLogin({
+          ...loginData,
+          applications_sync_queued: verifyData.applications_sync_queued,
+        });
       }
     } catch (err: unknown) {
       setOtpError(errMessage(err, "Invalid or expired code. Please try again."));

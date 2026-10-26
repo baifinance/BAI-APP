@@ -250,6 +250,10 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 # REDIS_URL. Falling back to db 1 keeps local dev zero-config.
 REDIS_CACHE_URL = os.getenv("REDIS_CACHE_URL", "redis://localhost:6379/1")
 
+# RQ queue state on its own Redis DB index. Keep it separate from OTP/session
+# state and the cache so a queue flush cannot log users out.
+REDIS_QUEUE_URL = os.getenv("REDIS_QUEUE_URL", "redis://localhost:6379/2")
+
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
@@ -282,10 +286,20 @@ ASANA_ACCESS_TOKEN = os.getenv(
     ""
 ).strip()
 
+ASANA_PROJECT_GIDS = os.getenv(
+    "ASANA_PROJECT_GIDS",
+    ""
+).strip()
+
 ASANA_PROJECT_GID = os.getenv(
     "ASANA_PROJECT_GID",
     ""
 ).strip()
+
+ASANA_ALLOW_UNLABELED_EMAIL_MATCH = env.bool(
+    "ASANA_ALLOW_UNLABELED_EMAIL_MATCH",
+    default=False,
+)
 
 ASANA_WEBHOOK_ENABLED = env.bool(
     "ASANA_WEBHOOK_ENABLED",
@@ -326,6 +340,16 @@ ASANA_WEBHOOK_SYNC = env.bool(
     "ASANA_WEBHOOK_SYNC",
     default=False,
 )
+
+ASANA_LOGIN_SYNC_ENABLED = env.bool(
+    "ASANA_LOGIN_SYNC_ENABLED",
+    default=True,
+)
+
+ASANA_QUEUE_NAME = os.getenv("ASANA_QUEUE_NAME", "asana").strip() or "asana"
+ASANA_WORKER_CONCURRENCY = env.int("ASANA_WORKER_CONCURRENCY", default=2)
+ASANA_JOB_TIMEOUT = env.int("ASANA_JOB_TIMEOUT", default=120)
+ASANA_JOB_MAX_RETRIES = env.int("ASANA_JOB_MAX_RETRIES", default=3)
 
 # AI assistant: whether the client's own profile is injected into the LLM
 # prompt (sent to Groq). Disable to keep PII entirely within the app, or enable
