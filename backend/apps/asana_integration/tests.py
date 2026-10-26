@@ -18,6 +18,8 @@ from asana_integration.services.asana import (
     get_project_gids,
     handle_task_moved_event,
 )
+from loans.choices import ApplicationStatus
+from loans.models import LoanApplication
 from notifications.models import EmailDelivery, Notification
 from users.models import ClientProfile
 
@@ -412,6 +414,50 @@ class AsanaTaskMovedNotificationTests(APITestCase):
         profile = ClientProfile.objects.get(user=self.client_user)
         self.assertEqual(profile.loan_status, "Settled")
         self.assertFalse(
+            Notification.objects.filter(recipient=self.client_user).exists()
+        )
+
+    def test_secondary_application_accepts_event_older_than_primary(self):
+        latest = timezone.now() - timedelta(minutes=5)
+        profile = ClientProfile.objects.get(user=self.client_user)
+        profile.loan_status = "Settled"
+        profile.loan_status_history = {"Settled": latest.isoformat()}
+        profile.save(update_fields=["loan_status", "loan_status_history"])
+        LoanApplication.objects.create(
+            client=profile,
+            asana_project_gid="proj-a",
+            asana_task_gid="task-a",
+            asana_status="Settled",
+            asana_status_history={"Settled": latest.isoformat()},
+            status=ApplicationStatus.SETTLED,
+            is_primary=True,
+        )
+
+        event = self._event(
+            section="Pending",
+            created_at=latest - timedelta(minutes=5),
+        )
+        with mock.patch(
+            "asana_integration.services.asana._task_email",
+            return_value="moved@example.com",
+        ), mock.patch(
+            "asana_integration.services.asana._task_name",
+            return_value="Secondary task",
+        ), mock.patch(
+            "notifications.services.get_redis_client"
+        ), mock.patch(
+            "users.services.get_redis_client"
+        ):
+            handle_task_moved_event(event, project_gid="proj-b")
+
+        application = LoanApplication.objects.get(
+            client=profile,
+            asana_project_gid="proj-b",
+            asana_task_gid="task-gid-1",
+        )
+        self.assertEqual(application.asana_status, "Pending")
+        self.assertFalse(application.is_primary)
+        self.assertTrue(
             Notification.objects.filter(recipient=self.client_user).exists()
         )
 

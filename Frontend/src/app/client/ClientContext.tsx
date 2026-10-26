@@ -243,8 +243,10 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       const found = applications.find((a) => a.id === selectedApplicationId);
       if (found) return found;
     }
-    if (applications.length === 1) return applications[0];
-    return null;
+    // Auto-select on load so an existing application always renders its
+    // stepper: primary first, otherwise the latest returned application.
+    const primary = applications.find((a) => a.isPrimary);
+    return primary ?? applications[0] ?? null;
   }, [applications, selectedApplicationId]);
 
   const client = useMemo<ClientData>(() => {

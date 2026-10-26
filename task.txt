@@ -45,3 +45,34 @@ NOTES
   PWA installed. Production push requires HTTPS (localhost is exempt).
 - Test cleanup briefly deleted the laptop's push_subscription row (05:52);
   the frontend re-synced it on reload at 06:12, so it self-heals.
+
+BAI-APP - Tasks completed today (2026-10-23)
+
+MULTIPLE LOAN APPLICATIONS (new feature)
+- Backend: LoanApplication extended with asana_project_gid / asana_task_gid
+  linkage, asana_status / asana_status_history, is_primary; amount/created_by
+  nullable; SETTLED and WITHDRAWN statuses; unique (project, task) and
+  (client, project) indexes + migrations loans.0003.
+- Asana service: get_project_gids() (env list -> legacy -> DB fallback),
+  find_profiles_by_email() across projects, move_task_to_status() with
+  task_gid/project_gid resolution, per-application status change with stale
+  guard and ClientProfile mirroring (users/services.py).
+- Webhook: per-project secret key (<hook>:<project>), ?project=<gid> routing,
+  application upsert + notification with application_id
+  (asana_integration/views.py, models.py).
+- register_asana_webhook --project (repeatable/comma).
+- Loans API: GET/PATCH /api/loans/applications/...; legacy current-status/
+  status accept application_id and return 409 on ambiguous multi-app clients.
+- Notifications: publish_stream_notification carries application_id.
+- Frontend: LoanApplication type + loansApi applications endpoints;
+  ClientContext applications query + selected application (SSE selects pushed
+  app); LoanStatusTab right-side application chooser when >1 app, stepper for
+  selected app; withdrawn/empty states unchanged.
+- Tests: new loans + asana_integration tests; all touched-app suites pass
+  (115 tests). Frontend tsc + eslint clean.
+- Committed on feat/multi-loan-applications (3ab5c94), branched from committed
+  Janssen (85de6ef) after committing prior dirty push/Asana fixes.
+
+STILL OPEN
+- Register real Asana webhooks via register_asana_webhook --project <gid> once
+  project GIDs are supplied; review/merge feat/multi-loan-applications.

@@ -148,9 +148,11 @@ export default function LoanStatusTab({
 
   const applications = client.applications ?? [];
 
+  // Prefer the selected app; fall back to the legacy profile status when none exist.
   const selectedApplication =
-    applications.find((a) => a.id === client.selectedApplicationId) ??
-    (applications.length === 1 ? applications[0] : null);
+    applications.find((a) => a.id === client.selectedApplicationId) ?? null;
+
+  const hasMultipleApplications = applications.length > 1;
 
   const displayStatus = selectedApplication?.asanaStatus ?? client.loan?.currentStatus;
   const displayHistory = selectedApplication?.asanaStatusHistory ?? client.loan?.statusHistory ?? [];
@@ -169,8 +171,6 @@ export default function LoanStatusTab({
       status: resolution.states[i] ?? ("upcoming" as const),
     };
   });
-
-  const hasMultiple = applications.length > 1;
 
   return (
     <div className="min-h-full space-y-8 pb-12">
@@ -194,9 +194,9 @@ export default function LoanStatusTab({
         aria-label="Loan application selection and progress"
         className="max-w-6xl mx-auto px-6 sm:px-8 pt-2"
       >
-        <div className={hasMultiple ? "grid grid-cols-1 lg:grid-cols-12 gap-8" : ""}>
+        <div className={hasMultipleApplications ? "grid grid-cols-1 lg:grid-cols-12 gap-8" : ""}>
           {/* Main stepper area */}
-          <div className={hasMultiple ? "lg:col-span-8" : "col-span-full"}>
+          <div className={hasMultipleApplications ? "lg:col-span-8" : "col-span-full"}>
             {resolution.withdrawn ? (
               <div className="bg-white border border-slate-200/80 rounded-2xl p-10 sm:p-14 text-center shadow-sm">
                 <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-4">
@@ -210,7 +210,7 @@ export default function LoanStatusTab({
                   Contact your broker if you&apos;d like to discuss a new application.
                 </p>
               </div>
-            ) : selectedApplication ? (
+            ) : resolution.hasApplication ? (
               <LoanProgressStepper steps={stepperSteps} />
             ) : (
               <div className="bg-white border border-slate-200/80 rounded-2xl p-10 sm:p-14 text-center shadow-sm">
@@ -229,7 +229,7 @@ export default function LoanStatusTab({
           </div>
 
           {/* Right-side application chooser (only when multiple exist) */}
-          {hasMultiple && setSelectedApplicationId && (
+          {hasMultipleApplications && setSelectedApplicationId && (
             <div className="lg:col-span-4 flex flex-col gap-4">
               <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                 <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wider">

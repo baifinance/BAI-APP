@@ -153,6 +153,7 @@ class AsanaProfileService:
 
         self.tasks_api = asana.TasksApi(self.api_client)
         self.sections_api = asana.SectionsApi(self.api_client)
+        self.projects_api = asana.ProjectsApi(self.api_client)
         self.project_gid = project_gid
 
     def find_profile_by_email(self, email):
@@ -236,10 +237,47 @@ class AsanaProfileService:
 
         return None
 
-    @staticmethod
-    def _project_name(project_gid):
-        """Best-effort project name lookup without an extra API round-trip."""
-        return None
+    def _project_name(self, project_gid):
+        """Return the Asana project name, cached to avoid repeat API calls."""
+        if not project_gid:
+            return None
+
+        cache_key = f"asana_project_name:{project_gid}"
+        try:
+            cached = get_redis_client().get(cache_key)
+            if cached is not None:
+                return cached.decode() or None
+        except Exception:  # cache is best-effort
+            logger.warning(
+                "Could not read cached Asana project name for %s",
+                project_gid,
+                exc_info=True,
+            )
+
+        try:
+            project = self.projects_api.get_project(
+                project_gid, {"opt_fields": "name"}
+            )
+        except ApiException as error:
+            logger.warning(
+                "ASANA project lookup failed: project=%s status=%s reason=%s",
+                project_gid,
+                getattr(error, "status", None),
+                getattr(error, "reason", str(error)),
+            )
+            return None
+
+        name = project.get("name") if project else None
+        if name:
+            try:
+                get_redis_client().setex(cache_key, 86400, name)
+            except Exception:  # cache is best-effort
+                logger.warning(
+                    "Could not cache Asana project name for %s",
+                    project_gid,
+                    exc_info=True,
+                )
+        return name
 
     def move_task_to_status(self, email, loan_status, *, task_gid=None, project_gid=None):
         """
@@ -698,6 +736,21 @@ def _parse_event_created_at(event):
     return parsed
 
 
+def _event_exceeds_max_age(event_at):
+    if event_at is None:
+        return False
+    try:
+        max_age = int(
+            getattr(settings, "ASANA_WEBHOOK_MAX_EVENT_AGE_SECONDS", 3600)
+        )
+    except (TypeError, ValueError):
+        max_age = 3600
+    if max_age <= 0:
+        return False
+    age = (datetime.now(tz=datetime_timezone.utc) - event_at).total_seconds()
+    return age > max_age
+
+
 def handle_task_moved_event(event, project_gid=None):
     """
     Process one Asana webhook ``task.moved`` event.
@@ -801,25 +854,18 @@ def handle_task_moved_event(event, project_gid=None):
         client.id,
     )
 
+    project_name = None
+    try:
+        project_name = AsanaProfileService(
+            project_gid=project_gid
+        )._project_name(project_gid)
+    except AsanaProfileError:
+        pass
+
     from loans.choices import ApplicationStatus
     from loans.models import LoanApplication
 
     client_profile = getattr(client, "client_profile", None)
-
-    # Never let a stale or out-of-order webhook delivery flip the client's
-    # recorded progress backward, even for a brand-new application.
-    if client_profile is not None and event_at is not None:
-        latest_profile = _latest_history_at(
-            client_profile.loan_status_history or {}
-        )
-        if latest_profile is not None and event_at <= latest_profile:
-            logger.info(
-                "Stale Asana event ignored: client=%s event_at=%s latest=%s",
-                client.id,
-                event_at.isoformat(),
-                latest_profile.isoformat(),
-            )
-            return
 
     application = None
     if client_profile is not None:
@@ -833,13 +879,36 @@ def handle_task_moved_event(event, project_gid=None):
             application = None
 
         if application is None:
-            task_name = _task_name(task_gid)
+            if _event_exceeds_max_age(event_at):
+                logger.info(
+                    "Stale Asana event ignored: client=%s task=%s age exceeds max",
+                    client.id,
+                    task_gid,
+                )
+                return
+
             has_any = LoanApplication.objects.filter(
                 client=client_profile
             ).exists()
+            if not has_any and event_at is not None:
+                latest_profile = _latest_history_at(
+                    client_profile.loan_status_history or {}
+                )
+                if latest_profile is not None and event_at <= latest_profile:
+                    logger.info(
+                        "Stale Asana event ignored for primary application: "
+                        "client=%s event_at=%s latest=%s",
+                        client.id,
+                        event_at.isoformat(),
+                        latest_profile.isoformat(),
+                    )
+                    return
+
+            task_name = _task_name(task_gid)
             application = LoanApplication.objects.create(
                 client=client_profile,
                 asana_project_gid=project_gid,
+                asana_project_name=project_name,
                 asana_task_gid=task_gid,
                 asana_task_name=task_name,
                 asana_status=section_name,
@@ -849,6 +918,9 @@ def handle_task_moved_event(event, project_gid=None):
                 created_by=None,
                 amount=None,
             )
+        elif project_name and application.asana_project_name != project_name:
+            application.asana_project_name = project_name
+            application.save(update_fields=["asana_project_name"])
 
     changed = False
     if application is not None:
