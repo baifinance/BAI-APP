@@ -1,15 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { 
-  initialClients, 
-  initialApplications, 
-  initialEmails, 
-  Client, 
-  Application, 
-  Booking, 
-  Email 
-} from "./MockData";
+  Client,
+  Application,
+  Booking,
+  Email
+} from "./types";
 
 import {
   bookingsApi,
@@ -17,6 +15,8 @@ import {
   BookingApiResponse,
   PublishedSlot,
   parseSlotTime,
+  notificationsApi,
+  NotificationApiResponse,
 } from "@/lib/api";
 
 interface BrokerContextType {
@@ -31,7 +31,6 @@ interface BrokerContextType {
   autoCompose: boolean;
   setAutoCompose: (val: boolean) => void;
   notifications: Array<{ type: string; message: string; time: string }>;
-  setNotifications: React.Dispatch<React.SetStateAction<Array<{ type: string; message: string; time: string }>>>;
   createBooking: (data: {
     slot_time: string;
     consultation_type?: string;
@@ -51,6 +50,20 @@ interface BrokerContextType {
 
 const BrokerContext = createContext<BrokerContextType | undefined>(undefined);
 
+type PortalNotification = {
+  type: string;
+  message: string;
+  time: string;
+};
+
+function mapNotification(notification: NotificationApiResponse): PortalNotification {
+  return {
+    type: notification.notification_type,
+    message: notification.message,
+    time: new Date(notification.created_at).toLocaleString(),
+  };
+}
+
 function apiBookingToBooking(b: BookingApiResponse): Booking {
   const { date, time } = parseSlotTime(b.slot_time);
   return {
@@ -66,19 +79,26 @@ function apiBookingToBooking(b: BookingApiResponse): Booking {
 }
 
 export function BrokerProvider({ children }: { children: React.ReactNode }) {
-  const [clients, setClients] = useState<Client[]>(initialClients);
-  const [applications, setApplications] = useState<Application[]>(initialApplications);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [publishedSlots, setPublishedSlots] = useState<PublishedSlot[]>([]);
-  const [emails, setEmails] = useState<Email[]>(initialEmails);
+  const [emails, setEmails] = useState<Email[]>([]);
   const [autoCompose, setAutoCompose] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { type: "Dossier Update", message: "Alice Smith uploaded corporate bank logs and income statement.", time: "10 mins ago" },
-    { type: "Outstanding File", message: "Emma Wilson's construction file is missing certified builder insurance.", time: "1 hour ago" },
-    { type: "Valuation Scheduled", message: "John Doe's property appraisal booking is locked for tomorrow.", time: "3 hours ago" }
-  ]);
+  const { data: notifData } = useQuery({
+    queryKey: ["broker", "notifications"],
+    queryFn: () => notificationsApi.list(),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    meta: { persist: false },
+  });
+
+  const notifications = useMemo<PortalNotification[]>(
+    () => notifData?.map(mapNotification) ?? [],
+    [notifData],
+  );
 
   useEffect(() => {
     bookingsApi.list()
@@ -127,27 +147,41 @@ export function BrokerProvider({ children }: { children: React.ReactNode }) {
     setPublishedSlots((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
+  const contextValue = useMemo<BrokerContextType>(() => ({
+    clients,
+    setClients,
+    applications,
+    setApplications,
+    bookings,
+    setBookings,
+    emails,
+    setEmails,
+    autoCompose,
+    setAutoCompose,
+    notifications,
+    createBooking,
+    publishedSlots,
+    createSlot,
+    deleteSlot,
+    loading,
+    submitting,
+  }), [
+    clients,
+    applications,
+    bookings,
+    emails,
+    autoCompose,
+    notifications,
+    createBooking,
+    publishedSlots,
+    createSlot,
+    deleteSlot,
+    loading,
+    submitting,
+  ]);
+
   return (
-    <BrokerContext.Provider value={{
-      clients,
-      setClients,
-      applications,
-      setApplications,
-      bookings,
-      setBookings,
-      emails,
-      setEmails,
-      autoCompose,
-      setAutoCompose,
-      notifications,
-      setNotifications,
-      createBooking,
-      publishedSlots,
-      createSlot,
-      deleteSlot,
-      loading,
-      submitting
-    }}>
+    <BrokerContext.Provider value={contextValue}>
       {children}
     </BrokerContext.Provider>
   );

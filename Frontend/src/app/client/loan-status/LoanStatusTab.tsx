@@ -3,243 +3,294 @@
  * COMPONENT: LoanStatusTab.tsx
  * Path: src/app/client/loan-status/LoanStatusTab.tsx
  * Description: Main Loan Status page component for the Client Portal.
- *              - Main container background: White
- *              - Top: ProgressStatus component ("In Progress" with blue gradient)
- *              - Middle: LoanProgressStepper component (Centered Stepper with blue/red steps)
- *              - Bottom: LoanProgressList component (Submitted documents list with status, date, title)
+ *              - Shows a right-side application chooser when the client has
+ *                multiple loan applications (keyed by Asana project GID).
+ *              - Renders the 15-step loan status stepper for the selected
+ *                application.
  * ==============================================================================
  */
 
 "use client";
 
-import React, { useState } from "react";
-import { Client } from "../../broker/MockData";
+import React from "react";
+import { Ban, FileSearch, ChevronRight } from "lucide-react";
+import { ClientData } from "../types";
+import { PIPELINE, resolveLoanStatus } from "../loanStatus";
 import ProgressStatus from "./components/ProgressStatus";
 import LoanProgressStepper, { StepperStep } from "./components/LoanProgressStepper";
-import LoanProgressList, { ProgressDocumentItem } from "./components/LoanProgressList";
-import { UploadCloud, CheckCircle, X, FileText } from "lucide-react";
 
 interface LoanStatusTabProps {
-  client: Client;
+  client: ClientData;
   onLogAction?: (msg: string) => void;
+  setSelectedApplicationId?: (id: string) => void;
+}
+
+/** Format a backend ISO timestamp in a fixed locale/timezone so server and
+ *  client renders agree (avoids React hydration mismatches). */
+function formatStatusDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "Pending";
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
 }
 
 export default function LoanStatusTab({
   client,
-  onLogAction
+  onLogAction,
+  setSelectedApplicationId,
 }: LoanStatusTabProps) {
   // ----------------------------------------------------------------------------
-  // 1. STATE MANAGEMENT: Client documents and active upload modal
+  // 1. 15-STAGE LOAN STATUS STEPS WORKFLOW
   // ----------------------------------------------------------------------------
-  const [activeUploadDoc, setActiveUploadDoc] = useState<string | null>(null);
-  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
-
-  // ----------------------------------------------------------------------------
-  // 2. DATA MAPPING: Progress Stepper Steps
-  // ----------------------------------------------------------------------------
-  const stepperSteps: StepperStep[] = [
+  const baseSteps: Omit<StepperStep, "status" | "date">[] = [
     {
       id: 1,
-      title: "Submitted",
-      subtitle: "Application logged",
-      date: "Aug 10, 2026",
-      status: "completed"
+      title: "Pending",
+      subtitle: "Application initiated",
+      description: "Initial application received and registered in BAI Finance system.",
     },
     {
       id: 2,
-      title: "In Review",
-      subtitle: "Broker preliminary check",
-      date: "Aug 15, 2026",
-      status: "completed"
+      title: "Appointment Booked",
+      subtitle: "Consultation scheduled",
+      description: "Mortgage discovery session completed with your designated broker.",
     },
     {
       id: 3,
-      title: "Additional Info",
-      subtitle: "Action needed on docs",
-      date: "Aug 23, 2026",
-      status: "in_process" // In process / has problem -> Red color
+      title: "Under Review",
+      subtitle: "Preliminary file check",
+      description: "Broker performed initial qualification and credit capacity assessment.",
     },
     {
       id: 4,
-      title: "Assessment",
-      subtitle: "Formal underwriting",
-      date: "Pending",
-      status: "upcoming"
+      title: "Revisit",
+      subtitle: "Strategy refinement",
+      description: "Refinancing structure options reviewed and client details clarified.",
     },
     {
       id: 5,
-      title: "Approval",
-      subtitle: "Conditional approval",
-      date: "Pending",
-      status: "upcoming"
+      title: "Proceeding",
+      subtitle: "Engagement confirmed",
+      description: "Formal agreement to proceed with selected lender and product package.",
     },
     {
       id: 6,
+      title: "Collection of Documents",
+      subtitle: "Supporting doc uploads",
+      description: "Gathering income proofs, bank statements, identity documents, and property deeds.",
+    },
+    {
+      id: 7,
+      title: "Assessment",
+      subtitle: "Credit & serviceability",
+      description: "Comprehensive financial modeling and preliminary lender underwriting check.",
+    },
+    {
+      id: 8,
+      title: "Docs for Sign",
+      subtitle: "Sign disclosures & forms",
+      description: "Formal lender application forms and compliance disclosures prepared for e-signing.",
+    },
+    {
+      id: 9,
+      title: "For Lodgment",
+      subtitle: "Packaging submission",
+      description: "Quality assurance check and packaging for lender portal lodgment.",
+    },
+    {
+      id: 10,
+      title: "Submitted",
+      subtitle: "Lodged with bank",
+      description: "Application successfully submitted into lender credit queue.",
+    },
+    {
+      id: 11,
+      title: "Conditional Approval",
+      subtitle: "Lender credit approval",
+      description: "Lender satisfies condition requirements and issues formal unconditional loan offer.",
+    },
+    {
+      id: 12,
+      title: "Conversion to Unconditional Approval",
+      subtitle: "Conditions cleared",
+      description: "All lender conditions are satisfied and the file is prepared for formal unconditional approval.",
+    },
+    {
+      id: 13,
+      title: "Unconditional Approval",
+      subtitle: "Formal lender approval",
+      description: "Lender issues the unconditional loan offer; only legal and settlement steps remain.",
+    },
+    {
+      id: 14,
+      title: "Settlement",
+      subtitle: "Legal & booking phase",
+      description: "Lender, solicitors, and incoming/outgoing banks coordinate settlement booking.",
+    },
+    {
+      id: 15,
       title: "Settled",
-      subtitle: "Disbursement & settlement",
-      date: "Pending",
-      status: "upcoming"
-    }
+      subtitle: "Disbursement / Closed",
+      description: "Loan funds disbursed and facility active, or application file concluded.",
+    },
   ];
 
-  // ----------------------------------------------------------------------------
-  // 3. DATA MAPPING: Submitted Loan Documents List
-  // ----------------------------------------------------------------------------
-  const progressDocuments: ProgressDocumentItem[] = [
-    {
-      id: "doc-1",
-      title: "Government ID",
-      status: client.documents.governmentId === "Verified" ? "Approved" : client.documents.governmentId === "Uploaded" ? "Uploaded" : "Approved",
-      statusChangeDate: "Aug 10, 2026",
-      category: "Identity Verification",
-      fileSize: "2.4 MB"
-    },
-    {
-      id: "doc-2",
-      title: "Proof of Income",
-      status: client.documents.proofOfIncome === "Verified" ? "Approved" : client.documents.proofOfIncome === "Uploaded" ? "Uploaded" : "Approved",
-      statusChangeDate: "Aug 12, 2026",
-      category: "Income Verification",
-      fileSize: "1.8 MB"
-    },
-    {
-      id: "doc-3",
-      title: "Bank Statement",
-      status: client.documents.bankStatement === "Not Uploaded" ? "Needs Attention" : client.documents.bankStatement === "Uploaded" ? "Uploaded" : "Needs Attention",
-      statusChangeDate: "Aug 23, 2026",
-      category: "Financial Statement",
-      fileSize: "4.1 MB"
-    },
-    {
-      id: "doc-4",
-      title: "Tax Documents",
-      status: client.documents.taxDocuments === "Verified" ? "Approved" : client.documents.taxDocuments === "Uploaded" ? "Uploaded" : "Uploaded",
-      statusChangeDate: "Aug 21, 2026",
-      category: "ATO Tax Assessment",
-      fileSize: "3.2 MB"
-    },
-    {
-      id: "doc-5",
-      title: "Employment Documents",
-      status: client.documents.employmentDocs === "Pending" ? "Pending" : client.documents.employmentDocs === "Verified" ? "Approved" : "Pending",
-      statusChangeDate: "Aug 18, 2026",
-      category: "Letter of Employment",
-      fileSize: "1.5 MB"
-    },
-    {
-      id: "doc-6",
-      title: "Collateral Documents",
-      status: client.documents.collateralDocs === "Verified" ? "Approved" : client.documents.collateralDocs === "Uploaded" ? "Uploaded" : "Uploaded",
-      statusChangeDate: "Aug 15, 2026",
-      category: "Transfer Certificate of Title",
-      fileSize: "5.6 MB"
-    }
-  ];
+  if (process.env.NODE_ENV !== "production" && baseSteps.length !== PIPELINE.length) {
+    console.warn(
+      `LoanStatusTab renders ${baseSteps.length} steps but PIPELINE defines ${PIPELINE.length}.`,
+    );
+  }
 
-  // ----------------------------------------------------------------------------
-  // 4. UPLOAD ACTION HANDLERS
-  // ----------------------------------------------------------------------------
-  const handleUploadTrigger = (docTitle: string) => {
-    setActiveUploadDoc(docTitle);
-    setSelectedFileName(`${docTitle.toLowerCase().replace(/\s+/g, "_")}_update.pdf`);
-  };
+  const applications = client.applications ?? [];
 
-  const handleConfirmUpload = () => {
-    if (activeUploadDoc && onLogAction) {
-      onLogAction(`Uploaded updated version for: ${activeUploadDoc}`);
-    }
-    setActiveUploadDoc(null);
-    setSelectedFileName(null);
-  };
+  // Prefer the selected app; fall back to the legacy profile status when none exist.
+  const selectedApplication =
+    applications.find((a) => a.id === client.selectedApplicationId) ?? null;
+
+  const hasMultipleApplications = applications.length > 1;
+
+  const displayStatus = selectedApplication?.asanaStatus ?? client.loan?.currentStatus;
+  const displayHistory = selectedApplication?.asanaStatusHistory ?? client.loan?.statusHistory ?? [];
+
+  const resolution = resolveLoanStatus(displayStatus);
+
+  const historyByStatus = new Map(
+    (displayHistory ?? []).map((entry) => [entry.status, entry.changed_at]),
+  );
+
+  const stepperSteps: StepperStep[] = baseSteps.map((step, i) => {
+    const changedAt = historyByStatus.get(step.title);
+    return {
+      ...step,
+      date: changedAt ? formatStatusDate(changedAt) : "Pending",
+      status: resolution.states[i] ?? ("upcoming" as const),
+    };
+  });
 
   return (
-    <div className="bg-white space-y-10 animate-fadeIn">
-      
+    <div className="min-h-full space-y-8 pb-12">
+
       {/* ---------------------------------------------------------------------- */}
-      {/* PART 1: PROGRESS STATUS COMPONENT ("In Progress" with blue gradient)   */}
+      {/* PART 1: PROGRESS STATUS COMPONENT (Active stage with blue header)      */}
       {/* ---------------------------------------------------------------------- */}
-      <section aria-label="Progress Status Header">
+      <section aria-label="Progress Status Header" className="w-full">
         <ProgressStatus
-          statusText="In Progress"
-          applicationNumber="LN-2026-8821"
-          targetSettlement="Sep 30, 2026"
+          statusText={resolution.header}
+          stepNumber={resolution.activeStepIndex ?? 0}
+          totalSteps={resolution.totalSteps}
+          tone={resolution.withdrawn ? "neutral" : "blue"}
         />
       </section>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* PART 2: LOAN PROGRESS STEPPER COMPONENT (Centered Stepper)             */}
+      {/* PART 2: APPLICATION CHOOSER (right) + LOAN STEPPER (main)              */}
       {/* ---------------------------------------------------------------------- */}
-      <section aria-label="Loan Progress Stepper" className="pt-2 border-t border-slate-100">
-        <LoanProgressStepper steps={stepperSteps} />
-      </section>
-
-      {/* ---------------------------------------------------------------------- */}
-      {/* PART 3: LOAN PROGRESS LIST COMPONENT (Submitted Documents Container)   */}
-      {/* ---------------------------------------------------------------------- */}
-      <section aria-label="Loan Progress Documents List" className="pt-2 border-t border-slate-100">
-        <LoanProgressList
-          documents={progressDocuments}
-          clientDocuments={client.documents}
-          onUploadDocument={handleUploadTrigger}
-        />
-      </section>
-
-      {/* ---------------------------------------------------------------------- */}
-      {/* PART 4: INTERACTIVE QUICK UPLOAD MODAL                                 */}
-      {/* ---------------------------------------------------------------------- */}
-      {activeUploadDoc && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200/50 space-y-6 animate-scaleIn">
-            
-            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
-              <div>
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                  Document Re-submission
-                </span>
-                <h3 className="text-base font-extrabold text-[#0024A8]">{activeUploadDoc}</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveUploadDoc(null)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center bg-slate-50/50 space-y-3">
-              <UploadCloud className="w-10 h-10 text-[#0024A8] mx-auto animate-bounce" />
-              <div>
-                <p className="text-xs font-bold text-slate-700">
-                  {selectedFileName || "Drag & Drop or Click to Select File"}
-                </p>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  Supported formats: PDF, PNG, JPEG up to 10MB
+      <section
+        aria-label="Loan application selection and progress"
+        className="max-w-6xl mx-auto px-6 sm:px-8 pt-2"
+      >
+        <div className={hasMultipleApplications ? "grid grid-cols-1 lg:grid-cols-12 gap-8" : ""}>
+          {/* Main stepper area */}
+          <div className={hasMultipleApplications ? "lg:col-span-8" : "col-span-full"}>
+            {resolution.withdrawn ? (
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-10 sm:p-14 text-center shadow-sm">
+                <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-4">
+                  <Ban className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight mb-1.5">
+                  Application Withdrawn
+                </h3>
+                <p className="text-sm font-medium text-slate-500 max-w-md mx-auto">
+                  This application has been withdrawn and the file is now closed.
+                  Contact your broker if you&apos;d like to discuss a new application.
                 </p>
               </div>
-            </div>
-
-            <div className="flex justify-end gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={() => setActiveUploadDoc(null)}
-                className="py-2.5 px-4 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmUpload}
-                className="py-2.5 px-6 rounded-xl bg-[#0024A8] hover:bg-[#001D85] text-white text-xs font-extrabold shadow-md transition-all flex items-center gap-1.5"
-              >
-                <CheckCircle className="w-4 h-4" />
-                <span>Confirm & Submit</span>
-              </button>
-            </div>
-
+            ) : resolution.hasApplication ? (
+              <LoanProgressStepper steps={stepperSteps} />
+            ) : (
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-10 sm:p-14 text-center shadow-sm">
+                <div className="w-14 h-14 rounded-2xl bg-blue-50 text-[#0024A8] flex items-center justify-center mx-auto mb-4">
+                  <FileSearch className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight mb-1.5">
+                  No Current Application
+                </h3>
+                <p className="text-sm font-medium text-slate-500 max-w-md mx-auto">
+                  You don&apos;t have an active loan application yet. Once the loan processing team
+                  creates one, your progress will appear here.
+                </p>
+              </div>
+            )}
           </div>
+
+          {/* Right-side application chooser (only when multiple exist) */}
+          {hasMultipleApplications && setSelectedApplicationId && (
+            <div className="lg:col-span-4 flex flex-col gap-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wider">
+                  Choose application
+                </h3>
+                <div className="space-y-3">
+                  {applications.map((app) => {
+                    const isSelected = app.id === client.selectedApplicationId;
+                    return (
+                      <button
+                        key={app.id}
+                        type="button"
+                        onClick={() => setSelectedApplicationId(app.id)}
+                        className={
+                          "w-full flex flex-row items-center justify-between gap-3 p-3 rounded-xl border transition " +
+                          (isSelected
+                            ? "border-blue-600 bg-blue-50 shadow-sm"
+                            : "border-slate-200 hover:border-slate-400 hover:bg-slate-50")
+                        }
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-slate-900 truncate">
+                            {app.asanaProjectName || `Project ${app.asanaProjectGid}`}
+                          </div>
+                          {app.asanaTaskName && (
+                            <p className="text-xs text-slate-500 truncate">
+                              {app.asanaTaskName}
+                            </p>
+                          )}
+                          <p className="text-xs text-slate-400">
+                            {app.asanaTaskGid}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-xs font-bold px-2 py-1 rounded-full ${
+                              app.asanaStatus === "Settled"
+                                ? "bg-green-100 text-green-700"
+                              : app.asanaStatus === "Withdrawn"
+                                ? "bg-slate-100 text-slate-600"
+                              : "bg-blue-100 text-blue-700"
+                            }`}
+                          >
+                            {app.asanaStatus || "—"}
+                          </span>
+                          {isSelected && (
+                            <ChevronRight className="w-4 h-4 text-blue-600" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 text-center">
+                Select an application to view its loan status stepper.
+              </p>
+            </div>
+          )}
         </div>
-      )}
+      </section>
 
     </div>
   );

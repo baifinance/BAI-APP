@@ -1,11 +1,14 @@
 "use client";
 
 import React from "react";
-import { useClient } from "../ClientContext";
+import { useClientData } from "../ClientContext";
 import PaymentHistoryTab from "./PaymentHistoryTab";
+import { TableSkeleton } from "@/components/Skeleton";
 
 export default function ClientPaymentHistoryPage() {
-  const { transactions } = useClient();
+  const { loading } = useClientData();
 
-  return <PaymentHistoryTab transactions={transactions} />;
+  if (loading) return <TableSkeleton />;
+
+  return <PaymentHistoryTab />;
 }

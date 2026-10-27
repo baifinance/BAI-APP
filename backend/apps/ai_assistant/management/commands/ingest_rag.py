@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from apps.ai_assistant.services.rag_service import RAGService
+from ai_assistant.services.rag_service import RAGService
 
 
 # Default Bai Finance Knowledge Base Chunks

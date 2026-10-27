@@ -15,3 +15,25 @@ CORS_ALLOWED_ORIGINS = [
 
 # Allow JWT cookies over HTTP on localhost
 REST_AUTH["JWT_AUTH_SECURE"] = False
+
+# Extend the base logging config: also mirror asana events to a local file for
+# convenient debugging while keeping the shared console handler.
+LOGGING = {
+    **LOGGING,
+    "handlers": {
+        **LOGGING["handlers"],
+        "asana_file": {
+            "class": "logging.FileHandler",
+            "filename": "/tmp/asana_events.log",
+            "formatter": "plain",
+        },
+    },
+    "loggers": {
+        **LOGGING["loggers"],
+        "asana_integration": {
+            "level": "DEBUG",
+            "handlers": ["asana_file", "console"],
+            "propagate": False,
+        },
+    },
+}

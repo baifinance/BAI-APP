@@ -1,15 +1,3 @@
-# authentication/urls.py
-# -----------------------------------------------------------------------
-# Wire up your authentication-related API endpoints here.
-#
-# Example:
-#   urlpatterns = [
-#       path("login/", views.LoginView.as_view(), name="auth-login"),
-#       path("logout/", views.LogoutView.as_view(), name="auth-logout"),
-#       path("register/", views.RegisterView.as_view(), name="auth-register"),
-#   ]
-# -----------------------------------------------------------------------
-
 from django.urls import path
 from authentication.views import LoanProcessingAccountCreateView, SendInviteView ,InvitationValidateView, InvitationAcceptView, InvitationResendView, InvitationRevokeView
 
@@ -38,7 +26,7 @@ urlpatterns = [
         InvitationAcceptView.as_view(), name="invitation-accept"
     ),
 
-    # Invitation management (Compliance-only - will work on later)
+    # Invitation management (Loan Processing only, POST)
     path("invitations/<uuid:pk>/resend/",
           InvitationResendView.as_view(),
           name="invitation-resend"

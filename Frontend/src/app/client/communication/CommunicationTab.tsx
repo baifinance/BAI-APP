@@ -1,180 +1,437 @@
 /**
  * ==============================================================================
  * COMPONENT: CommunicationTab.tsx
- * Path: src/app/client/components/CommunicationTab.tsx
- * Description: Reworked Client Communication tab listing emails sent by broker.
- *              Clicking an email card opens a detailed overlay reader modal.
+ * Path: src/app/client/communication/CommunicationTab.tsx
+ * Description: Client Communication Chat Space UI for "BAI-SUPPORT".
+ *              Wired to POST /api/ai/chat/ (IsAuthenticated, own-profile aware).
  * ==============================================================================
  */
 
-import React, { useState } from "react";
-import { Mail, Search, X, Calendar, User, ArrowRight, Reply } from "lucide-react";
-import { BrokerEmail, initialBrokerEmails } from "../MockClientData";
+"use client";
 
-export default function CommunicationTab() {
-  // ------------------------------------------------------------------------------
-  // STATIC BROKER EMAILS DATA
-  // ------------------------------------------------------------------------------
-  const brokerEmails: BrokerEmail[] = initialBrokerEmails;
+import React, { useEffect, useRef, useState } from "react";
+import { Headphones, Send, Sparkles, MessageSquare, RotateCcw, PhoneOff } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
+import { aiApi } from "@/lib/api";
 
-  // ------------------------------------------------------------------------------
-  // STATE DEFINITIONS
-  // ------------------------------------------------------------------------------
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedEmail, setSelectedEmail] = useState<BrokerEmail | null>(null);
+interface ChatMsg {
+  role: "user" | "assistant";
+  text: string;
+  at: number;
+}
 
-  // Filter emails based on search query
-  const filteredEmails = brokerEmails.filter((email) =>
-    email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    email.body.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    email.date.includes(searchQuery)
-  );
+const SUGGESTED = ["How to Start", "What are the needed Documents.", "What is my loan status?"];
+const MAX_LEN = 2000;
+const IDLE_MS = 15 * 60 * 1000;
+const IDLE_WARN_MS = 14 * 60 * 1000;
 
+function fmtTime(at: number) {
+  try {
+    return new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
+function EmptyPanel({
+  title,
+  body,
+  onStart,
+  starting,
+  active,
+  activeLabel,
+}: {
+  title: string;
+  body: string;
+  onStart: () => void;
+  starting: boolean;
+  active: boolean;
+  activeLabel?: string;
+}) {
   return (
-    <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto">
-      
-      {/* Header section */}
-      <div>
-        <h2 className="text-xl font-extrabold text-slate-800">Broker Messages Inbox</h2>
-        <p className="text-xs text-slate-400 font-medium mt-0.5">
-          Read secure emails and updates sent to you by your mortgage broker Sarah Jenkins.
-        </p>
-      </div>
-
-      {/* ==================================================================== */}
-      {/* SECTION 1: SEARCH FILTER                                             */}
-      {/* ==================================================================== */}
-      <div className="flex items-center gap-3 p-4 bg-white border border-slate-200/60 rounded-3xl shadow-soft-xl">
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search email subject lines or content..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 focus:outline-none focus:border-[#0024A8]/30 text-xs font-medium placeholder:text-slate-400"
-          />
+    <div className="h-full min-h-[320px] flex flex-col items-center justify-center p-6 text-center select-none">
+      <div className="flex flex-col items-center justify-center max-w-md mx-auto">
+        <div className="w-16 h-16 rounded-3xl bg-blue-50/60 border border-blue-100/80 flex items-center justify-center mb-4 text-[#0024A8]/30">
+          <MessageSquare className="w-8 h-8" />
         </div>
-      </div>
-
-      {/* ==================================================================== */}
-      {/* SECTION 2: EMAIL LIST GRID                                           */}
-      {/* ==================================================================== */}
-      <div className="space-y-3.5">
-        {filteredEmails.length === 0 ? (
-          <div className="bg-white border border-slate-200/80 rounded-3xl p-8 text-center text-slate-400 text-xs font-semibold shadow-soft-xl">
-            No broker messages matching your search query.
-          </div>
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-400/40 tracking-tight leading-tight">
+          {title}
+        </h2>
+        <p className="mt-2 text-xs sm:text-sm font-medium text-slate-400/60 leading-relaxed">
+          {body}
+        </p>
+        {active ? (
+          <p className="mt-5 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-700">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            {activeLabel ?? "Session active — type below to begin."}
+          </p>
         ) : (
-          filteredEmails.map((email) => (
-            <div
-              key={email.id}
-              onClick={() => setSelectedEmail(email)}
-              className="bg-white border border-slate-200/65 hover:border-[#0024A8]/30 rounded-3xl p-5 sm:p-6 shadow-soft-xl cursor-pointer hover:shadow-md transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-            >
-              <div className="space-y-1.5 flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#0024A8]" />
-                  <span className="text-[10px] font-extrabold uppercase text-[#0024A8] tracking-wider block">
-                    {email.sender}
-                  </span>
-                </div>
-                <h3 className="text-sm font-extrabold text-slate-800 truncate">
-                  {email.subject}
-                </h3>
-                <p className="text-xs text-slate-500 font-medium truncate">
-                  {email.snippet}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between sm:justify-end gap-6 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase">
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>{email.date}</span>
-                </div>
-                <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-200/50 flex items-center justify-center text-slate-400 hover:text-[#0024A8] hover:bg-[#0024A8]/5 transition-colors">
-                  <ArrowRight className="w-4 h-4" />
-                </div>
-              </div>
-            </div>
-          ))
+          <button
+            type="button"
+            onClick={onStart}
+            disabled={starting}
+            className={`mt-5 px-5 py-3 rounded-xl bg-[#0024A8] hover:bg-[#0A2881] text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer ${
+              !starting ? "animate-pulse-ring" : "shadow-md"
+            }`}
+          >
+            {starting ? "Starting…" : "Start new chat"}
+          </button>
         )}
       </div>
+    </div>
+  );
+}
 
-      {/* ==================================================================== */}
-      {/* SECTION 3: EMAIL READER OVERLAY POPUP MODAL                          */}
-      {/* ==================================================================== */}
-      {selectedEmail && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white w-full max-w-2xl rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200/50 space-y-6 animate-scaleIn max-h-[90vh] flex flex-col">
-            
-            {/* Modal Header */}
-            <div className="flex justify-between items-start border-b border-slate-100 pb-4 shrink-0">
-              <div className="space-y-1.5 min-w-0">
-                <span className="text-[10px] font-extrabold text-[#0024A8] uppercase tracking-wider block">
-                  Secure Message Viewer
-                </span>
-                <h3 className="text-base sm:text-lg font-extrabold text-slate-800 leading-snug">
-                  {selectedEmail.subject}
-                </h3>
-              </div>
-              <button 
-                onClick={() => setSelectedEmail(null)}
-                className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors border border-slate-200/50 shrink-0 ml-4"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+export default function CommunicationTab() {
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [lastFailed, setLastFailed] = useState("");
+  const [convId, setConvId] = useState("");
+  const [sessionError, setSessionError] = useState("");
+  const [ending, setEnding] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [ended, setEnded] = useState<{ code: string; to?: string } | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [idleWarn, setIdleWarn] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const lastActivity = useRef<number>(0);
 
-            {/* Email Sender Metadata */}
-            <div className="flex items-center justify-between gap-4 text-xs font-semibold text-slate-500 bg-slate-50 p-4 rounded-2xl border border-slate-200/30 shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#0024A8]/10 text-[#0024A8] flex items-center justify-center font-bold">
-                  SJ
-                </div>
-                <div>
-                  <span className="text-slate-800 font-bold block">{selectedEmail.sender}</span>
-                  <span className="text-[10px] text-slate-400 block">{selectedEmail.senderEmail}</span>
-                </div>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] text-slate-400 block uppercase">Received Date</span>
-                <span className="text-slate-700 block">{selectedEmail.date}</span>
-              </div>
-            </div>
+  const ensureSession = async () => {
+    if (convId) return convId;
+    setStarting(true);
+    try {
+      const res = await aiApi.startSession();
+      setConvId(res.conversation_id);
+      lastActivity.current = Date.now();
+      return res.conversation_id;
+    } finally {
+      setStarting(false);
+    }
+  };
 
-            {/* Email Body */}
-            <div className="flex-1 overflow-y-auto text-slate-600 text-xs leading-relaxed whitespace-pre-line py-2 pr-1 font-medium bg-white">
-              {selectedEmail.body}
-            </div>
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, loading]);
 
-            {/* Action buttons: Exit Reader and Reply */}
-            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 shrink-0 text-[10px] font-extrabold uppercase">
-              <button
-                type="button"
-                onClick={() => setSelectedEmail(null)}
-                className="py-2.5 px-5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 transition-all cursor-pointer"
-              >
-                Exit Reader
-              </button>
+  useEffect(() => {
+    const ta = inputRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${Math.min(Math.max(ta.scrollHeight, 44), 180)}px`;
+  }, [input]);
 
-              {/* Blue Reply button with white text (Placeholder action: does nothing for now) */}
-              <button
-                type="button"
-                onClick={() => {
-                  // Intentional placeholder: does nothing for now per instructions
-                }}
-                className="py-2.5 px-6 rounded-xl bg-[#0024A8] hover:bg-[#001D85] text-white font-extrabold shadow-md shadow-[#0024A8]/15 transition-all cursor-pointer flex items-center gap-1.5"
-              >
-                <Reply className="w-3.5 h-3.5" />
-                <span>Reply</span>
-              </button>
-            </div>
+  const send = async (question: string) => {
+    const q = question.trim().slice(0, MAX_LEN);
+    if (!q || loading || ended) return;
+    setError("");
+    setLastFailed("");
+    setIdleWarn(false);
+    lastActivity.current = Date.now();
+    setMessages((m) => [...m, { role: "user", text: q, at: Date.now() }]);
+    setInput("");
+    setLoading(true);
+    try {
+      const cid = await ensureSession();
+      const res = await aiApi.chat(q, cid);
+      if (res.conversation_id && res.conversation_id !== convId) setConvId(res.conversation_id);
+      setMessages((m) => [...m, { role: "assistant", text: res.answer, at: Date.now() }]);
+      lastActivity.current = Date.now();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to get response.";
+      setError(msg);
+      setLastFailed(q);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const endChat = async (reason: "manual" | "idle") => {
+    if (!convId || ending || ended) return;
+    setEnding(true);
+    try {
+      const res = await aiApi.endSession(convId, reason);
+      setEnded({ code: res.conversation_id, to: res.to });
+      setShowConfirm(false);
+      setIdleWarn(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to end chat.");
+    } finally {
+      setEnding(false);
+    }
+  };
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (ended || !convId || ending) return;
+      const idleFor = Date.now() - lastActivity.current;
+      if (idleFor >= IDLE_MS) void endChat("idle");
+      else if (idleFor >= IDLE_WARN_MS) setIdleWarn(true);
+    }, 30000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convId, ended, ending]);
+
+  const startNew = async () => {
+    if (loading || starting) return;
+    setMessages([]);
+    setError("");
+    setSessionError("");
+    setLastFailed("");
+    setEnded(null);
+    setShowConfirm(false);
+    setIdleWarn(false);
+    setConvId("");
+    setStarting(true);
+    try {
+      const res = await aiApi.startSession();
+      setConvId(res.conversation_id);
+      lastActivity.current = Date.now();
+    } catch (e) {
+      setSessionError(e instanceof Error ? e.message : "Unable to start chat session.");
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  const started = messages.length > 0;
+
+  return (
+    <div className="w-full h-full flex-1 flex flex-col min-h-0 bg-white border-0 rounded-none shadow-none overflow-hidden">
+      <header className="px-4 sm:px-6 py-3.5 bg-gradient-to-r from-[#061C65] via-[#0A2881] to-[#0024A8] border-b border-white/10 flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-2xl bg-[#E4BA37] text-[#0A2881] flex items-center justify-center shadow-sm shrink-0">
+            <Headphones className="w-5 h-5 text-[#0A2881]" />
           </div>
+          <div className="min-w-0">
+            <h1 className="text-lg md:text-xl font-extrabold text-white tracking-tight leading-tight">
+              BAI-SUPPORT
+            </h1>
+            <div className="flex items-center gap-1.5 text-xs text-blue-100/80 font-medium">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+              <span className="truncate">
+                {convId ? `${convId} · knows your profile` : "Customer Support"}
+              </span>
+            </div>
+          </div>
+        </div>
+        {!ended && convId && (
+          <button
+            type="button"
+            onClick={() => setShowConfirm(true)}
+            disabled={ending}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-bold text-white transition-colors shrink-0 disabled:opacity-50 cursor-pointer"
+            aria-label="End chat and email transcript"
+          >
+            <PhoneOff className="w-3.5 h-3.5 text-white" />
+            <span className="hidden sm:inline">{ending ? "Ending…" : "End chat"}</span>
+          </button>
+        )}
+      </header>
+
+      {sessionError && (
+        <p className="px-4 sm:px-6 py-2 text-center text-xs font-semibold text-rose-600 bg-rose-50 border-b border-rose-100">
+          {sessionError}
+        </p>
+      )}
+      {idleWarn && !ended && (
+        <div className="px-4 sm:px-6 py-2.5 bg-amber-50 border-b border-amber-100 flex items-center justify-between gap-3 text-xs font-semibold text-amber-800">
+          <span>Ending in ~60s due to inactivity. Transcript will be emailed.</span>
+          <button
+            type="button"
+            onClick={() => {
+              lastActivity.current = Date.now();
+              setIdleWarn(false);
+            }}
+            className="shrink-0 px-3 py-1.5 rounded-lg bg-white border border-amber-200 font-bold hover:bg-amber-100"
+          >
+            Stay
+          </button>
         </div>
       )}
 
+      <div ref={scrollRef} role="log" aria-live="polite" className="flex-1 min-h-0 overflow-y-auto bg-gradient-to-b from-white via-white to-blue-50/20">
+        {ended ? (
+          <EmptyPanel
+            title="Chat ended"
+            body={`Transcript ${ended.code} sent to ${ended.to ?? "your email"}.`}
+            onStart={() => void startNew()}
+            starting={starting || loading}
+            active={false}
+          />
+        ) : !started ? (
+          <EmptyPanel
+            title="No chat available"
+            body="No conversation is created until you start — nothing is wasted."
+            onStart={() => void startNew()}
+            starting={starting || loading}
+            active={convId !== ""}
+            activeLabel={convId ? `Session ${convId} active — type below to begin.` : undefined}
+          />
+        ) : (
+          <div className="w-full px-4 sm:px-8 py-6 space-y-5">
+            {messages.map((m, i) => (
+              <div key={i} className={`flex items-end gap-2 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                {m.role === "assistant" && (
+                  <div className="w-7 h-7 rounded-full bg-[#0024A8]/10 border border-[#0024A8]/15 text-[#0024A8] flex items-center justify-center shrink-0 text-[10px] font-extrabold">
+                    AI
+                  </div>
+                )}
+                <div className="max-w-[92%] sm:max-w-[75%] lg:max-w-[70%] min-w-0">
+                  <div
+                    className={`px-4 py-3 text-[13px] sm:text-sm leading-6 break-words ${
+                      m.role === "user"
+                        ? "bg-[#0024A8] text-white font-medium rounded-2xl rounded-br-md whitespace-pre-wrap"
+                        : "bg-white border border-slate-200 text-slate-800 rounded-2xl rounded-bl-md shadow-xs"
+                    }`}
+                  >
+                    {m.role === "assistant" ? (
+                      <div className="prose prose-sm max-w-none prose-headings:text-[#0A2881] prose-headings:font-extrabold prose-headings:mt-3 prose-headings:mb-1.5 prose-p:my-1.5 prose-ul:my-1.5 prose-li:my-0.5 prose-strong:text-slate-900 prose-code:bg-slate-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[12px] prose-a:text-[#0024A8] prose-a:font-semibold break-words">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+                          {m.text}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      m.text
+                    )}
+                  </div>
+                  <p className={`mt-1 text-[10px] font-medium text-slate-400 ${m.role === "user" ? "text-right" : "text-left"}`}>
+                    {fmtTime(m.at)}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="flex items-end gap-2 justify-start">
+                <div className="w-7 h-7 rounded-full bg-[#0024A8]/10 border border-[#0024A8]/15 flex items-center justify-center shrink-0">
+                  <span className="w-3 h-3 border-2 border-slate-300 border-t-[#0024A8] rounded-full animate-spin" />
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-md px-4 py-3 text-xs text-slate-500 font-medium flex items-center gap-2">
+                  Thinking…
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {error && !ended && (
+          <div className="w-full px-4 sm:px-8 pb-4">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-rose-100 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700">
+              <span className="min-w-0 truncate">{error}</span>
+              {lastFailed && (
+                <button
+                  type="button"
+                  onClick={() => void send(lastFailed)}
+                  className="inline-flex items-center gap-1 shrink-0 font-bold hover:underline"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Retry
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {!ended && (
+      <div className="px-3 sm:px-6 pt-3 shrink-0">
+        <div className="bg-[#0A2881] border border-[#001D85] rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5 overflow-x-auto snap-x shadow-xs">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#E4BA37] shrink-0">
+            <Sparkles className="w-3.5 h-3.5 text-[#E4BA37]" />
+            <span>Suggested</span>
+          </div>
+          {SUGGESTED.map((q) => (
+            <button
+              key={q}
+              type="button"
+              disabled={loading || !!ended}
+              onClick={() => void send(q)}
+              className="shrink-0 snap-start px-3.5 py-2 rounded-xl bg-[#E4BA37] hover:bg-[#d4ac30] border border-[#E4BA37] text-xs font-bold text-[#0A2881] shadow-xs transition-all cursor-pointer disabled:opacity-50 active:scale-95"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+      </div>
+      )}
+
+      {!ended && (
+      <footer className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-5 bg-white shrink-0">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send(input);
+          }}
+          className="flex items-end gap-2 bg-white border border-blue-200/90 rounded-2xl p-2 shadow-xs focus-within:border-[#0024A8] focus-within:ring-2 focus-within:ring-[#0024A8]/20 transition-all"
+        >
+          <label htmlFor="bai-chat-input" className="sr-only">
+            Type your question
+          </label>
+          <textarea
+            id="bai-chat-input"
+            ref={inputRef}
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value.slice(0, MAX_LEN))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void send(input);
+              }
+            }}
+            placeholder={convId ? "Type your question… (Enter to send, Shift+Enter for newline)" : "Starting chat session…"}
+            maxLength={MAX_LEN}
+            disabled={loading || !convId}
+            className="flex-1 bg-transparent px-3.5 py-2.5 text-[13px] sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none disabled:opacity-60 resize-none leading-6 min-h-[44px] max-h-[180px]"
+          />
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <button
+              type="submit"
+              disabled={loading || !input.trim() || !convId}
+              aria-label="Send message"
+              className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-[#0024A8] hover:bg-[#0A2881] text-white shadow-sm transition-all gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+        </form>
+        <p className={`mt-1.5 text-right text-[10px] font-medium ${input.length >= MAX_LEN ? "text-rose-500" : "text-slate-400"}`}>
+          {input.length}/{MAX_LEN}
+        </p>
+      </footer>
+      )}
+
+      {showConfirm && !ended && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60" role="dialog" aria-modal="true" aria-labelledby="end-chat-title">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
+            <h3 id="end-chat-title" className="text-lg font-extrabold text-slate-900">End chat?</h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              {convId} will be closed and the full transcript emailed to you.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+              >
+                Keep chatting
+              </button>
+              <button
+                type="button"
+                disabled={ending}
+                onClick={() => void endChat("manual")}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold disabled:opacity-50"
+              >
+                {ending ? "Ending…" : "End + email"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

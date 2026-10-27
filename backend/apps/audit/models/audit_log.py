@@ -49,3 +49,13 @@ class AuditLog(models.Model):
     def __str__(self):
         """Return a human-readable summary like ``'create by 3 on order'``."""
         return f"{self.action} by {self.actor_id} on {self.entity_type}"
+
+    def save(self, *args, **kwargs):
+        """Allow inserts only; audit rows must never be rewritten."""
+        if not self._state.adding:
+            raise ValueError("Audit log rows are immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """Refuse deletion from application code."""
+        raise ValueError("Audit log rows are immutable.")

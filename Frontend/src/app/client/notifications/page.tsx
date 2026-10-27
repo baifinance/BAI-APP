@@ -1,16 +1,39 @@
 "use client";
 
 import React from "react";
-import { useClient } from "../ClientContext";
-import NotificationsTab from "@/components/NotificationsTab";
+import { useRouter } from "next/navigation";
+import { useClientNotifications } from "../ClientContext";
+import NotificationsTab, { NotificationItem } from "@/components/NotificationsTab";
+import { NotificationSkeleton } from "@/components/Skeleton";
 
 export default function ClientNotificationsPage() {
-  const { notifications } = useClient();
+  const router = useRouter();
+  const {
+    notifications,
+    unreadCount,
+    markNotificationRead,
+    markAllNotificationsRead,
+    notificationsLoading,
+  } = useClientNotifications();
+
+  const handleOpen = (item: NotificationItem) => {
+    if (item.type.toLowerCase().includes("loan")) {
+      router.push("/client/loan-status");
+    } else if (item.type.toLowerCase().includes("booking")) {
+      router.push("/client/bookings");
+    }
+  };
+
+  if (notificationsLoading) return <NotificationSkeleton />;
 
   return (
     <NotificationsTab
       notifications={notifications}
       variant="client"
+      unreadCount={unreadCount}
+      onMarkRead={markNotificationRead}
+      onMarkAllRead={markAllNotificationsRead}
+      onOpen={handleOpen}
     />
   );
 }

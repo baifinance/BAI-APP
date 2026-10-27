@@ -9,6 +9,7 @@ import uuid
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models import Q
 
 from loans.choices import ApplicationStatus
 
@@ -43,6 +44,8 @@ class LoanApplication(models.Model):
         max_digits=12,
         decimal_places=2,
         validators=[MinValueValidator(0.01)],
+        null=True,
+        blank=True,
     )
 
     lender = models.CharField(max_length=255, blank=True)
@@ -53,10 +56,31 @@ class LoanApplication(models.Model):
         default=ApplicationStatus.DRAFT,
     )
 
+    asana_project_gid = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        db_index=True,
+    )
+    asana_task_gid = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+    )
+    asana_project_name = models.CharField(max_length=255, blank=True, null=True)
+    asana_task_name = models.CharField(max_length=255, blank=True, null=True)
+    asana_status = models.CharField(max_length=100, blank=True, null=True)
+    asana_status_history = models.JSONField(default=dict, blank=True)
+    asana_created_at = models.DateTimeField(null=True, blank=True)
+    asana_synced_at = models.DateTimeField(auto_now=True)
+    is_primary = models.BooleanField(default=False)
+
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="created_applications",
+        null=True,
+        blank=True,
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -67,8 +91,27 @@ class LoanApplication(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["client", "status"]),
+            models.Index(
+                fields=["client", "asana_project_gid"],
+                name="loan_applic_client_proj_idx",
+            ),
+            models.Index(
+                fields=["asana_project_gid", "asana_task_gid"],
+                name="loan_app_task_lookup_idx",
+            ),
             models.Index(fields=["broker", "status"]),
             models.Index(fields=["created_at"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["client", "asana_project_gid", "asana_task_gid"],
+                name="unique_client_asana_project_task",
+            ),
+            models.UniqueConstraint(
+                fields=["client"],
+                condition=Q(is_primary=True),
+                name="unique_primary_application_per_client",
+            ),
         ]
 
     def __str__(self):

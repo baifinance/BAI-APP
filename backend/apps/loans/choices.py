@@ -14,3 +14,5 @@ class ApplicationStatus(models.TextChoices):
     IN_REVIEW = "in_review", "In_Review"
     APPROVED = "approved", "Approved"
     REJECTED = "rejected", "Rejected"
+    SETTLED = "settled", "Settled"
+    WITHDRAWN = "withdrawn", "Withdrawn"

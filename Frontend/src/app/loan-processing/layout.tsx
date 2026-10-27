@@ -6,6 +6,10 @@ import { LoanProcessingProvider } from "./LoanProcessingContext";
 import { usePathname } from "next/navigation";
 import { Bell, LogOut } from "lucide-react";
 import Link from "next/link";
+import { API_BASE } from "@/lib/api";
+import { useCurrentUser } from "@/lib/useCurrentUser";
+import MobileNavRail from "@/components/MobileNavRail";
+import { unsubscribePushForLogout } from "@/lib/push";
 
 const getActiveTab = (pathname: string) => {
   if (pathname.includes("/loan-processing/dashboard")) return "Dashboard";
@@ -20,7 +24,11 @@ const getActiveTab = (pathname: string) => {
 export default function LoanProcessingLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const activeTab = getActiveTab(pathname);
+  const { fullName, email, initials } = useCurrentUser();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  // Mobile sidebar is open only for the path it was opened on, so navigating closes it
+  const [mobileNavPath, setMobileNavPath] = useState<string | null>(null);
+  const mobileNavOpen = mobileNavPath === pathname;
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -35,8 +43,9 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
   }, []);
 
   const handleLogout = async () => {
+    await unsubscribePushForLogout();
     try {
-      await fetch("http://localhost:8000/api/auth/logout/", {
+      await fetch(API_BASE + "/api/auth/logout/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -44,13 +53,10 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
     } catch (err) {
       console.error("Failed to log out from backend:", err);
     }
-    // Clear cookies
-    document.cookie = "jwt-access-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "jwt-refresh-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "user-role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    
-    // Redirect to landing page
-    window.location.href = "/";
+    // Auth cookies are HttpOnly and cleared by the backend logout endpoint.
+
+    // Redirect to login page
+    window.location.href = "/login";
   };
 
   const getHeaderTitle = () => {
@@ -63,18 +69,34 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
 
   return (
     <LoanProcessingProvider>
-      <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 selection:bg-[#1429A9] selection:text-white antialiased loan-processing-portal-wrap">
+      <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-[#1429A9] selection:text-white antialiased loan-processing-portal-wrap">
         
-        {/* Sidebar Navigation */}
-        <Sidebar activeTab={activeTab} />
+        {/* Desktop sidebar (full) */}
+        <div className="hidden md:block shrink-0">
+          <Sidebar activeTab={activeTab} />
+        </div>
+
+        {/* Mobile: fixed out-of-flow rail + overlay panel (no layout impact) */}
+        <div className="md:hidden">
+          <MobileNavRail
+            open={mobileNavOpen}
+            onToggle={() => setMobileNavPath((prev) => (prev === pathname ? null : pathname))}
+            className="bg-[#1429A9] border-black/10 text-white hover:bg-[#0F1F87]"
+          />
+          {mobileNavOpen && (
+            <div className="fixed inset-y-0 left-8 z-40 w-64 overflow-y-auto">
+              <Sidebar activeTab={activeTab} />
+            </div>
+          )}
+        </div>
 
         {/* Content Wrapper */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 pl-8 md:pl-0">
           
           {/* Top header bar */}
-          <header className="h-16 bg-white border-b border-slate-200/80 px-8 flex items-center justify-between shrink-0 select-none">
-            <div>
-              <h1 className="text-sm font-extrabold text-slate-800 tracking-tight">
+          <header className="h-16 bg-white border-b border-slate-200/80 px-4 md:px-8 flex items-center justify-between gap-3 shrink-0 select-none">
+            <div className="min-w-0">
+              <h1 className="text-sm font-extrabold text-slate-800 tracking-tight truncate">
                 Loan Processing Overview — {getHeaderTitle()}
               </h1>
             </div>
@@ -99,7 +121,7 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
                   title="Loan Processing Officer Profile"
                 >
                   <div className="w-8 h-8 rounded-full bg-[#1429A9] text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                    MC
+                    {initials}
                   </div>
                 </button>
 
@@ -108,12 +130,12 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
                     {/* Account detail row */}
                     <div className="flex items-center gap-3 pb-3 mb-2.5 border-b border-slate-100 select-none">
                       <div className="w-11 h-11 rounded-full bg-[#1429A9] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
-                        MC
+                        {initials}
                       </div>
                       <div className="flex flex-col text-left">
-                        <span className="font-extrabold text-slate-800 text-xs leading-none">Marcus Carter</span>
+                        <span className="font-extrabold text-slate-800 text-xs leading-none">{fullName || "Loan Processing"}</span>
                         <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider mt-1">Loan Processing Profile</span>
-                        <span className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">loanprocessing@bai.finance</span>
+                        <span className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">{email}</span>
                       </div>
                     </div>
 
@@ -135,7 +157,7 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
           </header>
 
           {/* Scrollable page body */}
-          <main className="flex-1 overflow-y-auto p-8 max-w-[1600px] w-full mx-auto">
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
             {children}
           </main>
 

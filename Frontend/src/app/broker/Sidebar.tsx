@@ -11,6 +11,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Home, Users, ClipboardList, Calendar, MessageSquare, Percent, ChevronLeft, ChevronRight } from "lucide-react";
 
 export type TabType = "Dashboard" | "Clients" | "Applications" | "Bookings" | "Communication" | "Calculators" | "Notifications";
@@ -45,15 +46,26 @@ export default function Sidebar({ activeTab }: SidebarProps) {
         }`}
       >
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-8 h-8 rounded-[5px] bg-[#0038A8] flex items-center justify-center text-white font-extrabold text-sm tracking-tighter shrink-0">
-            BAI
-          </div>
-          {!isCollapsed && (
-            <div className="animate-fadeIn">
-              <span className="font-extrabold text-[#0038A8] text-sm tracking-tight block whitespace-nowrap">
-                BAI FINANCE
-              </span>
-              <span className="text-[10px] text-[#0038A8]/80 font-bold uppercase tracking-wider block whitespace-nowrap">
+          {isCollapsed ? (
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-start shrink-0" title="BAI Group of Companies">
+              <Image
+                src="/bai_logo_blue.png"
+                alt="BAI"
+                width={3383}
+                height={1454}
+                className="h-8 w-auto max-w-none object-left"
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-0.5 animate-fadeIn min-w-0">
+              <Image
+                src="/bai_logo_blue.png"
+                alt="BAI Group of Companies"
+                width={3383}
+                height={1454}
+                className="h-8 w-auto object-contain"
+              />
+              <span className="text-[10px] text-[#0038A8]/80 font-bold uppercase tracking-wider block whitespace-nowrap pl-0.5">
                 Broker Portal
               </span>
             </div>
@@ -61,7 +73,7 @@ export default function Sidebar({ activeTab }: SidebarProps) {
         </div>
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1.5 rounded-[5px] bg-slate-100 hover:bg-[#0038A8]/10 text-[#0038A8] transition-colors cursor-pointer shrink-0 border border-[#0038A8]/20"
+          className="hidden md:flex p-1.5 rounded-[5px] bg-slate-100 hover:bg-[#0038A8]/10 text-[#0038A8] transition-colors cursor-pointer shrink-0 border border-[#0038A8]/20 items-center justify-center"
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {isCollapsed ? (
@@ -104,4 +116,3 @@ export default function Sidebar({ activeTab }: SidebarProps) {
     </aside>
   );
 }
-

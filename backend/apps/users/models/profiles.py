@@ -35,6 +35,25 @@ class ClientProfile(models.Model):
 
     verified_at = models.DateTimeField(null=True, blank=True)
 
+    asana_fullname = models.CharField(max_length=255, null=True, blank=True)
+    middle_name = models.CharField(max_length=150, null=True, blank=True)
+    mobile = models.CharField(max_length=64, null=True, blank=True)
+    address = models.TextField(null=True, blank=True)
+    dob = models.CharField(max_length=64, null=True, blank=True)
+    visa = models.CharField(max_length=64, null=True, blank=True)
+    visa_subclass = models.CharField(max_length=64, null=True, blank=True)
+    visa_expiry = models.CharField(max_length=64, null=True, blank=True)
+    loan_amount = models.CharField(max_length=64, null=True, blank=True)
+    goal = models.TextField(null=True, blank=True)
+    source = models.CharField(max_length=255, null=True, blank=True)
+    inquiry = models.TextField(null=True, blank=True)
+    loan_status = models.CharField(max_length=64, null=True, blank=True)
+
+    # Maps each Asana loan-status section the client has entered to the ISO
+    # timestamp when it was entered, so the client stepper can show the real
+    # "completed at" date for every step instead of hardcoded values.
+    loan_status_history = models.JSONField(default=dict, blank=True)
+
     class Meta:
         db_table = "client_profiles"
 

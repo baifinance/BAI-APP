@@ -1,7 +1,10 @@
 "use client";
 
 import React from "react";
-import CalculatorsTab from "@/components/CalculatorsTab";
+import dynamic from "next/dynamic";
+import LoadingSkeleton from "@/components/LoadingSkeleton";
+
+const CalculatorsTab = dynamic(() => import("@/components/CalculatorsTab"), { loading: () => <LoadingSkeleton /> });
 
 export default function LoanProcessingCalculatorPage() {
   return <CalculatorsTab variant="loan_processing" />;

@@ -3,7 +3,6 @@ from bookings.views import (
         AvailableSlotsView,
         BookingListCreateView,
         BookingDetailView,
-        BrokerListView,
         SlotListCreateView,
         SlotDeleteView,
     )
@@ -14,5 +13,4 @@ urlpatterns = [
     path("slots/", SlotListCreateView.as_view(), name="slot-list-create"),
     path("slots/<uuid:pk>/", SlotDeleteView.as_view(), name="slot-delete"),
     path("<uuid:pk>/", BookingDetailView.as_view(), name="booking-detail"),
-    path("brokers/", BrokerListView.as_view(), name="broker-list")
 ]

@@ -1,94 +1,281 @@
 /**
  * ==============================================================================
  * COMPONENT: NotificationsTab.tsx
- * Path: src/app/broker/components/NotificationsTab.tsx
- * Description: Unified notifications logging display component supporting
- *              theme variants dynamically for Client, Broker, and Compliance portals.
+ * Description: Reworked Notifications Center for Client, Broker, and
+ *              Loan Processing portals.
+ *              Features:
+ *              - Clean single-card container (outer banner removed)
+ *              - "Notifications" header title (renamed from Alerts Logs)
+ *              - Right-aligned Type Filter & "Mark as read" button inside container
+ *              - 3-column card row:
+ *                * Left: Unread indicator (red circle on very left, removed when read) + text/title
+ *                * Center: Notification type badge (e.g. MFA, Loan, etc.)
+ *                * Right: Formatted timestamp/date
  * ==============================================================================
  */
 
-import React from "react";
-import { Bell, AlertTriangle, FileText, CheckCircle2, ShieldAlert } from "lucide-react";
+"use client";
 
+import React, { useState, useMemo } from "react";
+import { Bell, CheckCheck, ChevronDown } from "lucide-react";
+import { useTimeAgo } from "@/lib/time";
+
+// ==============================================================================
+// 1. DATA TYPES & INTERFACES
+// ==============================================================================
 export interface NotificationItem {
+  id?: string;
   type: string;
+  title?: string;
   message: string;
-  time: string;
+  time?: string;
+  created_at?: string;
+  is_read?: boolean;
 }
 
 interface NotificationsTabProps {
   notifications: NotificationItem[];
   variant?: "client" | "broker" | "loan_processing";
+  unreadCount?: number;
+  onMarkRead?: (id: string) => Promise<void> | void;
+  onMarkAllRead?: () => Promise<void> | void;
+  onOpen?: (item: NotificationItem) => void;
 }
 
-export default function NotificationsTab({ notifications, variant = "broker" }: NotificationsTabProps) {
-  const isClient = variant === "client";
-  const isLoanProcessing = variant === "loan_processing";
-  
-  const primaryText = isClient ? "text-[#0024A8]" : isLoanProcessing ? "text-[#1429A9]" : "text-[#0B2369]";
-  const primaryBg = isClient ? "bg-[#0024A8]/10" : isLoanProcessing ? "bg-[#1429A9]/10" : "bg-[#0B2369]/10";
-  const accentText = isClient ? "text-[#0024A8]" : isLoanProcessing ? "text-[#1429A9]" : "text-[#0B2369]";
-  const dotColor = isClient ? "bg-[#0024A8]" : isLoanProcessing ? "bg-[#1429A9]" : "bg-[#0B2369]";
+// ==============================================================================
+// 2. MAIN COMPONENT DEFINITION
+// ==============================================================================
+function TimeText({ createdAt, fallback }: { createdAt?: string; fallback?: string }) {
+  const label = useTimeAgo(createdAt, fallback);
+  return <span suppressHydrationWarning>{label}</span>;
+}
 
-  const getIcon = (type: string) => {
-    const t = type.toLowerCase();
-    if (t.includes("alert") || t.includes("outstanding") || t.includes("warning")) {
-      return <AlertTriangle className="w-4 h-4 text-amber-500" />;
-    }
-    if (t.includes("upload") || t.includes("submission") || t.includes("file")) {
-      return <FileText className={`w-4 h-4 ${accentText}`} />;
-    }
-    if (t.includes("approve") || t.includes("success") || t.includes("settle")) {
-      return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
-    }
-    if (t.includes("audit") || t.includes("flagged") || t.includes("system")) {
-      return <ShieldAlert className="w-4 h-4 text-rose-500" />;
-    }
-    return <Bell className={`w-4 h-4 ${accentText}`} />;
+export default function NotificationsTab({
+  notifications,
+  onMarkRead,
+  onMarkAllRead,
+  onOpen,
+}: NotificationsTabProps) {
+  // ----------------------------------------------------------------------------
+  // 3. STATE MANAGEMENT: FILTERING & READ TRACKING
+  // ----------------------------------------------------------------------------
+  // Filter state for notification types (defaults to "ALL")
+  const [selectedType, setSelectedType] = useState<string>("ALL");
+
+  // Local set of read notification identifiers for instantaneous UI feedback
+  const [readItemIds, setReadItemIds] = useState<Set<string>>(new Set());
+
+  // ----------------------------------------------------------------------------
+  // 4. HELPERS & COMPUTED PROPERTIES
+  // ----------------------------------------------------------------------------
+  // Extract all distinct notification types dynamically from the list
+  const availableTypes = useMemo(() => {
+    const types = new Set<string>();
+    notifications.forEach((item) => {
+      if (item.type && item.type.trim()) {
+        types.add(item.type.trim());
+      }
+    });
+    return Array.from(types).sort();
+  }, [notifications]);
+
+  // Determine whether an individual notification is currently unread
+  const checkIsUnread = (item: NotificationItem, idx: number): boolean => {
+    const key = item.id || `notif-${idx}`;
+    if (readItemIds.has(key)) return false;
+    if (typeof item.is_read === "boolean") return !item.is_read;
+    return false;
   };
 
-  return (
-    <div className="space-y-6 animate-fadeIn">
-      <div>
-        <h2 className="text-xl font-extrabold text-slate-800">System Notifications</h2>
-        <p className="text-xs text-slate-400 font-medium mt-0.5">
-          View all real-time alerts, dossier uploads, and automated messages.
-        </p>
-      </div>
+  // Filter notifications by selected notification type
+  const filteredNotifications = useMemo(() => {
+    if (selectedType === "ALL") return notifications;
+    return notifications.filter(
+      (item) => item.type?.trim().toLowerCase() === selectedType.toLowerCase()
+    );
+  }, [notifications, selectedType]);
 
-      <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-soft-xl space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-50">
-          <div className="flex items-center gap-2">
-            <Bell className={`w-4.5 h-4.5 ${primaryText}`} />
-            <span className="font-extrabold text-slate-800 text-sm">Alerts Log ({notifications.length})</span>
+  // Count unread notifications dynamically
+  const computedUnreadCount = useMemo(() => {
+    return notifications.filter((item, idx) => checkIsUnread(item, idx)).length;
+  }, [notifications, readItemIds]);
+
+
+  // ----------------------------------------------------------------------------
+  // 5. ACTION HANDLERS
+  // ----------------------------------------------------------------------------
+  // Mark all notifications as read
+  const handleMarkAllRead = async () => {
+    const nextReadSet = new Set(readItemIds);
+    notifications.forEach((item, idx) => {
+      nextReadSet.add(item.id || `notif-${idx}`);
+    });
+    setReadItemIds(nextReadSet);
+
+    if (onMarkAllRead) {
+      await onMarkAllRead();
+    }
+  };
+
+  // Handle single notification item click (marks as read and opens related resource)
+  const handleItemClick = (item: NotificationItem, idx: number) => {
+    const key = item.id || `notif-${idx}`;
+    setReadItemIds((prev) => new Set(prev).add(key));
+
+    if (item.id && onMarkRead) {
+      onMarkRead(item.id);
+    }
+    if (onOpen) {
+      onOpen(item);
+    }
+  };
+
+  // ----------------------------------------------------------------------------
+  // 6. JSX UI RENDERING
+  // ----------------------------------------------------------------------------
+  return (
+    <div className="w-full">
+      {/* ==================================================================== */}
+      {/* NOTIFICATIONS CONTAINER CARD                                         */}
+      {/* ==================================================================== */}
+      <div className="bg-white border border-slate-200/80 rounded-[15px] shadow-soft-xl overflow-hidden">
+        
+        {/* ================================================================== */}
+        {/* CONTAINER HEADER: GRADIENT BANNER WITH TITLE & CONTROLS            */}
+        {/* ================================================================== */}
+        <div className="bg-gradient-to-r from-[#061C65] via-[#0A2881] to-[#0024A8] px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
+          
+          {/* Title on the Left: Icon & "Notifications" */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white">
+              <Bell className="w-4 h-4 text-white" />
+            </div>
+            <h2 className="font-extrabold text-white text-base sm:text-lg tracking-tight">
+              Notifications
+            </h2>
+            {computedUnreadCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-black shadow-xs">
+                {computedUnreadCount}
+              </span>
+            )}
+          </div>
+
+          {/* Controls on the Right: Type Filter & Mark as Read Button */}
+          <div className="flex items-center gap-2.5 self-end sm:self-auto">
+            
+            {/* Filter Dropdown: Select specific notification type */}
+            <div className="relative">
+              <select
+                id="notification-type-filter"
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                className="appearance-none pl-3 pr-8 py-2 text-xs font-bold rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/30"
+                aria-label="Filter by notification type"
+              >
+                <option value="ALL" className="bg-[#0A2881] text-white">All Types</option>
+                {availableTypes.map((type) => (
+                  <option key={type} value={type} className="bg-[#0A2881] text-white">
+                    {type}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-white/70 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {/* Mark as Read Action Button */}
+            <button
+              type="button"
+              onClick={handleMarkAllRead}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-all duration-150 cursor-pointer border border-white/20 shadow-xs active:scale-[0.98]"
+              title="Mark all notifications as read"
+            >
+              <CheckCheck className="w-3.5 h-3.5 shrink-0 text-white" />
+              <span>Mark as read</span>
+            </button>
           </div>
         </div>
 
-        <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto pr-1">
-          {notifications.length === 0 ? (
-            <p className="py-12 text-center text-slate-400 text-xs font-semibold">
-              No recent notifications found.
-            </p>
+        {/* ================================================================== */}
+        {/* NOTIFICATIONS LIST                                                 */}
+        {/* ================================================================== */}
+        <div className="divide-y divide-slate-100 max-h-[620px] overflow-y-auto px-6 py-4">
+          {filteredNotifications.length === 0 ? (
+            <div className="py-14 text-center text-slate-400 text-xs font-semibold">
+              {selectedType === "ALL"
+                ? "No notifications found."
+                : `No notifications found for type "${selectedType}".`}
+            </div>
           ) : (
-            notifications.map((notif, idx) => (
-              <div key={idx} className="py-4 flex gap-4 items-start hover:bg-slate-50/20 px-3 rounded-2xl transition-colors">
-                <div className={`p-2 rounded-xl ${primaryBg} shrink-0`}>
-                  {getIcon(notif.type)}
+            filteredNotifications.map((notif, idx) => {
+              const unread = checkIsUnread(notif, idx);
+
+              return (
+                <div
+                  key={notif.id || idx}
+                  onClick={() => handleItemClick(notif, idx)}
+                  className={`py-4 px-3 sm:px-4 rounded-2xl transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    onOpen || onMarkRead ? "cursor-pointer" : ""
+                  } ${
+                    unread
+                      ? "bg-slate-50/80 hover:bg-slate-100/70"
+                      : "hover:bg-slate-50/60"
+                  }`}
+                >
+                  {/* -------------------------------------------------------- */}
+                  {/* LEFT SIDE: RED CIRCLE (IF UNREAD) + NOTIFICATION TEXT/TITLE*/}
+                  {/* -------------------------------------------------------- */}
+                  <div className="flex items-center gap-3 min-w-0 sm:flex-1">
+                    {/* Unread Red Circle Icon: shown on very left when unread, removed when read */}
+                    {unread ? (
+                      <span
+                        className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0 ring-4 ring-red-100"
+                        title="Unread notification"
+                        aria-label="Unread"
+                      />
+                    ) : (
+                      /* Placeholder spacer keeps text neatly aligned across read & unread items */
+                      <span className="w-2.5 shrink-0 hidden sm:inline-block" aria-hidden="true" />
+                    )}
+
+                    {/* Notification Title / Text */}
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={`text-sm leading-snug line-clamp-2 ${
+                          unread
+                            ? "font-extrabold text-slate-900"
+                            : "font-semibold text-slate-700"
+                        }`}
+                      >
+                        {notif.title || notif.message}
+                      </p>
+                      {notif.title && notif.message && notif.title !== notif.message && (
+                        <p className="text-xs text-slate-400 line-clamp-2 mt-0.5 font-normal">
+                          {notif.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* -------------------------------------------------------- */}
+                  {/* CENTER: TYPE OF NOTIFICATION (MFA, ETC)                  */}
+                  {/* -------------------------------------------------------- */}
+                  <div className="shrink-0 sm:px-4 flex sm:justify-center">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-50/90 text-[#0024A8] border border-blue-100 uppercase tracking-wider">
+                      {notif.type}
+                    </span>
+                  </div>
+
+                  {/* -------------------------------------------------------- */}
+                  {/* RIGHT SIDE: TIME OR DATE                                 */}
+                  {/* -------------------------------------------------------- */}
+                  <div className="shrink-0 text-left sm:text-right sm:min-w-[100px]">
+                    <span className="text-xs font-semibold text-slate-400 whitespace-nowrap">
+                      <TimeText createdAt={notif.created_at} fallback={notif.time} />
+                    </span>
+                  </div>
                 </div>
-                <div className="space-y-1 flex-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider block text-slate-400">
-                    {notif.type}
-                  </span>
-                  <p className="text-xs text-slate-700 font-semibold leading-relaxed">
-                    {notif.message}
-                  </p>
-                  <span className="text-[9px] text-slate-400 font-bold block">
-                    {notif.time}
-                  </span>
-                </div>
-                <div className={`w-2 h-2 rounded-full ${dotColor} shrink-0 mt-3`} />
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

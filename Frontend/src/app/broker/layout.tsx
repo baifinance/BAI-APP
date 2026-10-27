@@ -4,8 +4,12 @@ import React, { useState, useRef, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import { BrokerProvider } from "./BrokerContext";
 import { usePathname } from "next/navigation";
-import { Bell, LogOut, ChevronDown } from "lucide-react";
+import { Bell, LogOut } from "lucide-react";
 import Link from "next/link";
+import { API_BASE } from "@/lib/api";
+import { useCurrentUser } from "@/lib/useCurrentUser";
+import { unsubscribePushForLogout } from "@/lib/push";
+import MobileNavRail from "@/components/MobileNavRail";
 
 const getActiveTab = (pathname: string) => {
   if (pathname.includes("/broker/dashboard")) return "Dashboard";
@@ -21,9 +25,13 @@ const getActiveTab = (pathname: string) => {
 export default function BrokerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const activeTab = getActiveTab(pathname);
+  const { fullName, email, initials } = useCurrentUser();
   
   // Profile dropdown state
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  // Mobile sidebar is open only for the path it was opened on, so navigating closes it
+  const [mobileNavPath, setMobileNavPath] = useState<string | null>(null);
+  const mobileNavOpen = mobileNavPath === pathname;
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Click outside to close dropdown menu
@@ -41,8 +49,9 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
 
   // API Call & Cookie Clear Logout Handler
   const handleLogout = async () => {
+    await unsubscribePushForLogout();
     try {
-      await fetch("http://localhost:8000/api/auth/logout/", {
+      await fetch(API_BASE + "/api/auth/logout/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -50,28 +59,41 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
     } catch (err) {
       console.error("Failed to log out from backend:", err);
     }
-    // Clear security cookies
-    document.cookie = "jwt-access-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "jwt-refresh-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "user-role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    
-    // Redirect to landing page
-    window.location.href = "/";
+    // Auth cookies are HttpOnly and cleared by the backend logout endpoint.
+
+    // Redirect to login page
+    window.location.href = "/login";
   };
 
   return (
     <BrokerProvider>
-      {/* Wrapper with solid #F2F2F2 background */}
-      <div className="min-h-screen bg-[#F2F2F2] flex font-sans text-slate-900 selection:bg-blue-600 selection:text-white antialiased">
+      {/* Wrapper with solid #FAFAFA background */}
+      <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-blue-600 selection:text-white antialiased">
         
-        {/* Sidebar Navigation */}
-        <Sidebar activeTab={activeTab} />
+        {/* Desktop sidebar (full, collapsible) */}
+        <div className="hidden md:block shrink-0">
+          <Sidebar activeTab={activeTab} />
+        </div>
+
+        {/* Mobile: fixed out-of-flow rail + overlay panel (no layout impact) */}
+        <div className="md:hidden">
+          <MobileNavRail
+            open={mobileNavOpen}
+            onToggle={() => setMobileNavPath((prev) => (prev === pathname ? null : pathname))}
+            className="bg-white border-[#0038A8]/20 text-[#0038A8] hover:bg-[#0038A8]/10"
+          />
+          {mobileNavOpen && (
+            <div className="fixed inset-y-0 left-8 z-40 w-64 overflow-y-auto">
+              <Sidebar activeTab={activeTab} />
+            </div>
+          )}
+        </div>
 
         {/* Content Wrapper */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 pl-8 md:pl-0">
           
           {/* Portal Top Header with Account Section & Notifications */}
-          <header className="h-16 bg-white/70 backdrop-blur-md border-b border-slate-200/80 px-8 flex justify-between items-center z-30 select-none shrink-0">
+          <header className="h-16 bg-white/70 backdrop-blur-md border-b border-slate-200/80 px-4 md:px-8 flex justify-between items-center z-30 select-none shrink-0">
             
             {/* Left side: Dynamic Title */}
             <div className="flex items-center">
@@ -99,10 +121,10 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
                 <button
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
                   className="p-1 hover:bg-slate-100/80 rounded-full transition-all cursor-pointer outline-hidden"
-                  title="Sarah Jenkins Profile"
+                  title="Broker Profile"
                 >
                   <div className="w-8 h-8 rounded-full bg-[#1429A9] text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                    SJ
+                    {initials}
                   </div>
                 </button>
 
@@ -113,13 +135,13 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
                     <div className="flex items-center gap-3 pb-3 mb-2.5 border-b border-slate-100 select-none">
                       {/* Avatar on the left */}
                       <div className="w-11 h-11 rounded-full bg-[#1429A9] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
-                        SJ
+                        {initials}
                       </div>
                       {/* Detailed info on the right */}
                       <div className="flex flex-col text-left">
-                        <span className="font-extrabold text-slate-800 text-xs leading-none">Sarah Jenkins</span>
+                        <span className="font-extrabold text-slate-800 text-xs leading-none">{fullName || "Broker"}</span>
                         <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider mt-1">Broker Profile</span>
-                        <span className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">sarah.jenkins@baifinance.com.au</span>
+                        <span className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">{email}</span>
                       </div>
                     </div>
 
@@ -141,7 +163,7 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
           </header>
 
           {/* Page body content */}
-          <main className="flex-1 overflow-y-auto p-8 max-w-[1600px] w-full mx-auto">
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
             {children}
           </main>
 

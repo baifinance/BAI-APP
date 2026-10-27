@@ -1,19 +1,17 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { 
-  initialSubmittedDocs, 
-  initialAuditLogs, 
   SubmittedDocument, 
   AuditLogEntry 
-} from "./MockLoanProcessingData";
+} from "./types";
 
 import { 
-  initialClients, 
-  initialApplications, 
   Client, 
   Application 
-} from "../broker/MockData";
+} from "../broker/types";
+import { notificationsApi, NotificationApiResponse } from "@/lib/api";
 
 interface LoanProcessingContextType {
   submittedDocs: SubmittedDocument[];
@@ -25,44 +23,47 @@ interface LoanProcessingContextType {
   applications: Application[];
   setApplications: React.Dispatch<React.SetStateAction<Application[]>>;
   notifications: Array<{ type: string; message: string; time: string }>;
-  setNotifications: React.Dispatch<React.SetStateAction<Array<{ type: string; message: string; time: string }>>>;
   handleLogAction: (actionText: string) => void;
 }
 
 const LoanProcessingContext = createContext<LoanProcessingContextType | undefined>(undefined);
 
+type PortalNotification = {
+  type: string;
+  message: string;
+  time: string;
+};
+
+function mapNotification(notification: NotificationApiResponse): PortalNotification {
+  return {
+    type: notification.notification_type,
+    message: notification.message,
+    time: new Date(notification.created_at).toLocaleString(),
+  };
+}
+
 export function LoanProcessingProvider({ children }: { children: React.ReactNode }) {
-  const [submittedDocs, setSubmittedDocs] = useState<SubmittedDocument[]>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("new_registrations");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored) as SubmittedDocument[];
-          return [...initialSubmittedDocs, ...parsed];
-        } catch (e) {
-          console.error("Failed to parse registrations:", e);
-        }
-      }
-    }
-    return initialSubmittedDocs;
+  // Kept in memory only: client PII must not be persisted to localStorage.
+  const [submittedDocs, setSubmittedDocs] = useState<SubmittedDocument[]>([]);
+
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+
+  const { data: notifData } = useQuery({
+    queryKey: ["loan-processing", "notifications"],
+    queryFn: () => notificationsApi.list(),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    meta: { persist: false },
   });
 
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(initialAuditLogs);
-  const [clients, setClients] = useState<Client[]>(initialClients);
-  const [applications, setApplications] = useState<Application[]>(initialApplications);
+  const notifications = useMemo<PortalNotification[]>(
+    () => notifData?.map(mapNotification) ?? [],
+    [notifData],
+  );
 
-  useEffect(() => {
-    const newRegs = submittedDocs.filter(doc => doc.id.startsWith("reg-"));
-    localStorage.setItem("new_registrations", JSON.stringify(newRegs));
-  }, [submittedDocs]);
-
-  const [notifications, setNotifications] = useState([
-    { type: "Audit Alert", message: "System audit complete for Alice Smith's folder.", time: "1 hour ago" },
-    { type: "Flagged File", message: "Flagged document: Bank statement missing page 3.", time: "2 hours ago" },
-    { type: "New Submission", message: "New application submitted by Emma Wilson.", time: "1 day ago" }
-  ]);
-
-  const handleLogAction = (actionText: string) => {
+  const handleLogAction = useCallback((actionText: string) => {
     const now = new Date();
     const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const formattedTime = `${String(now.getHours() % 12 || 12).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")} ${now.getHours() >= 12 ? "PM" : "AM"}`;
@@ -75,22 +76,30 @@ export function LoanProcessingProvider({ children }: { children: React.ReactNode
     };
 
     setAuditLogs((prev) => [newLog, ...prev]);
-  };
+  }, []);
+
+  const contextValue = useMemo<LoanProcessingContextType>(() => ({
+    submittedDocs,
+    setSubmittedDocs,
+    auditLogs,
+    setAuditLogs,
+    clients,
+    setClients,
+    applications,
+    setApplications,
+    notifications,
+    handleLogAction,
+  }), [
+    submittedDocs,
+    auditLogs,
+    clients,
+    applications,
+    notifications,
+    handleLogAction,
+  ]);
 
   return (
-    <LoanProcessingContext.Provider value={{
-      submittedDocs,
-      setSubmittedDocs,
-      auditLogs,
-      setAuditLogs,
-      clients,
-      setClients,
-      applications,
-      setApplications,
-      notifications,
-      setNotifications,
-      handleLogAction
-    }}>
+    <LoanProcessingContext.Provider value={contextValue}>
       {children}
     </LoanProcessingContext.Provider>
   );
