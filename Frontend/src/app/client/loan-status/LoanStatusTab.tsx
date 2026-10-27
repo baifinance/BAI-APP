@@ -24,7 +24,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { ClientData, ClientApplication } from "../types";
-import { PIPELINE, resolveLoanStatus } from "../loanStatus";
+import { PIPELINE, resolveLoanStatus, cleanStatusStr } from "../loanStatus";
 import ProgressStatus from "./components/ProgressStatus";
 import LoanProgressStepper, { StepperStep } from "./components/LoanProgressStepper";
 
@@ -248,12 +248,15 @@ export default function LoanStatusTab({
   const resolution = resolveLoanStatus(displayStatus);
 
   const historyByStatus = new Map(
-    (displayHistory ?? []).map((entry) => [entry.status, entry.changed_at]),
+    (displayHistory ?? []).map((entry) => [
+      cleanStatusStr(entry.status),
+      entry.changed_at,
+    ]),
   );
 
   // Map 15 workflow steps with live status & change timestamps
   const stepperSteps: StepperStep[] = baseSteps.map((step, i) => {
-    const changedAt = historyByStatus.get(step.title);
+    const changedAt = historyByStatus.get(cleanStatusStr(step.title));
     return {
       ...step,
       date: changedAt ? formatStatusDate(changedAt) : "Pending",
@@ -304,32 +307,25 @@ export default function LoanStatusTab({
           {/* CONTAINER 1 (LEFT): APPLICATION CATEGORY CONTAINER                 */}
           {/* - Resized 40% thinner (~260px wide on desktop)                     */}
           {/* - Container size dynamically scales with amount of categories      */}
-          {/* - Flush against right container with no space separating them      */}
+          {/* - White background with theme blue header (#0024A8)                */}
+          {/* - Top right header says "Categories"                               */}
           {/* ================================================================== */}
-          <div className="w-full lg:w-[260px] xl:w-[270px] shrink-0 self-start h-fit bg-white border border-slate-200/90 rounded-t-2xl lg:rounded-tr-none lg:rounded-br-none lg:rounded-l-2xl p-4 sm:p-5 shadow-sm transition-all flex flex-col gap-4 z-10">
+          <div className="w-full lg:w-[260px] xl:w-[270px] shrink-0 self-start h-fit bg-white border border-slate-200/90 rounded-t-2xl lg:rounded-tr-none lg:rounded-br-none lg:rounded-l-2xl shadow-sm transition-all flex flex-col z-10 overflow-hidden">
             
-            {/* Header: Title and Category Count */}
-            <div className="border-b border-slate-100 pb-3">
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <div className="flex items-center gap-1.5 text-slate-900 min-w-0">
-                  <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#0024A8] flex items-center justify-center shrink-0">
-                    <Layers className="w-3.5 h-3.5" />
-                  </div>
-                  <h2 className="text-sm sm:text-base font-black tracking-tight text-slate-900 truncate">
-                    Categories
-                  </h2>
-                </div>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 shrink-0">
-                  {appliedCategories.length}
-                </span>
+            {/* Header: Blue background similar to theme with Left-Aligned Title */}
+            <div className="bg-[#0024A8] border-b border-[#001D85] p-4 sm:p-5 text-white">
+              <div className="flex items-center justify-start mb-1">
+                <h2 className="text-base sm:text-lg font-black tracking-tight text-white text-left">
+                  Categories
+                </h2>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium leading-tight">
+              <p className="text-[11px] text-blue-100/70 font-medium leading-tight text-left">
                 Click a category to view its progress tracker.
               </p>
             </div>
 
-            {/* List of Applied Categories */}
-            <div className="flex flex-col gap-2.5">
+            {/* Body: White background with Category Cards closer to edges */}
+            <div className="p-2 sm:p-2.5 flex flex-col gap-2 bg-white">
               {appliedCategories.length === 0 ? (
                 /* Empty state when no application categories exist */
                 <div className="p-4 text-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50">
@@ -346,8 +342,6 @@ export default function LoanStatusTab({
                     ? item.id === selectedApplication.id
                     : index === 0;
 
-                  const formattedAmount = formatCurrency(item.amount);
-
                   return (
                     <button
                       key={item.id}
@@ -358,138 +352,75 @@ export default function LoanStatusTab({
                           onLogAction?.(`Selected category: ${item.categoryName}`);
                         }
                       }}
-                      className={`w-full text-left p-3 rounded-xl border transition-all duration-200 flex flex-col gap-2 relative group ${
+                      className={`w-full text-left px-3.5 py-2.5 rounded-xl border transition-all duration-200 cursor-pointer ${
                         isSelected
-                          ? "border-[#0024A8] bg-blue-50/70 shadow-xs ring-1 ring-[#0024A8]/30"
-                          : "border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/70"
+                          ? "bg-[#E4BA37] border-[#E4BA37] text-[#0024A8] shadow-sm font-black ring-2 ring-[#0024A8]/15"
+                          : "bg-[#0024A8] border-[#001D85] hover:bg-[#001D85] text-white font-bold"
                       }`}
                     >
-                      {/* Top Row: Category Name + Selection Indicator */}
-                      <div className="flex items-start justify-between gap-1.5">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1 flex-wrap">
-                            <span className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-[#0024A8] transition-colors truncate block">
-                              {item.categoryName}
-                            </span>
-                            {item.isPrimary && (
-                              <span className="text-[9px] font-extrabold uppercase tracking-wider px-1 py-0.2 rounded-sm bg-blue-100 text-[#0024A8]">
-                                Primary
-                              </span>
-                            )}
-                          </div>
-                          {item.taskName && item.taskName !== item.categoryName && (
-                            <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
-                              {item.taskName}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="shrink-0 flex items-center pt-0.5">
-                          <ChevronRight
-                            className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                              isSelected
-                                ? "text-[#0024A8] translate-x-0.5"
-                                : "text-slate-400 group-hover:text-slate-600"
-                            }`}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Bottom Row: Amount / Ref + Status Badge */}
-                      <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-slate-100/80">
-                        {formattedAmount ? (
-                          <span className="text-[11px] font-semibold text-slate-600 truncate">
-                            {formattedAmount}
-                          </span>
-                        ) : item.taskGid ? (
-                          <span className="text-[10px] text-slate-400 font-mono truncate">
-                            Ref #{item.taskGid.slice(-5)}
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-slate-400 font-medium">
-                            Standard
-                          </span>
-                        )}
-
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${getCategoryStatusBadge(
-                            item.status,
-                          )}`}
-                        >
-                          {item.status}
-                        </span>
-                      </div>
+                      <span className="text-xs sm:text-sm font-inherit truncate block">
+                        {item.categoryName}
+                      </span>
                     </button>
                   );
                 })
               )}
-            </div>
 
-            {/* Scalable Container Footer Note */}
-            {appliedCategories.length > 0 && (
-              <div className="pt-2 border-t border-slate-100 text-center">
-                <span className="text-[10px] text-slate-400 font-medium">
-                  {appliedCategories.length} {appliedCategories.length === 1 ? "category" : "categories"} applied
-                </span>
-              </div>
-            )}
+              {/* Scalable Container Footer Note */}
+              {appliedCategories.length > 0 && (
+                <div className="pt-2 border-t border-slate-100 text-center">
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {appliedCategories.length} {appliedCategories.length === 1 ? "category" : "categories"} applied
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* ================================================================== */}
           {/* CONTAINER 2 (RIGHT): PROGRESS BAR & STEPPER CONTAINER              */}
           {/* - Connected seamlessly without space (gap-0, -ml-px border merge)  */}
-          {/* - Displays horizontal progress bar and 15-step vertical workflow   */}
-          {/* - Keeps all tracking functionality and status resolution           */}
+          {/* - Theme blue header with "Loan Progress", gold gradient bar        */}
+          {/* - White body with vertical 15-stage workflow stepper               */}
           {/* ================================================================== */}
-          <div className="flex-1 min-w-0 w-full bg-white border border-slate-200/90 rounded-b-2xl lg:rounded-b-none lg:rounded-tl-none lg:rounded-r-2xl lg:rounded-bl-2xl lg:-ml-px -mt-px lg:mt-0 p-6 sm:p-8 shadow-sm flex flex-col gap-6">
+          <div className="flex-1 min-w-0 w-full bg-white border border-slate-200/90 rounded-b-2xl lg:rounded-b-none lg:rounded-tl-none lg:rounded-r-2xl lg:rounded-bl-2xl lg:-ml-px -mt-px lg:mt-0 shadow-sm flex flex-col overflow-hidden">
             
-            {/* 1. PROGRESS BAR HEADER & SUMMARY */}
-            <div className="border-b border-slate-100 pb-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+            {/* 1. PROGRESS BAR HEADER & SUMMARY (THEME BLUE BACKGROUND) */}
+            <div className="bg-[#0024A8] border-b border-[#001D85] p-6 sm:p-8 text-white flex flex-col gap-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#0024A8] bg-blue-50 px-2 py-0.5 rounded-sm">
-                      Progress Bar
-                    </span>
-                    <span className="text-xs font-medium text-slate-500">
-                      Live Status Tracker
-                    </span>
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1">
-                    {currentCategoryTitle}
+                  <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                    Loan Progress
                   </h3>
-                </div>
-
-                {/* Status indicator tag */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <span
-                    className={`text-xs font-bold px-3 py-1.5 rounded-xl border ${getCategoryStatusBadge(
-                      resolution.header,
-                    )}`}
-                  >
-                    {resolution.header}
-                  </span>
+                  {currentCategoryTitle && (
+                    <p className="text-xs sm:text-sm font-semibold text-blue-100/80 mt-0.5">
+                      {currentCategoryTitle}
+                    </p>
+                  )}
                 </div>
               </div>
 
               {/* 2. VISUAL PROGRESS BAR */}
-              <div className="space-y-1.5 pt-2">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-600">
-                  <span className="flex items-center gap-1.5">
-                    <TrendingUp className="w-3.5 h-3.5 text-[#0024A8]" />
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between text-xs sm:text-sm font-bold">
+                  {/* On the top left of the status bar: gold text saying "Step X of X" */}
+                  <span className="flex items-center gap-1.5 text-[#E4BA37] font-extrabold">
+                    <TrendingUp className="w-4 h-4 text-[#E4BA37]" />
                     {resolution.withdrawn
                       ? "Application Withdrawn"
                       : activeStepNum > 0
                       ? `Step ${activeStepNum} of ${totalStepNum}`
                       : "Pending Start"}
                   </span>
-                  <span className="text-[#0024A8] font-black">{progressPercent}%</span>
+
+                  {/* To the right of the status bar: percentage */}
+                  <span className="text-[#E4BA37] font-black">{progressPercent}%</span>
                 </div>
 
-                {/* Animated Horizontal Progress Bar Track */}
-                <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                {/* Animated Horizontal Progress Bar Track (#E4BA37) */}
+                <div className="w-full bg-[#001D85] rounded-full h-3 overflow-hidden border border-white/10">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#0024A8] to-[#2563EB] transition-all duration-500 ease-out"
+                    className="h-full rounded-full bg-[#E4BA37] transition-all duration-500 ease-out shadow-xs"
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
@@ -497,7 +428,7 @@ export default function LoanStatusTab({
             </div>
 
             {/* 3. STEPPER PIPELINE / WORKFLOW DISPLAY */}
-            <div>
+            <div className="p-6 sm:p-8 flex flex-col gap-6">
               {resolution.withdrawn ? (
                 /* Withdrawn Notice Card */
                 <div className="border border-slate-200/80 rounded-2xl p-8 sm:p-12 text-center bg-slate-50/50">

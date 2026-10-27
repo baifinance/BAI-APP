@@ -1,5 +1,6 @@
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+export const API_BASE = (
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
+).replace(/\/+$/, "");
 
 /**
  * Global event fired when the access token is rejected (401) while an active
@@ -24,7 +25,10 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     fetchOptions.body = JSON.stringify(json);
   }
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+
+  const res = await fetch(`${API_BASE}${cleanEndpoint}`, {
+    cache: "no-store",
     ...fetchOptions,
     headers,
     credentials: "include",
@@ -421,6 +425,9 @@ export function subscribeToNotificationStream(
           if (res.status === 401 && typeof window !== "undefined") {
             window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
           }
+        } else if (res.status === 429) {
+          // Back off when rate limited to prevent compounding 429 errors
+          reconnectDelay = Math.max(reconnectDelay, 15_000);
         }
         throw new Error(`notification stream ${res.status}`);
       }

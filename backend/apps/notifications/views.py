@@ -57,6 +57,11 @@ class NotificationListView(generics.ListAPIView):
             queryset = queryset.filter(is_read=False)
 
         return queryset[:NOTIFICATION_HISTORY_LIMIT]
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response["Pragma"] = "no-cache"
+        return response
 
 class NotificationMarkReadView(APIView):
     permission_classes = [
@@ -111,6 +116,7 @@ class NotificationStreamView(APIView):
         permissions.IsAuthenticated,
         IsOtpVerified
     ]
+    throttle_classes = []
     renderer_classes = [EventStreamRenderer]
 
     def get(self, request):
