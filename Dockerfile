@@ -49,7 +49,8 @@ RUN chmod +x start.sh
 ENV DJANGO_SETTINGS_MODULE=config.settings.production
 ENV PYTHONUNBUFFERED=1
 
-# Railway injects PORT at runtime
+# Railway injects PORT at runtime; Next.js listens on it for external traffic
 ENV PORT=3000
+EXPOSE 8080
 
 CMD ["bash", "start.sh"]
