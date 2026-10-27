@@ -98,7 +98,7 @@ typing-inspection==0.4.4
 tzdata==2026.3
 urllib3==2.7.0
 uvicorn==0.52.4
-uvloop==0.22.1
+uvloop==0.23.0
 watchfiles==1.2.0
 websocket-client==1.9.2
 websockets==17.1
