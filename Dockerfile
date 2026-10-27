@@ -12,6 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     npm \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Caddy binary from official image
+COPY --from=caddy:2 /usr/bin/caddy /usr/bin/caddy
+
 # Python virtual environment
 ENV VENV_PATH=/opt/venv
 ENV PATH="$VENV_PATH/bin:$PATH"
@@ -49,8 +52,8 @@ RUN chmod +x start.sh
 ENV DJANGO_SETTINGS_MODULE=config.settings.production
 ENV PYTHONUNBUFFERED=1
 
-# Railway injects PORT at runtime; Next.js listens on it for external traffic
-ENV PORT=3000
-EXPOSE 8080
+# Caddy listens on Railway's $PORT (public)
+# Django on 127.0.0.1:8000 (internal)
+# Next.js on 127.0.0.1:3000 (internal)
 
 CMD ["bash", "start.sh"]
