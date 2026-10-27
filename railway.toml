@@ -1,5 +1,2 @@
 [deploy]
 startCommand = "bash start.sh"
-
-[environments]
-production
