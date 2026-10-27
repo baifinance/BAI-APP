@@ -31,7 +31,6 @@ const PROD_CSP = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
-  output: "standalone",
   experimental: {
     staleTimes: {
       dynamic: 30,

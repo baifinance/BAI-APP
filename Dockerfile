@@ -36,6 +36,11 @@ ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
 ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=$NEXT_PUBLIC_TURNSTILE_SITE_KEY
 RUN cd Frontend && npm run build && cd ..
 
+# Verify frontend build completed (37 routes expected)
+RUN test -d Frontend/.next && \
+    test -f Frontend/.next/BUILD_ID || \
+    (echo "ERROR: Next.js build did not complete" && exit 1)
+
 # Start script
 COPY start.sh ./start.sh
 RUN chmod +x start.sh
