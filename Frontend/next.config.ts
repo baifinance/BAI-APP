@@ -38,6 +38,18 @@ const nextConfig: NextConfig = {
       static: 180,
     },
   },
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "http://localhost:8000/api/:path*",
+      },
+      {
+        source: "/healthz",
+        destination: "http://localhost:8000/healthz",
+      },
+    ];
+  },
   async headers() {
     return [
       {

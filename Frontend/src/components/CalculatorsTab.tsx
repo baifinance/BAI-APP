@@ -436,9 +436,44 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
   const [firstPaymentDate, setFirstPaymentDate] = useState("2026-09-01"); // date input as per request
 
   // Outputs
-  const [monthlyRepayment, setMonthlyRepayment] = useState(0);
-  const [totalInterestPaid, setTotalInterestPaid] = useState(0);
-  const [totalCostOfLoan, setTotalCostOfLoan] = useState(0);
+  const repaymentResult = useMemo(() => {
+    const P = loanAmount;
+    const annualR = interestRate / 100;
+    const r = annualR / 12;
+    const n = loanTerm * 12;
+
+    if (n <= 0) {
+      return {
+        monthlyRepayment: 0,
+        totalInterestPaid: 0,
+        totalCostOfLoan: 0,
+      };
+    }
+
+    const monthly =
+      r === 0
+        ? P / n
+        : (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+    const totalPaid = monthly * n;
+    const interest = totalPaid - P;
+
+    return {
+      monthlyRepayment: Math.round(monthly),
+      totalInterestPaid: Math.round(interest),
+      totalCostOfLoan: Math.round(totalPaid),
+    };
+  }, [loanAmount, interestRate, loanTerm]);
+
+  const [clientRepaymentResult, setClientRepaymentResult] = useState<{
+    monthlyRepayment: number;
+    totalInterestPaid: number;
+    totalCostOfLoan: number;
+  } | null>(null);
+
+  const { monthlyRepayment, totalInterestPaid, totalCostOfLoan } =
+    isClient && clientRepaymentResult
+      ? clientRepaymentResult
+      : repaymentResult;
 
   // ------------------------------------------------------------------------------
   // CALCULATOR 2: BORROWING POWER STATE
@@ -453,54 +488,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
   const [borrowFirstPaymentDate, setBorrowFirstPaymentDate] = useState("2026-09-01");
 
   // Outputs
-  const [borrowingPower, setBorrowingPower] = useState(0);
-  const [maxMonthlyAffordable, setMaxMonthlyAffordable] = useState(0);
-
-  // ------------------------------------------------------------------------------
-  // CALCULATOR 3: INTEREST ONLY STATE
-  // ------------------------------------------------------------------------------
-  const [ioLoanAmount, setIoLoanAmount] = useState(500000);
-  const [ioInterestRate, setIoInterestRate] = useState(6.0);
-  const [ioTotalTerm, setIoTotalTerm] = useState(30);
-  const [ioTerm, setIoTerm] = useState(5);
-  const [ioFirstPaymentDate, setIoFirstPaymentDate] = useState("2026-09-01");
-
-  // Outputs
-  const [ioMonthlyRepayment, setIoMonthlyRepayment] = useState(0);
-  const [postIoMonthlyRepayment, setPostIoMonthlyRepayment] = useState(0);
-  const [ioTotalInterest, setIoTotalInterest] = useState(0);
-  const [ioTotalCost, setIoTotalCost] = useState(0);
-
-  // ------------------------------------------------------------------------------
-  // EFFECTS FOR CALCULATIONS
-  // ------------------------------------------------------------------------------
-  
-  // 1. Calculate Loan Repayments
-  useEffect(() => {
-    const P = loanAmount;
-    const annualR = interestRate / 100;
-    const r = annualR / 12;
-    const n = loanTerm * 12;
-
-    if (n <= 0) return;
-
-    let monthly = 0;
-    if (r === 0) {
-      monthly = P / n;
-    } else {
-      monthly = (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-    }
-
-    const totalPaid = monthly * n;
-    const interest = totalPaid - P;
-
-    setMonthlyRepayment(Math.round(monthly));
-    setTotalInterestPaid(Math.round(interest));
-    setTotalCostOfLoan(Math.round(totalPaid));
-  }, [loanAmount, interestRate, loanTerm]);
-
-  // 2. Calculate Borrowing Power
-  useEffect(() => {
+  const { borrowingPower, maxMonthlyAffordable } = useMemo(() => {
     // Serviceability buffer is standard 3% added to the base rate
     const bufferRate = (borrowInterestRate + 3) / 100;
     const r = bufferRate / 12;
@@ -512,58 +500,91 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
 
     // CC monthly commitment is estimated at 3% of limit
     const ccCommitment = creditCardLimit * 0.03;
-    
+
     // Dependent buffer cost
     const dependentCost = dependents * 250;
 
-    const totalMonthlyCommitments = monthlyExpenses + monthlyLoans + ccCommitment + dependentCost;
+    const totalMonthlyCommitments =
+      monthlyExpenses + monthlyLoans + ccCommitment + dependentCost;
     const monthlySurplus = netMonthlyIncome - totalMonthlyCommitments;
 
     if (monthlySurplus <= 0 || r === 0) {
-      setBorrowingPower(0);
-      setMaxMonthlyAffordable(0);
-      return;
+      return { borrowingPower: 0, maxMonthlyAffordable: 0 };
     }
 
     // Banks qualify based on roughly 75% of surplus for loan repayments
     const maxAffordablePayment = monthlySurplus * 0.75;
-    const maxLoan = (maxAffordablePayment * (Math.pow(1 + r, n) - 1)) / (r * Math.pow(1 + r, n));
+    const maxLoan =
+      (maxAffordablePayment * (Math.pow(1 + r, n) - 1)) /
+      (r * Math.pow(1 + r, n));
 
-    setBorrowingPower(Math.round(maxLoan));
-    setMaxMonthlyAffordable(Math.round(maxAffordablePayment));
-  }, [annualIncome, otherIncome, monthlyExpenses, monthlyLoans, creditCardLimit, dependents, borrowInterestRate]);
+    return {
+      borrowingPower: Math.round(maxLoan),
+      maxMonthlyAffordable: Math.round(maxAffordablePayment),
+    };
+  }, [
+    annualIncome,
+    otherIncome,
+    monthlyExpenses,
+    monthlyLoans,
+    creditCardLimit,
+    dependents,
+    borrowInterestRate,
+  ]);
 
-  // 3. Calculate Interest Only Repayments
-  useEffect(() => {
+  // ------------------------------------------------------------------------------
+  // CALCULATOR 3: INTEREST ONLY STATE
+  // ------------------------------------------------------------------------------
+  const [ioLoanAmount, setIoLoanAmount] = useState(500000);
+  const [ioInterestRate, setIoInterestRate] = useState(6.0);
+  const [ioTotalTerm, setIoTotalTerm] = useState(30);
+  const [ioTerm, setIoTerm] = useState(5);
+  const [ioFirstPaymentDate, setIoFirstPaymentDate] = useState("2026-09-01");
+
+  // Outputs
+  const {
+    ioMonthlyRepayment,
+    postIoMonthlyRepayment,
+    ioTotalInterest,
+    ioTotalCost,
+  } = useMemo(() => {
     const P = ioLoanAmount;
     const annualR = ioInterestRate / 100;
     const r = annualR / 12;
-    
+
     // Interest Only Period (months)
     const ioMonths = ioTerm * 12;
     // Remaining P&I Period (months)
     const piMonths = (ioTotalTerm - ioTerm) * 12;
 
-    if (piMonths <= 0) return;
+    if (piMonths <= 0) {
+      return {
+        ioMonthlyRepayment: 0,
+        postIoMonthlyRepayment: 0,
+        ioTotalInterest: 0,
+        ioTotalCost: 0,
+      };
+    }
 
     // Monthly repayment during IO
     const monthlyIo = P * r;
 
     // Monthly repayment during remaining P&I
-    let monthlyPi = 0;
-    if (r === 0) {
-      monthlyPi = P / piMonths;
-    } else {
-      monthlyPi = (P * r * Math.pow(1 + r, piMonths)) / (Math.pow(1 + r, piMonths) - 1);
-    }
+    const monthlyPi =
+      r === 0
+        ? P / piMonths
+        : (P * r * Math.pow(1 + r, piMonths)) /
+          (Math.pow(1 + r, piMonths) - 1);
 
-    const totalInterest = (monthlyIo * ioMonths) + (monthlyPi * piMonths) - P;
+    const totalInterest = monthlyIo * ioMonths + monthlyPi * piMonths - P;
     const totalCost = P + totalInterest;
 
-    setIoMonthlyRepayment(Math.round(monthlyIo));
-    setPostIoMonthlyRepayment(Math.round(monthlyPi));
-    setIoTotalInterest(Math.round(totalInterest));
-    setIoTotalCost(Math.round(totalCost));
+    return {
+      ioMonthlyRepayment: Math.round(monthlyIo),
+      postIoMonthlyRepayment: Math.round(monthlyPi),
+      ioTotalInterest: Math.round(totalInterest),
+      ioTotalCost: Math.round(totalCost),
+    };
   }, [ioLoanAmount, ioInterestRate, ioTotalTerm, ioTerm]);
 
   // ------------------------------------------------------------------------------
@@ -606,9 +627,11 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
     const totalPaid = monthly * n;
     const interest = totalPaid - P;
 
-    setMonthlyRepayment(Math.round(monthly * 100) / 100);
-    setTotalInterestPaid(Math.round(interest * 100) / 100);
-    setTotalCostOfLoan(Math.round(totalPaid * 100) / 100);
+    setClientRepaymentResult({
+      monthlyRepayment: Math.round(monthly * 100) / 100,
+      totalInterestPaid: Math.round(interest * 100) / 100,
+      totalCostOfLoan: Math.round(totalPaid * 100) / 100,
+    });
     setIsCalculatedClient(true);
   };
 

@@ -20,7 +20,7 @@ interface CommunicationTabProps {
 
 export default function CommunicationTab({ clients, emails, setEmails, autoCompose, clearAutoCompose }: CommunicationTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [isComposeOpen, setIsComposeOpen] = useState(Boolean(autoCompose));
 
   // Form State
   const [selectedClientId, setSelectedClientId] = useState("");
@@ -29,13 +29,10 @@ export default function CommunicationTab({ clients, emails, setEmails, autoCompo
 
   const [notification, setNotification] = useState<string | null>(null);
 
-  // Auto-open compose modal if redirected
+  // Clear the redirect flag after the compose modal has been opened on mount
   React.useEffect(() => {
-    if (autoCompose) {
-      setIsComposeOpen(true);
-      if (clearAutoCompose) {
-        clearAutoCompose();
-      }
+    if (autoCompose && clearAutoCompose) {
+      clearAutoCompose();
     }
   }, [autoCompose, clearAutoCompose]);
 

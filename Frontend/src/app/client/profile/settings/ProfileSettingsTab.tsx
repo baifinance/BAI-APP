@@ -31,6 +31,10 @@ import { ClientData } from "../../types";
 import { usersApi, authApi } from "@/lib/api";
 import NotificationSettings from "@/components/NotificationSettings";
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 interface ProfileSettingsTabProps {
   client: ClientData;
   onLogAction?: (actionText: string) => void;
@@ -87,7 +91,6 @@ export default function ProfileSettingsTab({
   // Fetch current user MFA status on component mount
   useEffect(() => {
     let isMounted = true;
-    setMfaInitialLoading(true);
 
     authApi
       .me()
@@ -231,8 +234,10 @@ export default function ProfileSettingsTab({
       if (onLogAction) {
         onLogAction("Requested MFA enablement OTP code");
       }
-    } catch (err: any) {
-      setMfaError(err?.message || "Failed to send verification code. Please try again.");
+    } catch (err: unknown) {
+      setMfaError(
+        getErrorMessage(err, "Failed to send verification code. Please try again."),
+      );
     } finally {
       setMfaActionLoading(false);
     }
@@ -259,8 +264,10 @@ export default function ProfileSettingsTab({
       if (onLogAction) {
         onLogAction("Successfully enabled Multi-Factor Authentication (MFA)");
       }
-    } catch (err: any) {
-      setMfaError(err?.message || "Invalid or expired verification code.");
+    } catch (err: unknown) {
+      setMfaError(
+        getErrorMessage(err, "Invalid or expired verification code."),
+      );
     } finally {
       setMfaVerifying(false);
     }
@@ -283,8 +290,13 @@ export default function ProfileSettingsTab({
       if (onLogAction) {
         onLogAction("Disabled Multi-Factor Authentication");
       }
-    } catch (err: any) {
-      setMfaError(err?.message || "Failed to disable MFA. Please verify your current password.");
+    } catch (err: unknown) {
+      setMfaError(
+        getErrorMessage(
+          err,
+          "Failed to disable MFA. Please verify your current password.",
+        ),
+      );
     } finally {
       setMfaActionLoading(false);
     }
