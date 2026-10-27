@@ -16,7 +16,10 @@ CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS")
 
-SECURE_SSL_REDIRECT = True
+# Caddy handles HTTPS termination at the edge; Django must not redirect
+# to HTTPS or it will loop (request arrives over HTTPS from Caddy but
+# Django sees HTTP on the internal link).
+SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_BROWSER_XSS_FILTER = True
