@@ -164,7 +164,7 @@ export default function ApplicationsTab({
     setInviteStatus("loading");
     setInviteError("");
 
-    const payload: Record<string, any> = {
+    const payload: Record<string, string> = {
       email: inviteEmail.trim(),
       role: inviteRole,
     };
@@ -189,7 +189,7 @@ export default function ApplicationsTab({
         let errorMessage = "Failed to send invitation.";
 
         // Helper to safely extract string whether it's a string, array, or object
-        const parseDRFError = (val: any): string => {
+        const parseDRFError = (val: unknown): string => {
           if (!val) return "";
           if (typeof val === "string") return val;
           if (Array.isArray(val))
@@ -222,8 +222,12 @@ export default function ApplicationsTab({
       }
 
       setInviteStatus("success");
-    } catch (err: any) {
-      setInviteError(err.message || "Something went wrong.");
+    } catch (err: unknown) {
+      setInviteError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Something went wrong.",
+      );
       setInviteStatus("error");
     }
   };

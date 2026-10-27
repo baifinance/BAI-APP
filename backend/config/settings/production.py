@@ -32,6 +32,19 @@ CSRF_COOKIE_HTTPONLY = True
 REST_AUTH["JWT_AUTH_SECURE"] = True
 REST_AUTH["JWT_AUTH_SAMESITE"] = "Strict"
 
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Strict"
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = "Strict"
+
+# Email is required for demo notification/OTP/transcript flows.
+if EMAIL_NOTIFICATIONS_ENABLED and not (EMAIL_HOST_USER and EMAIL_HOST_PASSWORD):
+    raise ImproperlyConfigured(
+        "Refusing to start: EMAIL_NOTIFICATIONS_ENABLED is true but SMTP credentials are missing."
+    )
+
 # ---------------------------------------------------------------------------
 # Fail-closed production guards (OWASP A02 / A05).
 # Never boot with empty or placeholder security-critical configuration.

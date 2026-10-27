@@ -26,14 +26,14 @@ function ActivatePageContent() {
 
   useEffect(() => {
     const fromQuery = searchParams.get("token");
-    if (fromQuery) {
-      setToken(fromQuery);
-      setResolved(true);
-      return;
-    }
     const hash = window.location.hash.replace(/^#/, "");
-    setToken(new URLSearchParams(hash).get("token"));
-    setResolved(true);
+    const nextToken =
+      fromQuery || new URLSearchParams(hash).get("token");
+
+    queueMicrotask(() => {
+      setToken(nextToken);
+      setResolved(true);
+    });
   }, [searchParams]);
 
   // Registration feedback state managers

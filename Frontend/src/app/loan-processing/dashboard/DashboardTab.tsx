@@ -14,6 +14,18 @@ import type { AuditLogEntry } from "../MockLoanProcessingData";
 import { useLoanProcessing } from "../LoanProcessingContext";
 import { useRouter } from "next/navigation";
 
+interface BrokerApiItem {
+  id?: string;
+  user_id?: string;
+  name?: string;
+  email?: string;
+  user?: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+  };
+}
+
 export default function DashboardTab() {
   const { submittedDocs, auditLogs } = useLoanProcessing();
   const router = useRouter();
@@ -101,18 +113,27 @@ export default function DashboardTab() {
         if (!res.ok) throw new Error("Failed to fetch brokers");
         return res.json();
       })
-      .then((data) => {
-        // Transform API response to dropdown options
-        const options = data.map((b: any) => ({
-          id: b.id || b.user_id,
-          name: b.name || b.user?.first_name + " " + (b.user?.last_name || ""),
-          email: b.email || b.user?.email,
-        }));
+      .then((data: unknown) => {
+        const items = Array.isArray(data) ? (data as BrokerApiItem[]) : [];
+        const options: { id: string; name: string; email: string }[] = [];
+
+        items.forEach((broker) => {
+          const id = broker.id || broker.user_id;
+          if (!id) return;
+
+          options.push({
+            id,
+            name:
+              broker.name ||
+              [broker.user?.first_name, broker.user?.last_name]
+                .filter(Boolean)
+                .join(" "),
+            email: broker.email || broker.user?.email || "",
+          });
+        });
+
         setBrokers(options);
-        // Select first broker by default if available
-        if (options.length > 0 && !selectedBrokerId) {
-          setSelectedBrokerId(options[0].id);
-        }
+        setSelectedBrokerId((current) => current ?? options[0]?.id ?? null);
       })
       .catch((err) => {
         console.error("Error fetching brokers:", err);
