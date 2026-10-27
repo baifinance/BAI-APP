@@ -3,12 +3,11 @@
 # Runs Django backend on localhost:8000 + Next.js frontend on $PORT.
 # Next.js rewrites proxy /api/* and /healthz to Django, preserving
 # host-only JWT cookies on the Railway public domain.
-# Build-phase dependencies are installed by Railway before this script runs.
 set -euo pipefail
 
 cd backend
-DJANGO_SETTINGS_MODULE=config.settings.production ./venv/bin/python manage.py migrate
-DJANGO_SETTINGS_MODULE=config.settings.production ./venv/bin/python manage.py runserver 0.0.0.0:8000 &
+DJANGO_SETTINGS_MODULE=config.settings.production python manage.py migrate
+DJANGO_SETTINGS_MODULE=config.settings.production python manage.py runserver 0.0.0.0:8000 &
 DJANGO_PID=$!
 cd ..
 
