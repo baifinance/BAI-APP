@@ -257,12 +257,33 @@ export default function NotificationsTab({
                   </div>
 
                   {/* -------------------------------------------------------- */}
-                  {/* CENTER: TYPE OF NOTIFICATION (MFA, ETC)                  */}
+                  {/* CENTER: TYPE OF NOTIFICATION (COMMUNICATION, MFA, ETC)   */}
                   {/* -------------------------------------------------------- */}
                   <div className="shrink-0 sm:px-4 flex sm:justify-center">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-50/90 text-[#0024A8] border border-blue-100 uppercase tracking-wider">
-                      {notif.type}
-                    </span>
+                    {(() => {
+                      const t = (notif.type || "").trim().toLowerCase();
+                      const isComm = t.includes("communication") || t.includes("chat");
+                      return (
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border transition-colors ${
+                            isComm
+                              ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                              : "bg-blue-50/90 text-[#0024A8] border-blue-100"
+                          }`}
+                          style={
+                            isComm
+                              ? {
+                                  backgroundColor: "#DCFCE7",
+                                  color: "#15803D",
+                                  borderColor: "#86EFAC",
+                                }
+                              : undefined
+                          }
+                        >
+                          {notif.type}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   {/* -------------------------------------------------------- */}
