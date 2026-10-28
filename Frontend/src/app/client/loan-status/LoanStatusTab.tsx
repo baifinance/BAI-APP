@@ -312,8 +312,8 @@ export default function LoanStatusTab({
           {/* ================================================================== */}
           <div className="w-full lg:w-[260px] xl:w-[270px] shrink-0 self-start h-fit bg-white border border-slate-200/90 rounded-t-2xl lg:rounded-tr-none lg:rounded-br-none lg:rounded-l-2xl shadow-sm transition-all flex flex-col z-10 overflow-hidden">
             
-            {/* Header: Blue background similar to theme with Left-Aligned Title */}
-            <div className="bg-[#0024A8] border-b border-[#001D85] p-4 sm:p-5 text-white">
+            {/* Header: Animated duotone moving gradient background like the theme */}
+            <div className="sidebar-duotone-bg border-b border-[#001D85] p-4 sm:p-5 text-white">
               <div className="flex items-center justify-start mb-1">
                 <h2 className="text-base sm:text-lg font-black tracking-tight text-white text-left">
                   Categories
@@ -349,7 +349,6 @@ export default function LoanStatusTab({
                       onClick={() => {
                         if (setSelectedApplicationId && item.id !== "primary-loan") {
                           setSelectedApplicationId(item.id);
-                          onLogAction?.(`Selected category: ${item.categoryName}`);
                         }
                       }}
                       className={`w-full text-left px-3.5 py-2.5 rounded-xl border transition-all duration-200 cursor-pointer ${
@@ -385,8 +384,8 @@ export default function LoanStatusTab({
           {/* ================================================================== */}
           <div className="flex-1 min-w-0 w-full bg-white border border-slate-200/90 rounded-b-2xl lg:rounded-b-none lg:rounded-tl-none lg:rounded-r-2xl lg:rounded-bl-2xl lg:-ml-px -mt-px lg:mt-0 shadow-sm flex flex-col overflow-hidden">
             
-            {/* 1. PROGRESS BAR HEADER & SUMMARY (THEME BLUE BACKGROUND) */}
-            <div className="bg-[#0024A8] border-b border-[#001D85] p-6 sm:p-8 text-white flex flex-col gap-5">
+            {/* 1. PROGRESS BAR HEADER & SUMMARY (ANIMATED DUOTONE GRADIENT BACKGROUND LIKE SIDEBAR) */}
+            <div className="sidebar-duotone-bg border-b border-[#001D85] p-6 sm:p-8 text-white flex flex-col gap-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">

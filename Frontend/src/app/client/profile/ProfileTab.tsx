@@ -14,11 +14,24 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Check, Clock, ArrowRight, Pen, Mail, Phone, User, Ban, X } from "lucide-react";
 import { ClientData } from "../types";
-import { resolveLoanStatus } from "../loanStatus";
+import { PIPELINE, resolveLoanStatus, cleanStatusStr } from "../loanStatus";
 
 interface ProfileTabProps {
   client: ClientData;
   onLogAction?: (actionText: string) => void;
+}
+
+/** Format a backend ISO timestamp in a fixed locale/timezone to prevent hydration mismatches */
+function formatStatusDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "Pending";
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
 }
 
 /**
@@ -69,44 +82,44 @@ export default function ProfileTab({ client }: ProfileTabProps) {
   const [bannerTheme, setBannerTheme] = useState<"blue" | "gold">("blue");
 
   // ------------------------------------------------------------------------------
-  // 2. COMPLETE 13-STAGE WORKFLOW STEPS (statuses driven by the real loan status)
+  // 2. RESOLVE SELECTED APPLICATION & WORKFLOW (FROM LOAN STATUS SELECTION)
   // ------------------------------------------------------------------------------
-  const baseLoanWorkflowSteps = [
-    { id: 1, title: "Pending", date: "Aug 10, 2026" },
-    { id: 2, title: "Appointment Booked", date: "Aug 12, 2026" },
-    { id: 3, title: "Under Review", date: "Aug 15, 2026" },
-    { id: 4, title: "Revisit", date: "Aug 18, 2026" },
-    { id: 5, title: "Proceeding", date: "Aug 20, 2026" },
-    { id: 6, title: "Collection of Documents", date: "Aug 24, 2026" },
-    { id: 7, title: "Assessment", date: "Pending" },
-    { id: 8, title: "Docs for Sign", date: "Pending" },
-    { id: 9, title: "For Lodgment", date: "Pending" },
-    { id: 10, title: "Submitted", date: "Pending" },
-    { id: 11, title: "Conditional Approval", date: "Pending" },
-    { id: 12, title: "Settlement", date: "Pending" },
-    { id: 13, title: "Settled", date: "Pending" },
-  ];
-
   const selectedApplication =
-    client.applications.find((a) => a.id === client.selectedApplicationId) ??
-    client.applications.find((a) => a.isPrimary) ??
-    client.applications[0] ??
+    client.applications?.find((a) => a.id === client.selectedApplicationId) ??
+    client.applications?.find((a) => a.isPrimary) ??
+    client.applications?.[0] ??
     null;
 
-  const inProgressApplicationName =
+  const categoryTitle =
     selectedApplication?.asanaProjectName ||
     selectedApplication?.asanaTaskName ||
+    (selectedApplication?.asanaProjectGid ? `Project ${selectedApplication.asanaProjectGid}` : null) ||
     client.loan?.purpose ||
-    null;
+    "Loan Status Progress";
 
   const displayStatus =
     selectedApplication?.asanaStatus ?? client.loan?.currentStatus;
+  const displayHistory =
+    selectedApplication?.asanaStatusHistory ?? client.loan?.statusHistory ?? [];
 
   const resolution = resolveLoanStatus(displayStatus);
-  const allLoanWorkflowSteps = baseLoanWorkflowSteps.map((step, i) => ({
-    ...step,
-    status: resolution.states[i] ?? ("upcoming" as const),
-  }));
+
+  const historyByStatus = new Map(
+    (displayHistory ?? []).map((entry) => [
+      cleanStatusStr(entry.status),
+      entry.changed_at,
+    ]),
+  );
+
+  const allLoanWorkflowSteps = PIPELINE.map((title, i) => {
+    const changedAt = historyByStatus.get(cleanStatusStr(title));
+    return {
+      id: i + 1,
+      title,
+      date: changedAt ? formatStatusDate(changedAt) : "Pending",
+      status: resolution.states[i] ?? ("upcoming" as const),
+    };
+  });
 
   // ------------------------------------------------------------------------------
   // 3. PREVIEW WINDOW (6-STEP SLIDING WINDOW):
@@ -286,8 +299,8 @@ export default function ProfileTab({ client }: ProfileTabProps) {
             {/* Header with static blue gradient background (not animated) */}
             <div className="bg-gradient-to-r from-[#061C65] via-[#0A2881] to-[#0024A8] px-6 py-4 flex items-center justify-between">
               <div>
-                <h3 className="text-base font-extrabold text-white">
-                  Loan Status Progress
+                <h3 className="text-base font-extrabold text-white truncate max-w-[240px] sm:max-w-md">
+                  {categoryTitle}
                 </h3>
                 <span className="text-[11px] font-bold text-[#E4BA37] block mt-0.5">
                   {resolution.withdrawn
@@ -295,14 +308,9 @@ export default function ProfileTab({ client }: ProfileTabProps) {
                     : activeStep
                       ? `Current Step: ${activeStep.id} of ${allLoanWorkflowSteps.length}`
                       : resolution.hasApplication
-                        ? "Current Step: Settled (13 of 13)"
+                        ? `Current Step: Settled (${allLoanWorkflowSteps.length} of ${allLoanWorkflowSteps.length})`
                         : "Current Step: No Current Application"}
                 </span>
-                {inProgressApplicationName && (
-                  <span className="text-[10px] font-semibold text-slate-400 block mt-0.5">
-                    In Progress: {inProgressApplicationName}
-                  </span>
-                )}
               </div>
               <Link
                 href="/client/loan-status"
