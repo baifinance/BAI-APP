@@ -15,7 +15,7 @@ Comprehensive API reference for authentication, session management, and the user
 - [Invitation & Account Creation Endpoints](#invitation--account-creation-endpoints)
   - [5. Send Invitation (`POST /api/auth/invitations/send/`)](#5-send-invitation-post-apiauthinvitationssend)
   - [6. Create Compliance Account (`POST /api/auth/compliance/`)](#6-create-compliance-account-post-apiauthcompliance)
-  - [7. Validate Invitation Token (`GET /api/auth/invitations/validate/`)](#7-validate-invitation-token-get-apiauthinvitationsvalidate)
+  - [7. Validate Invitation Token (`POST /api/auth/invitations/validate/`)](#7-validate-invitation-token-post-apiauthinvitationsvalidate)
   - [8. Accept Invitation & Set Password (`POST /api/auth/invitations/accept/`)](#8-accept-invitation--set-password-post-apiauthinvitationsaccept)
   - [9. Resend Invitation (`GET /api/auth/invitations/<id>/resend/`)](#9-resend-invitation-get-apiauthinvitationsidresend)
   - [10. Revoke Invitation (`GET /api/auth/invitations/<id>/revoke/`)](#10-revoke-invitation-get-apiauthinvitationsidrevoke)
@@ -239,14 +239,14 @@ Creates a new inactive `compliance` user, generates an activation token, and sen
 
 ---
 
-### 7. Validate Invitation Token (`GET /api/auth/invitations/validate/`)
+### 7. Validate Invitation Token (`POST /api/auth/invitations/validate/`)
 Public verification endpoint used by the frontend activation page to verify token authenticity and determine if the invitee is a broker or client before rendering the form.
 
-- **URL**: `/api/auth/invitations/validate/?token=<token>`
-- **Method**: `GET`
+- **URL**: `/api/auth/invitations/validate/`
+- **Method**: `POST`
 - **Authentication**: Public (`AllowAny`)
 
-#### Query Parameters
+#### Request Body
 | Parameter | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
 | `token` | `string` | Yes | 32-character URL-safe invitation token |

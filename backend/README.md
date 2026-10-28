@@ -759,7 +759,7 @@ Full request/response payloads for the auth flow are in **[`endpoints.md`](endpo
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/api/auth/loan-processing/` | `LoanProcessingAccountCreateView` | Create inactive `loan_processing` user + invitation, audit, email → `201` | LP |
 | `POST` | `/api/auth/invitations/send/` | `SendInviteView` | Create/reuse an inactive broker or client, revoke prior pending invites, email link → `201` | LP + `user` throttle |
-| `GET` | `/api/auth/invitations/validate/` | `InvitationValidateView` | `?token=` → `{valid, email, role}`; `400` if absent | Public |
+| `POST` | `/api/auth/invitations/validate/` | `InvitationValidateView` | `{"token": "..."}` → `{valid, email, role}`; `400` if absent | Public |
 | `POST` | `/api/auth/invitations/accept/` | `InvitationAcceptView` | Set password, activate, create the role profile, mark invite `ACCEPTED` | Public |
 | `POST` | `/api/auth/invitations/<uuid:pk>/resend/` | `InvitationResendView` | Push `expires_at` +7d, audit, resend. **`GET` → 405** | LP |
 | `POST` | `/api/auth/invitations/<uuid:pk>/revoke/` | `InvitationRevokeView` | Mark `REVOKED` + audit. **`GET` → 405** | LP |

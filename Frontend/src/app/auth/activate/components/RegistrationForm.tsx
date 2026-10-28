@@ -13,6 +13,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { ShieldAlert, Eye, EyeOff, Check, X } from "lucide-react";
+import { API_BASE } from "@/lib/api";
 
 // ==============================================================================
 // 1. COMPONENT PROPS & API INTERFACES
@@ -72,10 +73,11 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
   useEffect(() => {
     async function validateToken() {
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-        const res = await fetch(
-          `${baseUrl}/api/auth/invitations/validate/?token=${encodeURIComponent(token)}`
-        );
+        const res = await fetch(`${API_BASE}/api/auth/invitations/validate/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
         if (res.ok) {
           const data: TokenValidationResponse = await res.json();
           if (data.valid) {
@@ -182,7 +184,6 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
     setIsSubmitting(true);
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
       const payload: Record<string, string> = {
         token,
         password,
@@ -201,7 +202,7 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
 
       let res: Response;
       try {
-        res = await fetch(`${baseUrl}/api/auth/invitations/accept/`, {
+        res = await fetch(`${API_BASE}/api/auth/invitations/accept/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),

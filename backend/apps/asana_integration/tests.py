@@ -9,11 +9,12 @@ import asana
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.db import connection
-from django.test import override_settings
+from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from asana_integration.models import AsanaWebhookSecret
+from asana_integration.queue import enqueue_login_sync_job, run_login_sync_job
 from asana_integration.services.asana import (
     AsanaProfileService,
     claim_event,
@@ -853,4 +854,25 @@ class SyncProjectTasksJointTest(APITestCase):
                 client=self.profile_b, asana_task_gid="task-1"
             ).exists()
         )
+
+
+class LoginSyncQueueTests(SimpleTestCase):
+    @mock.patch("asana_integration.queue.get_queue")
+    def test_login_sync_is_enqueued_not_executed_inline(self, get_queue):
+        enqueue_login_sync_job("user-id", "a@x.com")
+
+        get_queue.return_value.enqueue.assert_called_once()
+        args, kwargs = get_queue.return_value.enqueue.call_args
+        self.assertIs(args[0], run_login_sync_job)
+        self.assertEqual(args[1], "a@x.com")
+        self.assertIn("job_timeout", kwargs)
+
+    @mock.patch("asana_integration.services.loan_sync.sync_client_applications")
+    def test_login_sync_job_returns_a_json_serializable_dict(self, sync):
+        sync.return_value = SyncResult(created=1, applications=["app-1"])
+
+        result = run_login_sync_job("a@x.com")
+
+        self.assertEqual(result["created"], 1)
+        json.dumps(result)
 

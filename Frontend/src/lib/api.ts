@@ -1,6 +1,7 @@
-export const API_BASE = (
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
-).replace(/\/+$/, "");
+export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(
+  /\/+$/,
+  "",
+);
 
 /**
  * Global event fired when the access token is rejected (401) while an active
@@ -8,6 +9,24 @@ export const API_BASE = (
  * "Your session has been expired" notice, then logs the user out.
  */
 export const SESSION_EXPIRED_EVENT = "bai:session-expired";
+
+let refreshPromise: Promise<boolean> | null = null;
+
+function refreshAccessToken(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${API_BASE}/api/auth/token/refresh/`, {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then((res) => res.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
 
 interface RequestOptions extends RequestInit {
   json?: unknown;
@@ -26,13 +45,22 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   }
 
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const send = () =>
+    fetch(`${API_BASE}${cleanEndpoint}`, {
+      cache: "no-store",
+      ...fetchOptions,
+      headers,
+      credentials: "include",
+    });
 
-  const res = await fetch(`${API_BASE}${cleanEndpoint}`, {
-    cache: "no-store",
-    ...fetchOptions,
-    headers,
-    credentials: "include",
-  });
+  let res = await send();
+  const isAuthEndpoint =
+    cleanEndpoint === "/api/auth/login/" ||
+    cleanEndpoint === "/api/auth/token/refresh/";
+
+  if (res.status === 401 && !isAuthEndpoint && (await refreshAccessToken())) {
+    res = await send();
+  }
 
   if (!res.ok) {
     const body = await res.text();
@@ -419,12 +447,19 @@ export function subscribeToNotificationStream(
         signal: controller.signal,
       });
       if (!res.ok || !res.body) {
-        if (res.status === 401 || res.status === 403) {
-          // Reconnecting cannot fix an invalid/blocked session.
-          stopped = true;
-          if (res.status === 401 && typeof window !== "undefined") {
-            window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+        if (res.status === 401) {
+          // Access expired while the stream was open: refresh once, then reconnect.
+          if (await refreshAccessToken()) {
+            reconnectDelay = 1000;
+          } else {
+            stopped = true;
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+            }
           }
+        } else if (res.status === 403) {
+          // Reconnecting cannot fix a blocked or unverified session.
+          stopped = true;
         } else if (res.status === 429) {
           // Back off when rate limited to prevent compounding 429 errors
           reconnectDelay = Math.max(reconnectDelay, 15_000);

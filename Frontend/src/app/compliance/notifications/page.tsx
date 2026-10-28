@@ -26,7 +26,6 @@ export default function ComplianceNotificationsPage() {
     queryKey,
     queryFn: () => notificationsApi.list(),
     staleTime: 30_000,
-    refetchInterval: 30_000,
     meta: { persist: false },
   });
 

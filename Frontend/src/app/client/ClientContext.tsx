@@ -248,9 +248,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   const loanQuery = useQuery({
     queryKey: clientKeys.loanStatus,
     queryFn: loansApi.getCurrentStatus,
-    staleTime: 0,
-    refetchInterval: 3000,
-    refetchIntervalInBackground: true,
+    staleTime: 30_000,
     refetchOnWindowFocus: true,
     meta: { persist: false },
   });
@@ -258,9 +256,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   const applicationsQuery = useQuery({
     queryKey: clientKeys.applications,
     queryFn: loansApi.listApplications,
-    staleTime: 0,
-    refetchInterval: 3000,
-    refetchIntervalInBackground: true,
+    staleTime: 30_000,
     refetchOnWindowFocus: true,
     meta: { persist: false },
   });
@@ -282,9 +278,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   const notificationsQuery = useQuery({
     queryKey: clientKeys.notifications,
     queryFn: () => notificationsApi.list(),
-    staleTime: 0,
-    refetchInterval: 3000,
-    refetchIntervalInBackground: true,
+    staleTime: 30_000,
     refetchOnWindowFocus: true,
     meta: { persist: false },
   });
@@ -648,8 +642,13 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(flushNotifications, 400);
+      // Only pull the authoritative notification list when a real notification
+      // arrives. Loan status is applied optimistically above; keep-alive or
+      // connection frames must not trigger list refetches.
+      if (event === "notification" && push.notification_id) {
+        if (refreshTimer) clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(flushNotifications, 400);
+      }
     });
 
     return () => {

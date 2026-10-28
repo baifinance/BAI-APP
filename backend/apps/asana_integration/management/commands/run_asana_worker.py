@@ -22,4 +22,4 @@ class Command(BaseCommand):
                 f"Starting RQ worker on queue {settings.ASANA_QUEUE_NAME!r}"
             )
         )
-        worker.work(with_scheduler=False)
+        worker.work(with_scheduler=True)

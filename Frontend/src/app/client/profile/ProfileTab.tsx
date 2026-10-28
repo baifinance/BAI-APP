@@ -87,7 +87,22 @@ export default function ProfileTab({ client }: ProfileTabProps) {
     { id: 13, title: "Settled", date: "Pending" },
   ];
 
-  const resolution = resolveLoanStatus(client.loan?.currentStatus);
+  const selectedApplication =
+    client.applications.find((a) => a.id === client.selectedApplicationId) ??
+    client.applications.find((a) => a.isPrimary) ??
+    client.applications[0] ??
+    null;
+
+  const inProgressApplicationName =
+    selectedApplication?.asanaProjectName ||
+    selectedApplication?.asanaTaskName ||
+    client.loan?.purpose ||
+    null;
+
+  const displayStatus =
+    selectedApplication?.asanaStatus ?? client.loan?.currentStatus;
+
+  const resolution = resolveLoanStatus(displayStatus);
   const allLoanWorkflowSteps = baseLoanWorkflowSteps.map((step, i) => ({
     ...step,
     status: resolution.states[i] ?? ("upcoming" as const),
@@ -283,6 +298,11 @@ export default function ProfileTab({ client }: ProfileTabProps) {
                         ? "Current Step: Settled (13 of 13)"
                         : "Current Step: No Current Application"}
                 </span>
+                {inProgressApplicationName && (
+                  <span className="text-[10px] font-semibold text-slate-400 block mt-0.5">
+                    In Progress: {inProgressApplicationName}
+                  </span>
+                )}
               </div>
               <Link
                 href="/client/loan-status"
