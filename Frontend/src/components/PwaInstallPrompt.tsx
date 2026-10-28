@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Download, Share2, Smartphone, X } from "lucide-react";
+import { Download, Share2, Smartphone } from "lucide-react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -53,15 +53,18 @@ function setDismissed(): void {
 }
 
 /**
- * Chrome/Android: show a custom "Install BAI APP" button when the site is
- * installable. The native address-bar icon is subtle, so this gives users an
- * explicit call to action.
+ * Mobile-only hard-block install overlay.
  *
- * iOS Safari: there is no install prompt API. We render a static hint telling
- * users to use Share → Add to Home Screen.
+ * Desktop users get no install prompt UI — they can install via the browser
+ * address bar if they choose.
  *
- * Mobile devices get a hard-block overlay ("Download The App") that covers the
- * web app until the user installs or explicitly continues to the website.
+ * Mobile devices (≤768px or mobile UA) see a full-screen "Download BAI APP"
+ * overlay until they install or explicitly continue to the website.
+ *
+ * Chrome/Android: install button triggers beforeinstallprompt.
+ * iOS Safari: "Add to Home Screen → Share" hint (no prompt API).
+ * Dismissal is remembered in localStorage for 30 days.
+ * Already installed (standalone mode): nothing shown.
  */
 export default function PwaInstallPrompt() {
   const isIOS =
@@ -79,9 +82,6 @@ export default function PwaInstallPrompt() {
   // Initialize from standalone status (avoids set-state-in-effect).
   const [installed, setInstalled] = useState(() => isStandalone);
   const [canInstall, setCanInstall] = useState(() => !isStandalone);
-  const [mobileBlock, setMobileBlock] = useState(() =>
-    isMobile() && !isStandalone && !isDismissed()
-  );
 
   const handleBeforeInstallPrompt = useCallback(
     (event: Event) => {
@@ -119,88 +119,76 @@ export default function PwaInstallPrompt() {
 
   const continueToWebsite = useCallback(() => {
     setDismissed();
-    setMobileBlock(false);
   }, []);
 
-  // Desktop: small bottom-right install button only.
-  if (!isMobile()) {
-    if (installed || (!canInstall && !isIOS)) return null;
+  // Desktop: no install prompt UI at all.
+  if (!isMobile()) return null;
 
-    return (
-      <div
-        className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"
-      >
-        {canInstall && (
-          <button
-            type="button"
-            onClick={installApp}
-            className="pointer-events-auto flex items-center gap-2 px-4 py-3 rounded-xl bg-[#0024A8] text-white text-xs font-bold shadow-lg transition-all hover:bg-[#0A2881]"
-            aria-label="Install BAI APP"
-          >
-            <Download className="w-4 h-4" />
-            Install BAI APP
-          </button>
-        )}
-        {isIOS && !installed && (
-          <div className="pointer-events-auto flex items-center gap-2 px-4 py-3 rounded-xl bg-[#FAFAFA] border border-slate-200 text-xs text-slate-600 shadow-sm">
-            <Smartphone className="w-4 h-4 text-slate-400" />
-            <div className="text-slate-500">Add to Home Screen</div>
-            <Share2 className="w-3 h-3 text-slate-400 ml-2 shrink-0" />
-          </div>
-        )}
-      </div>
-    );
-  }
+  // Already installed (standalone mode): nothing shown.
+  if (installed) return null;
 
-  // Mobile: hard-block overlay until install or explicit dismiss.
-  if (!mobileBlock) return null;
+  // User dismissed within the last 30 days: nothing shown.
+  if (isDismissed()) return null;
 
+  // Not installable and not iOS: nothing useful to show.
+  if (!canInstall && !isIOS) return null;
+
+  // Mobile hard-block overlay.
   return (
     <div
-      className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-[#0024A8] text-white p-6 text-center pointer-events-auto"
+      className="fixed inset-0 z-[60] flex flex-col items-center justify-between bg-gradient-to-b from-[#0024A8] to-[#0A2881] text-white p-6 pointer-events-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="pwa-install-title"
     >
-      <button
-        type="button"
-        onClick={continueToWebsite}
-        className="absolute top-4 right-4 pointer-events-auto text-xs text-white/70 hover:text-white"
-        aria-label="Continue to website"
-      >
-        <X className="w-4 h-4" />
-        Continue to website
-      </button>
+      {/* Top-right close / continue */}
+      <div className="flex justify-end w-full pt-2 pr-4">
+        <button
+          type="button"
+          onClick={continueToWebsite}
+          className="pointer-events-auto text-xs text-white/60 hover:text-white underline"
+          aria-label="Continue to website"
+        >
+          Continue to website
+        </button>
+      </div>
 
-      <Smartphone className="w-16 h-16 mx-auto mb-6 text-white/20" />
+      {/* Icon with glow ring */}
+      <div className="relative mx-auto mb-8">
+        <div className="absolute inset-0 rounded-full bg-[#0024A8]/30 blur-[24px] animate-pulse" />
+        <Smartphone className="w-20 h-20 mx-auto relative z-10 text-white/90 drop-shadow-lg" />
+      </div>
 
-      <h1 id="pwa-install-title" className="text-2xl sm:text-3xl font-extrabold mb-2">
-        Download The App
+      {/* Heading */}
+      <h1 id="pwa-install-title" className="text-3xl font-black leading-tight mb-2 text-center">
+        Download <span className="text-[#E4BA37]">BAI APP</span>
       </h1>
-      <p className="text-white/90 text-sm sm:text-base mb-8 max-w-md mx-auto leading-relaxed">
-        Install BAI APP to get loan status updates, notifications, and track
-        your applications — even when the tab is closed.
+      <p className="text-white/90 text-sm sm:text-base mb-8 max-w-md mx-auto leading-relaxed px-4">
+        Get loan status updates, notifications, and track your applications —
+        even when the tab is closed.
       </p>
 
+      {/* Primary CTA */}
       {canInstall ? (
         <button
           type="button"
           onClick={installApp}
-          className="pointer-events-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white text-[#0024A8] text-sm font-bold shadow-lg transition-all hover:bg-[#FAFAFA]"
+          className="pointer-events-auto w-full flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-b from-[#0024A8] to-[#0A2881] text-white text-sm font-bold shadow-xl transition-all hover:from-[#0A2881] hover:to-[#12309B]"
           aria-label="Install BAI APP"
         >
           <Download className="w-5 h-5" />
           Install BAI APP
         </button>
       ) : isIOS ? (
-        <div className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border border-white/20 bg-white/10 text-sm font-bold">
-          <Smartphone className="w-5 h-5 text-white" />
-          <span>Add to Home Screen → Share</span>
-          <Share2 className="w-4 h-4" />
+        <div className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl border border-white/20 bg-white/10 text-sm font-bold">
+          <Smartphone className="w-5 h-5 text-[#E4BA37]" />
+          <span>Add to Home Screen</span>
+          <Share2 className="w-4 h-4 text-[#E4BA37]" />
         </div>
       ) : null}
 
-      <p className="mt-6 text-xs text-white/60">
+      {/* Bottom dismiss */}
+      <p className="mt-8 text-xs text-white/50 uppercase tracking-wider font-semibold">
         Already installed? Open BAI APP from your home screen.
       </p>
     </div>
