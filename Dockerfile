@@ -1,15 +1,27 @@
 # Dockerfile — BAI-APP single-service (Railway Option A: same origin)
-# Runs Django backend on :8000 + Next.js frontend on $PORT in one container.
+# Runs Django on :8000, Next.js on :3000, and Caddy on $PORT in one container.
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# System dependencies (Node.js, npm, curl for health checks)
+# Next.js 16 requires Node >=20.9; Debian's nodejs package is too old.
+ARG NODE_VERSION=22.14.0
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
-    nodejs \
-    npm \
+    xz-utils \
+    && ARCH="$(dpkg --print-architecture)" \
+    && case "$ARCH" in \
+         amd64) NODE_ARCH=x64 ;; \
+         arm64) NODE_ARCH=arm64 ;; \
+         *) echo "Unsupported architecture: $ARCH" && exit 1 ;; \
+       esac \
+    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" \
+         -o /tmp/node.tar.xz \
+    && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
+    && rm /tmp/node.tar.xz \
+    && node -v \
+    && npm -v \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Caddy binary from official image

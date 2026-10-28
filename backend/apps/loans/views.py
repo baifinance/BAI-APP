@@ -129,7 +129,10 @@ class LoanApplicationListView(APIView):
             )
         qs = _client_application_queryset(request.user).order_by("-created_at")
         serializer = LoanApplicationSerializer(qs, many=True)
-        return Response(serializer.data)
+        response = Response(serializer.data)
+        response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response["Pragma"] = "no-cache"
+        return response
 
 
 class LoanApplicationDetailView(APIView):
@@ -274,13 +277,16 @@ class CurrentLoanStatusView(APIView):
                     key=lambda item: item[1],
                 )
             ]
-            return Response(
+            response = Response(
                 {
                     "loan_status": loan_status,
                     "status_history": history,
                     "application_id": str(application.id),
                 }
             )
+            response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response["Pragma"] = "no-cache"
+            return response
 
         # The locally recorded status is kept in sync by the Asana webhook and
         # the manual update endpoint, so it is authoritative and instant. Only
@@ -306,12 +312,15 @@ class CurrentLoanStatusView(APIView):
             if asana_profile:
                 loan_status = asana_profile.get("loan_status")
 
-        return Response(
+        response = Response(
             {
                 "loan_status": loan_status,
                 "status_history": self._status_history(profile),
             }
         )
+        response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response["Pragma"] = "no-cache"
+        return response
 
     @staticmethod
     def _status_history(profile):

@@ -54,7 +54,6 @@ export function LoanProcessingProvider({ children }: { children: React.ReactNode
     queryKey: ["loan-processing", "notifications"],
     queryFn: () => notificationsApi.list(),
     staleTime: 30_000,
-    refetchInterval: 30_000,
     meta: { persist: false },
   });
 

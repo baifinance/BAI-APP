@@ -354,15 +354,15 @@ class SendInviteView(generics.CreateAPIView):
 class InvitationValidateView(generics.GenericAPIView):
     """
     Public endpoint to validate an invitation token.
-    GET /api/auth/invitations/validate/?token=<token>
+    POST /api/auth/invitations/validate/ with {"token": "<token>"}
     """
     permission_classes = [permissions.AllowAny]
     throttle_classes = [InviteThrottle]
     throttle_scope = "invite"
     serializer_class = serializers.Serializer # dummy - test
 
-    def get(self, request, *args, **kwargs):
-        token = request.query_params.get("token")
+    def post(self, request, *args, **kwargs):
+        token = request.data.get("token")
         if not token:
              return Response(
                 {"valid": False, "error": "Token not provided."},

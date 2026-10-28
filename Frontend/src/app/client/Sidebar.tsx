@@ -53,7 +53,7 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle, 
   const menuItems = [
     { id: "Profile" as ClientTabType, label: "Profile", icon: User, href: "/client/profile" },
     { id: "LoanStatus" as ClientTabType, label: "Loan Status", icon: Landmark, href: "/client/loan-status" },
-    { id: "Communication" as ClientTabType, label: "Communication", icon: MessageSquare, href: "/client/communication" },
+    { id: "Communication" as ClientTabType, label: "Chat Bot", icon: MessageSquare, href: "/client/communication" },
     { id: "Calculator" as ClientTabType, label: "Calculator", icon: Percent, href: "/client/calculator" },
     { id: "Notifications" as ClientTabType, label: "Notifications", icon: Bell, href: "/client/notifications" },
   ];

@@ -43,13 +43,50 @@ export const PIPELINE = [
 export const WITHDRAWN = "Withdrawn";
 export const NO_ACTIVE_HEADER = "No Current Application";
 
+export function cleanStatusStr(s: string): string {
+  return s.trim().toLowerCase().replace(/[_-]/g, " ").replace(/\s+/g, " ");
+}
+
+export function normalizeLoanStatus(status?: string | null): string | null {
+  if (!status) return null;
+  const clean = cleanStatusStr(status);
+  if (clean === "withdraw" || clean === "withdrawn") return WITHDRAWN;
+  const match = PIPELINE.find((step) => cleanStatusStr(step) === clean);
+  return match ?? status.trim();
+}
+
+export function extractLoanStatusFromText(text?: string | null): string | null {
+  if (!text) return null;
+  const clean = cleanStatusStr(text);
+  if (clean.includes("withdraw")) return WITHDRAWN;
+  // Check each pipeline step, prioritizing longer names first to avoid partial matches
+  const sortedSteps = [...PIPELINE].sort((a, b) => b.length - a.length);
+  for (const step of sortedSteps) {
+    if (clean.includes(cleanStatusStr(step))) {
+      return step;
+    }
+  }
+  return null;
+}
+
 export function resolveLoanStatus(
   status?: string | null
 ): LoanStatusResolution {
-  const normalized = status?.trim() ?? "";
+  if (!status) {
+    return {
+      states: PIPELINE.map(() => "upcoming"),
+      header: NO_ACTIVE_HEADER,
+      activeStepIndex: null,
+      totalSteps: PIPELINE.length,
+      withdrawn: false,
+      hasApplication: false,
+    };
+  }
+
+  const clean = cleanStatusStr(status);
 
   // Terminal state: nothing was achieved, the file is closed.
-  if (normalized === "Withdraw" || normalized === WITHDRAWN) {
+  if (clean === "withdraw" || clean === "withdrawn") {
     return {
       states: PIPELINE.map(() => "upcoming"),
       header: WITHDRAWN,
@@ -60,13 +97,13 @@ export function resolveLoanStatus(
     };
   }
 
-  const index = PIPELINE.indexOf(normalized);
+  const index = PIPELINE.findIndex((step) => cleanStatusStr(step) === clean);
 
   // No match (null / unknown): no application to show progress for.
   if (index < 0) {
     return {
       states: PIPELINE.map(() => "upcoming"),
-      header: NO_ACTIVE_HEADER,
+      header: status.trim() || NO_ACTIVE_HEADER,
       activeStepIndex: null,
       totalSteps: PIPELINE.length,
       withdrawn: false,

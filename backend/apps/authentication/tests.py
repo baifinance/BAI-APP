@@ -309,7 +309,9 @@ class InviteThrottleTest(APITestCase):
 
     def test_validate_endpoint_enforces_invite_scope(self):
         responses = [
-            self.client.get("/api/auth/invitations/validate/", {"token": "x"})
+            self.client.post(
+                "/api/auth/invitations/validate/", {"token": "x"}, format="json"
+            )
             for _ in range(21)
         ]
         self.assertEqual(responses[0].status_code, 200)

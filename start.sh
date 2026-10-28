@@ -1,17 +1,27 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-# Django backend on 127.0.0.1:8000 (internal only)
+cleanup() {
+    kill $(jobs -p) 2>/dev/null || true
+}
+trap 'cleanup; exit 0' TERM INT
+trap cleanup EXIT
+
+# Django on 127.0.0.1:8000 (internal only)
 cd /app/backend
 DJANGO_SETTINGS_MODULE=config.settings.production python manage.py migrate --noinput
-DJANGO_SETTINGS_MODULE=config.settings.production python manage.py runserver 127.0.0.1:8000 &
-DJANGO_PID=$!
+DJANGO_SETTINGS_MODULE=config.settings.production \
+    uvicorn config.asgi:application --host 127.0.0.1 --port 8000 &
+DJANGO_SETTINGS_MODULE=config.settings.production \
+    python manage.py run_asana_worker &
 
-# Next.js frontend on 127.0.0.1:3000 (internal only)
+# Next.js on 127.0.0.1:3000 (internal only)
 cd /app/Frontend
 PORT=3000 npm run start &
-NEXT_PID=$!
 
 # Caddy reverse proxy on Railway's $PORT (public)
 cd /app
-exec caddy run --config /app/Caddyfile --adapter caddyfile
+caddy run --config /app/Caddyfile --adapter caddyfile &
+
+# If any process exits, stop the container so Railway can restart it.
+wait -n

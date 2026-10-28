@@ -23,11 +23,24 @@ import {
   NotificationApiResponse,
   CurrentLoanStatusResponse,
   LoanApplication,
+  UserProfileResponse,
   notificationsApi,
   subscribeToNotificationStream,
 } from "@/lib/api";
 
-import { AsanaProfile, Booking, ClientApplication, ClientData, emptyClient } from "./types";
+import {
+  AsanaProfile,
+  Booking,
+  ClientApplication,
+  ClientData,
+  LoanStatusHistoryEntry,
+  emptyClient,
+} from "./types";
+import {
+  normalizeLoanStatus,
+  extractLoanStatusFromText,
+  cleanStatusStr,
+} from "./loanStatus";
 
 type PortalNotification = {
   id: string;
@@ -111,24 +124,53 @@ function apiBookingToBooking(b: BookingApiResponse): Booking {
 }
 
 function mapApplication(a: LoanApplication): ClientApplication {
-  const history = a.asana_status_history
-    ? Object.entries(a.asana_status_history).map(
-        ([status, changed_at]) => ({ status, changed_at })
-      )
-    : [];
+  const rawHistory = a.asana_status_history;
+  const camelHistory = (a as unknown as ClientApplication).asanaStatusHistory;
+  const history: LoanStatusHistoryEntry[] =
+    rawHistory && typeof rawHistory === "object" && !Array.isArray(rawHistory)
+      ? Object.entries(rawHistory).map(([status, changed_at]) => ({
+          status,
+          changed_at,
+        }))
+      : Array.isArray(camelHistory)
+      ? camelHistory
+      : [];
+
+  const rawStatus =
+    a.asana_status ?? (a as unknown as ClientApplication).asanaStatus ?? null;
+
   return {
     id: a.id,
-    asanaProjectGid: a.asana_project_gid ?? null,
-    asanaProjectName: a.asana_project_name ?? null,
-    asanaTaskGid: a.asana_task_gid ?? null,
-    asanaTaskName: a.asana_task_name ?? null,
+    asanaProjectGid:
+      a.asana_project_gid ??
+      (a as unknown as ClientApplication).asanaProjectGid ??
+      null,
+    asanaProjectName:
+      a.asana_project_name ??
+      (a as unknown as ClientApplication).asanaProjectName ??
+      null,
+    asanaTaskGid:
+      a.asana_task_gid ??
+      (a as unknown as ClientApplication).asanaTaskGid ??
+      null,
+    asanaTaskName:
+      a.asana_task_name ??
+      (a as unknown as ClientApplication).asanaTaskName ??
+      null,
     amount: a.amount ?? null,
     status: a.status,
-    asanaStatus: a.asana_status ?? null,
+    asanaStatus: rawStatus,
     asanaStatusHistory: history,
-    asanaCreatedAt: a.asana_created_at ?? null,
-    asanaSyncedAt: a.asana_synced_at ?? null,
-    isPrimary: a.is_primary ?? false,
+    asanaCreatedAt:
+      a.asana_created_at ??
+      (a as unknown as ClientApplication).asanaCreatedAt ??
+      null,
+    asanaSyncedAt:
+      a.asana_synced_at ??
+      (a as unknown as ClientApplication).asanaSyncedAt ??
+      null,
+    isPrimary:
+      a.is_primary ?? (a as unknown as ClientApplication).isPrimary ?? false,
     createdAt: a.created_at,
     updatedAt: a.updated_at,
   };
@@ -188,6 +230,10 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   const [selectedApplicationId, setSelectedApplicationId] = useState<
     string | null
   >(null);
+  const selectedApplicationIdRef = useRef<string | null>(selectedApplicationId);
+  useEffect(() => {
+    selectedApplicationIdRef.current = selectedApplicationId;
+  }, [selectedApplicationId]);
   // One toast per notification id per session, regardless of how many SSE
   // frames, refetches, or reconnects report the same item.
   const seenToastIdsRef = useRef<Set<string>>(new Set());
@@ -203,6 +249,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     queryKey: clientKeys.loanStatus,
     queryFn: loansApi.getCurrentStatus,
     staleTime: 30_000,
+    refetchOnWindowFocus: true,
     meta: { persist: false },
   });
 
@@ -210,6 +257,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     queryKey: clientKeys.applications,
     queryFn: loansApi.listApplications,
     staleTime: 30_000,
+    refetchOnWindowFocus: true,
     meta: { persist: false },
   });
 
@@ -231,6 +279,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     queryKey: clientKeys.notifications,
     queryFn: () => notificationsApi.list(),
     staleTime: 30_000,
+    refetchOnWindowFocus: true,
     meta: { persist: false },
   });
 
@@ -384,6 +433,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let refreshTimer: ReturnType<typeof setTimeout> | null = null;
     let flushing = false;
+    const toastTimers: ReturnType<typeof setTimeout>[] = [];
 
     const enqueueToasts = (items: PortalNotification[]) => {
       const unseen = items.filter(
@@ -392,6 +442,115 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       if (!unseen.length) return;
       unseen.forEach((n) => seenToastIdsRef.current.add(n.id));
       setToasts((prev) => [...unseen.slice(0, 3), ...prev].slice(0, 4));
+    };
+
+    const applyIncomingLoanUpdate = async (
+      rawStatus?: string | null,
+      targetAppId?: string | null,
+    ) => {
+      const normalized = normalizeLoanStatus(rawStatus);
+      if (!normalized && !targetAppId) return;
+
+      const nowIso = new Date().toISOString();
+
+      // 1. Optimistically update applications cache so stepper and categories reflect immediately
+      queryClient.setQueryData<LoanApplication[]>(
+        clientKeys.applications,
+        (prev) => {
+          if (!prev || !prev.length) return prev;
+
+          const currentSelectedId = selectedApplicationIdRef.current;
+          const hasExactTarget = Boolean(
+            targetAppId && prev.some((a) => a.id === targetAppId)
+          );
+          const fallbackId = (prev.find((a) => a.is_primary) ?? prev[0])?.id;
+
+          return prev.map((app) => {
+            const isMatch = hasExactTarget
+              ? app.id === targetAppId
+              : currentSelectedId
+              ? app.id === currentSelectedId
+              : app.id === fallbackId;
+
+            if (!isMatch) return app;
+
+            const historyRecord: Record<string, string> = {
+              ...(app.asana_status_history &&
+              typeof app.asana_status_history === "object" &&
+              !Array.isArray(app.asana_status_history)
+                ? app.asana_status_history
+                : {}),
+            };
+
+            if (normalized) {
+              historyRecord[normalized] = nowIso;
+            }
+
+            return {
+              ...app,
+              asana_status: normalized ?? app.asana_status,
+              asana_status_history: historyRecord,
+              asanaStatus:
+                normalized ??
+                (app as unknown as ClientApplication).asanaStatus ??
+                app.asana_status,
+              asanaStatusHistory: Object.entries(historyRecord).map(
+                ([status, changed_at]) => ({ status, changed_at })
+              ),
+            };
+          });
+        }
+      );
+
+      // If an exact application ID was targeted, select it so the stepper is focused on it
+      if (targetAppId) {
+        setSelectedApplicationId(targetAppId);
+      }
+
+      // 2. Optimistically update single-status loan cache
+      if (normalized) {
+        queryClient.setQueryData<CurrentLoanStatusResponse>(
+          clientKeys.loanStatus,
+          (prev) => ({
+            loan_status: normalized,
+            status_history: [
+              ...(prev?.status_history ?? []).filter(
+                (e) => cleanStatusStr(e.status) !== cleanStatusStr(normalized)
+              ),
+              { status: normalized, changed_at: nowIso },
+            ],
+          })
+        );
+
+        queryClient.setQueryData<UserProfileResponse>(
+          clientKeys.profile,
+          (prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              client_profile: prev.client_profile
+                ? { ...prev.client_profile, loan_status: normalized }
+                : prev.client_profile,
+            };
+          }
+        );
+      }
+
+      // 3. Actively fetch fresh authoritative state from backend
+      try {
+        const [freshApps, freshLoan] = await Promise.all([
+          loansApi.listApplications(),
+          loansApi.getCurrentStatus(),
+        ]);
+        if (Array.isArray(freshApps) && freshApps.length > 0) {
+          queryClient.setQueryData(clientKeys.applications, freshApps);
+        }
+        if (freshLoan) {
+          queryClient.setQueryData(clientKeys.loanStatus, freshLoan);
+        }
+      } catch (err) {
+        console.error("Failed to sync fresh loan status in background:", err);
+      }
     };
 
     const flushNotifications = async () => {
@@ -409,7 +568,30 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
 
         const previousIds = new Set(previous.map((n) => n.id));
         const newOnes = fresh.filter((n) => !previousIds.has(n.id));
-        enqueueToasts(newOnes.map(mapNotification));
+        if (newOnes.length > 0) {
+          enqueueToasts(newOnes.map(mapNotification));
+
+          // Check if any new notification corresponds to a loan status change
+          for (const notif of newOnes) {
+            const isLoanType =
+              notif.notification_type === "loan_status" ||
+              notif.title.toLowerCase().includes("loan") ||
+              notif.message.toLowerCase().includes("status");
+
+            if (isLoanType) {
+              const extracted =
+                extractLoanStatusFromText(notif.message) ||
+                extractLoanStatusFromText(notif.title);
+              const appId = notif.related_object_id || null;
+              void applyIncomingLoanUpdate(extracted, appId);
+            }
+          }
+
+          // Force refetch to ensure authoritative state
+          void queryClient.refetchQueries({ queryKey: clientKeys.applications });
+          void queryClient.refetchQueries({ queryKey: clientKeys.loanStatus });
+          void queryClient.refetchQueries({ queryKey: clientKeys.profile });
+        }
       } catch (error) {
         console.error("Failed to refresh notifications:", error);
       } finally {
@@ -418,55 +600,14 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     };
 
     const unsubscribe = subscribeToNotificationStream((push, event) => {
-      if (push.application_id) {
-        let updated = false;
-        queryClient.setQueryData<ClientApplication[]>(
-          clientKeys.applications,
-          (prev) =>
-            (prev ?? []).map((app) => {
-              if (app.id !== push.application_id) return app;
-              updated = true;
-              const history = push.loan_status
-                ? [
-                    ...(app.asanaStatusHistory ?? []).filter(
-                      (e) => e.status !== push.loan_status
-                    ),
-                    { status: push.loan_status, changed_at: new Date().toISOString() },
-                  ]
-                : app.asanaStatusHistory;
-              return {
-                ...app,
-                asanaStatus: push.loan_status ?? app.asanaStatus,
-                asanaStatusHistory: history,
-              };
-            })
-        );
-        if (updated) {
-          setSelectedApplicationId(push.application_id);
-        } else {
-          // A push arrived for an application not yet in the cache (for
-          // example after a login-triggered sync). Refetch so the portal
-          // renders the new application instead of showing an empty state.
-          queryClient.invalidateQueries({ queryKey: clientKeys.applications });
-        }
-      }
+      // 1. Immediately update applications & loan caches so the stepper and categories move live without page refresh.
+      const targetStatus =
+        normalizeLoanStatus(push.loan_status) ||
+        extractLoanStatusFromText(push.message) ||
+        extractLoanStatusFromText(push.title);
 
-      if (push.loan_status) {
-        const status = push.loan_status;
-        // Apply the pushed status immediately so the stepper moves without a
-        // round-trip, stamping a provisional timestamp for the new step.
-        queryClient.setQueryData<CurrentLoanStatusResponse>(
-          clientKeys.loanStatus,
-          (prev) => ({
-            loan_status: status,
-            status_history: [
-              ...(prev?.status_history ?? []).filter((e) => e.status !== status),
-              { status, changed_at: new Date().toISOString() },
-            ],
-          }),
-        );
-        // Reconcile with the authoritative server record (exact timestamp).
-        void queryClient.invalidateQueries({ queryKey: clientKeys.loanStatus });
+      if (targetStatus || push.application_id) {
+        void applyIncomingLoanUpdate(targetStatus, push.application_id);
       }
 
       // `snapshot` is the synthetic "connected" frame sent on every (re)connect;
@@ -474,28 +615,70 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       if (event === "snapshot") return;
 
       if (event === "notification" && push.notification_id) {
-        // Toast from the frame itself so delivery does not depend on a
-        // follow-up list fetch; the ref prevents the same id being shown again.
-        enqueueToasts([
-          {
-            id: push.notification_id,
-            type: push.notification_type ?? "system",
-            title: push.title ?? "",
-            message: push.message ?? "",
-            created_at: push.created_at ?? new Date().toISOString(),
-            is_read: false,
-          },
-        ]);
+        const toastItem: PortalNotification = {
+          id: push.notification_id,
+          type: push.notification_type ?? "system",
+          title: push.title ?? "",
+          message: push.message ?? "",
+          created_at: push.created_at ?? new Date().toISOString(),
+          is_read: false,
+        };
+
+        if (push.loan_status) {
+          // Reserve the notification ID immediately so background flushNotifications won't toast it early
+          seenToastIdsRef.current.add(push.notification_id);
+
+          // Delay displaying the toast slightly (~350ms) so the stepper node, progress bar,
+          // and stage badge visually transition to the new step BEFORE the toast arrives.
+          const timer = setTimeout(() => {
+            setToasts((prev) => [
+              toastItem,
+              ...prev.filter((t) => t.id !== toastItem.id),
+            ].slice(0, 4));
+          }, 350);
+          toastTimers.push(timer);
+        } else {
+          enqueueToasts([toastItem]);
+        }
       }
 
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(flushNotifications, 400);
+      // Only pull the authoritative notification list when a real notification
+      // arrives. Loan status is applied optimistically above; keep-alive or
+      // connection frames must not trigger list refetches.
+      if (event === "notification" && push.notification_id) {
+        if (refreshTimer) clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(flushNotifications, 400);
+      }
     });
 
     return () => {
       unsubscribe();
       if (refreshTimer) clearTimeout(refreshTimer);
+      toastTimers.forEach(clearTimeout);
     };
+  }, [queryClient]);
+
+  // Window focus refetch: as soon as the user switches back from Asana to this tab,
+  // immediately refetch applications and loan status so the stepper updates on screen without manual F5 refresh.
+  useEffect(() => {
+    const handleFocus = async () => {
+      try {
+        const [freshApps, freshLoan] = await Promise.all([
+          loansApi.listApplications(),
+          loansApi.getCurrentStatus(),
+        ]);
+        if (Array.isArray(freshApps) && freshApps.length > 0) {
+          queryClient.setQueryData(clientKeys.applications, freshApps);
+        }
+        if (freshLoan) {
+          queryClient.setQueryData(clientKeys.loanStatus, freshLoan);
+        }
+      } catch (e) {
+        console.error("Window focus refetch failed:", e);
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, [queryClient]);
 
   const fetchAvailableSlots = useCallback(
@@ -677,3 +860,4 @@ export function useClientNotifications() {
   }
   return context;
 }
+
