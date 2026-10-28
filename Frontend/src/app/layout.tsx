@@ -16,16 +16,16 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "BAI Finance | A Friend in Finance, From First Home to Settled",
-  description: "Broker-led loan preparation and live tracking for Philippines & Australia. Track your home loans, refinancing, and investments from submission to settlement.",
-  keywords: ["Loan Brokerage", "Australia Home Loans", "Philippines Finance", "Loan Tracking", "BAI Finance"],
+  title: "BAI APP | Secure loan tracking from application to settlement",
+  description: "BAI APP — broker-led loan preparation and live tracking for Philippines & Australia. Track your home loans, refinancing, and investments from submission to settlement.",
+  keywords: ["Loan Brokerage", "Australia Home Loans", "Philippines Finance", "Loan Tracking", "BAI APP"],
   icons: {
     icon: "/bai_logo_blue.png",
     apple: "/bai_logo_blue.png",
   },
   appleWebApp: {
     capable: true,
-    title: "BAI Finance",
+    title: "BAI APP",
     statusBarStyle: "default",
   },
 };
