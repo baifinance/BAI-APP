@@ -93,7 +93,6 @@ def _render_transcript(conversation: Conversation, messages, customer_name: str)
 # Fields masked when AI_REDACT_PROFILE_PII is on (the assistant can still
 # reason about loan amount/goal/status, which are not individually identifying).
 _REDACTED_PROFILE_FIELDS = {
-    "Name",
     "Email",
     "Mobile",
     "Address",

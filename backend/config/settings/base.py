@@ -361,7 +361,7 @@ ASANA_JOB_MAX_RETRIES = env.int("ASANA_JOB_MAX_RETRIES", default=3)
 # redaction to mask the most identifying fields while keeping loan context.
 AI_PROFILE_CONTEXT_ENABLED = env.bool(
     "AI_PROFILE_CONTEXT_ENABLED",
-    default=False,
+    default=True,
 )
 AI_REDACT_PROFILE_PII = env.bool(
     "AI_REDACT_PROFILE_PII",
