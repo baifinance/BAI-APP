@@ -35,6 +35,7 @@ class ProfileContextEgressTests(TestCase):
     def test_disabled_returns_none(self):
         self.assertIsNone(_build_profile_context(self.user))
 
+    @override_settings(AI_PROFILE_CONTEXT_ENABLED=False)
     def test_profile_context_is_off_by_default(self):
         self.assertIsNone(_build_profile_context(self.user))
 
