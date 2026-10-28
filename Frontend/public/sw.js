@@ -1,11 +1,52 @@
+const CACHE_NAME = "bai-app-v1";
+const STATIC_ASSETS = [
+  "/",
+  "/manifest.webmanifest",
+  "/bai_logo_blue.png",
+  "/bai_logo_white.png",
+  "/bai_notification_icon.png",
+];
+
 self.addEventListener("install", (event) => {
-  console.log("[sw] installed");
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+  );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
-  console.log("[sw] activated");
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+      )
+    )
+  );
   event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // API calls: network-first, fallback to cache
+  if (url.pathname.startsWith("/api/")) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const cloned = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Static assets: cache-first
+  event.respondWith(
+    caches.match(request).then((cached) => cached || fetch(request))
+  );
 });
 
 self.addEventListener("push", (event) => {
@@ -16,7 +57,7 @@ self.addEventListener("push", (event) => {
     payload = { body: event.data ? event.data.text() : "" };
   }
 
-  const title = payload.title || "BAI Finance";
+  const title = payload.title || "BAI APP";
   const options = {
     body: payload.body || "You have a new notification.",
     icon: "/bai_notification_icon.png",
