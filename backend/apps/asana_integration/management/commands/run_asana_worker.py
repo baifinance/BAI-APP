@@ -1,3 +1,6 @@
+import os
+import socket
+
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
@@ -14,7 +17,7 @@ class Command(BaseCommand):
         worker = Worker(
             [queue],
             connection=connection,
-            name="asana-worker",
+            name=f"asana-worker-{socket.gethostname()}-{os.getpid()}",
             serializer=JSONSerializer,
         )
         self.stdout.write(

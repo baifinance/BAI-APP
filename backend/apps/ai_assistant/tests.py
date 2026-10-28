@@ -3,6 +3,7 @@ from rest_framework.test import APITestCase
 
 from ai_assistant.views import _build_profile_context
 from otp.utils import get_redis_client, mark_otp_verified
+from loans.models import LoanApplication
 from users.models import ClientProfile, User
 
 
@@ -58,6 +59,39 @@ class ProfileContextEgressTests(TestCase):
         self.assertNotIn("1990-01-01", ctx)
         # Loan context is retained so the assistant stays useful.
         self.assertIn("750000", ctx)
+
+    @override_settings(AI_PROFILE_CONTEXT_ENABLED=True)
+    def test_includes_all_loan_applications(self):
+        profile = ClientProfile.objects.get(user=self.user)
+        LoanApplication.objects.create(
+            client=profile,
+            asana_project_name="Home Purchase — Sydney",
+            asana_task_name="SYD-101",
+            amount=950000.00,
+            asana_status="Under Review",
+            status="under_review",
+            is_primary=True,
+        )
+        LoanApplication.objects.create(
+            client=profile,
+            asana_project_name="Refinance — Melbourne",
+            asana_task_name="MEL-202",
+            amount=500000.00,
+            asana_status="Pending",
+            status="draft",
+            is_primary=False,
+        )
+
+        ctx = _build_profile_context(self.user)
+        self.assertIsNotNone(ctx)
+        self.assertIn("Loan applications:", ctx)
+        self.assertIn("Home Purchase — Sydney", ctx)
+        self.assertIn("Refinance — Melbourne", ctx)
+        self.assertIn("950000", ctx)
+        self.assertIn("500000", ctx)
+        self.assertIn("Under Review", ctx)
+        self.assertIn("Pending", ctx)
+        self.assertIn("(primary)", ctx)
 
     def test_non_client_has_no_profile_context(self):
         broker = User.objects.create_user(

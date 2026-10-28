@@ -141,6 +141,26 @@ def _build_profile_context(user) -> str | None:
             if redact and label in _REDACTED_PROFILE_FIELDS:
                 value = "[redacted]"
             parts.append(f"{label}: {value}")
+
+    try:
+        from loans.models import LoanApplication
+
+        applications = LoanApplication.objects.filter(client=profile).order_by(
+            "-is_primary", "-created_at"
+        )
+    except Exception:
+        applications = []
+
+    if applications:
+        app_lines = ["Loan applications:"]
+        for app in applications:
+            name = app.asana_project_name or app.asana_task_name or "Loan application"
+            amount = f"${app.amount}" if app.amount else None
+            status = app.asana_status or app.status or "Pending"
+            primary = " (primary)" if app.is_primary else ""
+            app_lines.append(f"- {name} — {amount or 'N/A'} — status: {status}{primary}")
+        parts.extend(app_lines)
+
     return "\n".join(parts) if parts else None
 
 
