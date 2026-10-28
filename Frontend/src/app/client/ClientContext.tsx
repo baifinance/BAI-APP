@@ -227,9 +227,26 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
 
   const [toasts, setToasts] = useState<PortalNotification[]>([]);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
-  const [selectedApplicationId, setSelectedApplicationId] = useState<
+  const [selectedApplicationId, setSelectedApplicationIdState] = useState<
     string | null
-  >(null);
+  >(() => {
+    if (typeof window !== "undefined" && typeof sessionStorage !== "undefined") {
+      return sessionStorage.getItem("bai:selected_application_id");
+    }
+    return null;
+  });
+
+  const setSelectedApplicationId = useCallback((id: string) => {
+    setSelectedApplicationIdState(id);
+    if (typeof window !== "undefined" && typeof sessionStorage !== "undefined") {
+      try {
+        sessionStorage.setItem("bai:selected_application_id", id);
+      } catch {
+        // Ignore sessionStorage write errors
+      }
+    }
+  }, []);
+
   const selectedApplicationIdRef = useRef<string | null>(selectedApplicationId);
   useEffect(() => {
     selectedApplicationIdRef.current = selectedApplicationId;
