@@ -14,6 +14,13 @@ interface PwaSnapshot {
   installed: boolean;
 }
 
+type InstallWindow = Window & {
+  __baiInstallPrompt?: BeforeInstallPromptEvent;
+  navigator: Navigator & {
+    getInstalledRelatedApps?: () => Promise<unknown[]>;
+  };
+};
+
 const SERVER_SNAPSHOT: PwaSnapshot = { canInstall: false, installed: false };
 
 const DISMISS_KEY = "bai_pwa_dismissed_at";
@@ -66,6 +73,11 @@ export function isStandalone(): boolean {
   );
 }
 
+export function isAndroid(): boolean {
+  if (typeof window === "undefined") return false;
+  return /Android/.test(window.navigator.userAgent);
+}
+
 export function isIOS(): boolean {
   if (typeof window === "undefined") return false;
   const nav = window.navigator;
@@ -76,30 +88,6 @@ export function isIOS(): boolean {
   );
 }
 
-function isAndroidTablet(): boolean {
-  if (typeof window === "undefined") return false;
-  const ua = window.navigator.userAgent;
-  return /Android/.test(ua) && !/Mobile/.test(ua);
-}
-
-function isPhone(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    /iPhone|iPod|Mobile/.test(window.navigator.userAgent) ||
-    window.innerWidth <= 768
-  );
-}
-
-export function isMobile(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    isPhone() ||
-    isAndroidTablet() ||
-    isIOS() ||
-    window.innerWidth <= 1024
-  );
-}
-
 export async function promptInstall(): Promise<InstallOutcome> {
   const prompt = deferredPrompt;
   if (!prompt) return "unavailable";
@@ -107,14 +95,24 @@ export async function promptInstall(): Promise<InstallOutcome> {
   try {
     await prompt.prompt();
     const { outcome } = await prompt.userChoice;
-    deferredPrompt = null;
+    clearPrompt(prompt);
     if (outcome === "accepted") installedFlag = true;
     emit();
     return outcome;
   } catch {
-    deferredPrompt = null;
+    clearPrompt(prompt);
     emit();
     return "unavailable";
+  }
+}
+
+function clearPrompt(prompt: BeforeInstallPromptEvent): void {
+  if (deferredPrompt === prompt) deferredPrompt = null;
+  if (typeof window !== "undefined") {
+    const win = window as InstallWindow;
+    if (win.__baiInstallPrompt === prompt) {
+      delete win.__baiInstallPrompt;
+    }
   }
 }
 
@@ -139,20 +137,44 @@ export function rememberDismissal(): void {
   }
 }
 
+// Android Chrome only: an installed WebAPK suppresses beforeinstallprompt.
+// getInstalledRelatedApps() lets us tell the user the app already exists.
+async function detectInstalledWebApp(): Promise<void> {
+  if (!isAndroid()) return;
+  const nav = (window as InstallWindow).navigator;
+  if (!nav.getInstalledRelatedApps) return;
+  try {
+    const apps = await nav.getInstalledRelatedApps();
+    if (apps.length > 0 && !installedFlag) {
+      installedFlag = true;
+      deferredPrompt = null;
+      emit();
+    }
+  } catch {
+    // Unsupported or blocked; beforeinstallprompt remains the only signal.
+  }
+}
+
 // Capture the event as early as possible; Chrome may fire it before hydration.
 if (typeof window !== "undefined") {
+  const win = window as InstallWindow;
   installedFlag = isStandalone();
-  snapshot = { canInstall: false, installed: installedFlag };
+  deferredPrompt = win.__baiInstallPrompt ?? null;
+  snapshot = { canInstall: deferredPrompt !== null, installed: installedFlag };
 
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();
     deferredPrompt = event as BeforeInstallPromptEvent;
+    win.__baiInstallPrompt = deferredPrompt;
     emit();
   });
 
   window.addEventListener("appinstalled", () => {
     installedFlag = true;
     deferredPrompt = null;
+    delete win.__baiInstallPrompt;
     emit();
   });
+
+  void detectInstalledWebApp();
 }
