@@ -20,7 +20,13 @@ const PROD_CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self' data: https://fonts.gstatic.com",
-  ["connect-src 'self'", API_ORIGIN, "https://api.jina.ai", "https://api.groq.com"]
+  [
+    "connect-src 'self'",
+    API_ORIGIN,
+    "https://api.jina.ai",
+    "https://api.groq.com",
+    "https://challenges.cloudflare.com",
+  ]
     .filter(Boolean)
     .join(" "),
   "frame-src https://challenges.cloudflare.com",

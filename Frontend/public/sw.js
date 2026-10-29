@@ -1,4 +1,4 @@
-const CACHE_NAME = "bai-app-v3";
+const CACHE_NAME = "bai-app-v4";
 const STATIC_ASSETS = [
   "/",
   "/manifest.webmanifest",
@@ -35,16 +35,27 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Never intercept cross-origin requests (Turnstile, fonts, external APIs).
+  // Letting the browser handle them avoids rejected respondWith() promises.
+  if (url.origin !== self.location.origin) return;
+
   // API calls: network-first, fallback to cache
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const cloned = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
+          if (request.method === "GET") {
+            const cloned = response.clone();
+            caches
+              .open(CACHE_NAME)
+              .then((cache) => cache.put(request, cloned))
+              .catch(() => {});
+          }
           return response;
         })
-        .catch(() => caches.match(request))
+        .catch(() =>
+          caches.match(request).then((cached) => cached || Response.error())
+        )
     );
     return;
   }
@@ -55,11 +66,17 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((response) => {
           const cloned = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
+          caches
+            .open(CACHE_NAME)
+            .then((cache) => cache.put(request, cloned))
+            .catch(() => {});
           return response;
         })
         .catch(() =>
-          caches.match(request).then((cached) => cached || caches.match("/"))
+          caches
+            .match(request)
+            .then((cached) => cached || caches.match("/"))
+            .then((cached) => cached || Response.error())
         )
     );
     return;
@@ -67,7 +84,9 @@ self.addEventListener("fetch", (event) => {
 
   // Static assets: cache-first
   event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request))
+    caches.match(request).then(
+      (cached) => cached || fetch(request).catch(() => Response.error())
+    )
   );
 });
 
