@@ -354,8 +354,10 @@ export default function RegistrationForm({ token, onSuccess }: RegistrationFormP
         {/* Logo Branding */}
         <div className="flex justify-center pt-1">
           <img
-            src="/bai_logo_blue.png"
+            src="/bai_logo_blue-384.webp"
             alt="BAI Group of Companies"
+            width={384}
+            height={165}
             className="h-9 w-auto object-contain"
           />
         </div>

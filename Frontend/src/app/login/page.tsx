@@ -333,14 +333,14 @@ export default function ClientLoginPage() {
       {/* ---------------------------------------------------------------------- */}
       <div
         className="bg-white/95 backdrop-blur-md w-full max-w-5xl rounded-3xl shadow-2xl
-  grid grid-cols-1 md:grid-cols-2 overflow-hidden relative z-10 min-h-[600px] animate-scaleIn"
+  grid grid-cols-1 lg:grid-cols-2 overflow-hidden relative z-10 min-h-0 lg:min-h-[600px] animate-scaleIn"
       >
         {/* ==================================================================== */}
         {/* LEFT COLUMN: BRANDING & FEATURE HIGHLIGHTS                           */}
         {/* ==================================================================== */}
         <div
-          className="bg-gradient-to-br from-[#0024A8] via-[#0B2369] to-[#040E30] text-white p-8 md:p-12
-    flex flex-col justify-between relative overflow-hidden"
+          className="hidden lg:flex bg-gradient-to-br from-[#0024A8] via-[#0B2369] to-[#040E30] text-white p-8 md:p-12
+    flex-col justify-between relative overflow-hidden"
         >
           {/* Decorative gradients */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.08),transparent_70%)] pointer-events-none" />
@@ -350,9 +350,12 @@ export default function ClientLoginPage() {
           <div className="flex items-center gap-3 relative z-10">
             <Link href="/login" className="inline-block hover:opacity-90 transition-opacity">
               <img
-                src="/bai_logo_white.png"
+                src="/bai_logo_white-384.webp"
                 alt="BAI Group of Companies"
+                width={384}
+                height={165}
                 className="h-10 md:h-11 w-auto object-contain"
+                fetchPriority="high"
               />
             </Link>
           </div>
@@ -418,6 +421,18 @@ export default function ClientLoginPage() {
         {/* ==================================================================== */}
         <div className="p-8 md:p-12 flex flex-col justify-between bg-white relative">
           <div className="space-y-6 my-auto">
+            {/* Compact branding for phones/tablets (left panel is hidden < lg) */}
+            <div className="flex justify-center lg:hidden">
+              <img
+                src="/bai_logo_blue-384.webp"
+                alt="BAI Group of Companies"
+                width={384}
+                height={165}
+                className="h-10 w-auto object-contain"
+                fetchPriority="high"
+              />
+            </div>
+
             {/* ---------------------------------------------------------------- */}
             {/* 1. HEADER SECTION: CENTERED LOG IN TITLE & SUBTEXT               */}
             {/* ---------------------------------------------------------------- */}

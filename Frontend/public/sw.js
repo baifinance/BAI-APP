@@ -1,10 +1,11 @@
-const CACHE_NAME = "bai-app-v1";
+const CACHE_NAME = "bai-app-v2";
 const STATIC_ASSETS = [
   "/",
   "/manifest.webmanifest",
-  "/bai_logo_blue.png",
-  "/bai_logo_white.png",
+  "/bai_logo_blue-384.webp",
+  "/bai_logo_white-384.webp",
   "/bai_notification_icon.png",
+  "/icons/icon-192.png",
 ];
 
 self.addEventListener("install", (event) => {

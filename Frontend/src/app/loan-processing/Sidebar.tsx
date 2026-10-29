@@ -55,10 +55,10 @@ export default function Sidebar({ activeTab }: SidebarProps) {
       <div className="p-6 border-b border-white/10 flex items-center gap-3">
         <div className="flex flex-col gap-0.5 min-w-0">
           <Image
-            src="/bai_logo_white.png"
+            src="/bai_logo_white-384.webp"
             alt="BAI Group of Companies"
-            width={3383}
-            height={1454}
+            width={384}
+            height={165}
             className="h-8 w-auto object-contain"
           />
           <span className="text-[10px] text-slate-100/70 font-bold uppercase tracking-wider block pl-0.5">
