@@ -32,7 +32,17 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
   // Mobile sidebar is open only for the path it was opened on, so navigating closes it
   const [mobileNavPath, setMobileNavPath] = useState<string | null>(null);
   const mobileNavOpen = mobileNavPath === pathname;
+  const closeMobileNav = () => setMobileNavPath(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeMobileNav();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileNavOpen]);
 
   // Click outside to close dropdown menu
   useEffect(() => {
@@ -68,7 +78,7 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
   return (
     <BrokerProvider>
       {/* Wrapper with solid #FAFAFA background */}
-      <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-blue-600 selection:text-white antialiased">
+      <div className="min-h-screen min-h-[100dvh] bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-blue-600 selection:text-white antialiased">
         
         {/* Desktop sidebar (full, collapsible) */}
         <div className="hidden md:block shrink-0">
@@ -83,8 +93,16 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
             className="bg-white border-[#0038A8]/20 text-[#0038A8] hover:bg-[#0038A8]/10"
           />
           {mobileNavOpen && (
-            <div className="fixed inset-y-0 left-8 z-40 w-64 overflow-y-auto">
-              <Sidebar activeTab={activeTab} />
+            <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
+              <button
+                type="button"
+                onClick={closeMobileNav}
+                aria-label="Close navigation menu"
+                className="absolute inset-0 bg-slate-900/60 cursor-pointer"
+              />
+              <div className="absolute inset-y-0 left-8 w-[min(16rem,calc(100vw-2rem))] overflow-y-auto shadow-2xl">
+                <Sidebar activeTab={activeTab} />
+              </div>
             </div>
           )}
         </div>
@@ -93,17 +111,17 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
         <div className="flex-1 flex flex-col min-w-0 pl-8 md:pl-0">
           
           {/* Portal Top Header with Account Section & Notifications */}
-          <header className="h-16 bg-white/70 backdrop-blur-md border-b border-slate-200/80 px-4 md:px-8 flex justify-between items-center z-30 select-none shrink-0">
+          <header className="h-16 bg-white/70 backdrop-blur-md border-b border-slate-200/80 px-4 md:px-8 flex justify-between items-center gap-3 z-30 select-none shrink-0">
             
             {/* Left side: Dynamic Title */}
-            <div className="flex items-center">
-              <h1 className="font-extrabold text-slate-800 tracking-tight text-lg">
+            <div className="flex items-center min-w-0">
+              <h1 className="font-extrabold text-slate-800 tracking-tight text-base sm:text-lg truncate">
                 {activeTab === "Dashboard" ? "Broker Dashboard" : activeTab}
               </h1>
             </div>
 
             {/* Right side: Tools & Profile Menu */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               
               {/* Notification icon linking to notifications page */}
               <Link 
@@ -130,16 +148,16 @@ export default function BrokerLayout({ children }: { children: React.ReactNode }
 
                 {/* Dropdown container with profile information on the left side */}
                 {isProfileOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200/80 shadow-lg p-3.5 z-40 animate-fadeIn rounded-none">
+                  <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white border border-slate-200/80 shadow-lg p-3.5 z-40 animate-fadeIn rounded-none">
                     {/* Profile Information Block: Avatar on left, Details on right */}
-                    <div className="flex items-center gap-3 pb-3 mb-2.5 border-b border-slate-100 select-none">
+                    <div className="flex items-center gap-3 pb-3 mb-2.5 border-b border-slate-100 select-none min-w-0">
                       {/* Avatar on the left */}
                       <div className="w-11 h-11 rounded-full bg-[#1429A9] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
                         {initials}
                       </div>
                       {/* Detailed info on the right */}
-                      <div className="flex flex-col text-left">
-                        <span className="font-extrabold text-slate-800 text-xs leading-none">{fullName || "Broker"}</span>
+                      <div className="flex flex-col text-left min-w-0 flex-1">
+                        <span className="font-extrabold text-slate-800 text-xs leading-none truncate">{fullName || "Broker"}</span>
                         <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider mt-1">Broker Profile</span>
                         <span className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">{email}</span>
                       </div>

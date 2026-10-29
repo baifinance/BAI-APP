@@ -408,13 +408,13 @@ export default function ApplicationsTab({
           </p>
         </div>
 
-        <div className="flex items-center gap-3 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
           {/* Invite button — visible for both loan processing and broker */}
           <button
             onClick={openInviteModal}
-            className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold text-white transition-all ${primaryBg} shadow-md ${shadowBg}`}
+            className={`inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs font-bold text-white transition-all ${primaryBg} shadow-md ${shadowBg}`}
           >
-            <Mail className="w-4 h-4" />
+            <Mail className="w-4 h-4 shrink-0" />
             <span>{isLoanProcessing ? "Send Invitation" : "Invite Client"}</span>
           </button>
 
@@ -423,9 +423,9 @@ export default function ApplicationsTab({
               if (clients.length > 0) setRequestClient(clients[0].id);
               setIsRequestDocOpen(true);
             }}
-            className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold text-white transition-all ${primaryBg} shadow-md ${shadowBg}`}
+            className={`inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs font-bold text-white transition-all ${primaryBg} shadow-md ${shadowBg}`}
           >
-            <FileText className="w-4 h-4" />
+            <FileText className="w-4 h-4 shrink-0" />
             <span>Request Documents</span>
           </button>
         </div>

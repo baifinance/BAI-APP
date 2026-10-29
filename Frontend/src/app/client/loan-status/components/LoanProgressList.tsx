@@ -71,12 +71,12 @@ const DocumentRow = React.memo(function DocumentRow({
   return (
     <div
       onClick={() => onSelect(doc)}
-      className="grid grid-cols-12 gap-4 items-center px-5 py-3.5 bg-white hover:bg-blue-50/30 transition-colors cursor-pointer group"
+      className="grid grid-cols-12 gap-2 sm:gap-4 items-center px-3 sm:px-5 py-3.5 bg-white hover:bg-blue-50/30 transition-colors cursor-pointer group"
     >
       {/* -------------------------------------------------------------- */}
       {/* LEFT: Document Title & Category                                */}
       {/* -------------------------------------------------------------- */}
-      <div className="col-span-6 sm:col-span-5 flex items-center gap-2.5 min-w-0">
+      <div className="col-span-5 sm:col-span-5 flex items-center gap-2 sm:gap-2.5 min-w-0">
         <FileText className="w-4 h-4 text-[#0024A8] shrink-0" />
         <div className="min-w-0">
           <span className="font-extrabold text-xs sm:text-sm text-slate-800 group-hover:text-[#0024A8] transition-colors block truncate">
@@ -93,17 +93,17 @@ const DocumentRow = React.memo(function DocumentRow({
       {/* -------------------------------------------------------------- */}
       {/* CENTER: Recent Status Date                                     */}
       {/* -------------------------------------------------------------- */}
-      <div className="col-span-3 sm:col-span-4 flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-600">
+      <div className="col-span-3 sm:col-span-4 flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-semibold text-slate-600 min-w-0">
         <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0 hidden sm:inline-block" />
-        <span>{doc.statusChangeDate}</span>
+        <span className="truncate">{doc.statusChangeDate}</span>
       </div>
 
       {/* -------------------------------------------------------------- */}
       {/* RIGHT: Document Status Badge (Square, 5 radius, 75% opacity)  */}
       {/* -------------------------------------------------------------- */}
-      <div className="col-span-3 flex items-center justify-end">
+      <div className="col-span-4 sm:col-span-3 flex items-center justify-end min-w-0">
         <span
-          className={`${badgeStyle.bgClass} text-white text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider py-1.5 px-3 rounded-[5px] text-center min-w-[95px] sm:min-w-[110px]`}
+          className={`${badgeStyle.bgClass} text-white text-[9px] sm:text-[11px] font-extrabold uppercase tracking-wider py-1.5 px-2 sm:px-3 rounded-[5px] text-center sm:min-w-[110px] truncate max-w-full`}
         >
           {badgeStyle.label}
         </span>
@@ -188,19 +188,19 @@ export default function LoanProgressList({
       {/* ---------------------------------------------------------------------- */}
       {/* 3. TABLE HEADER: Blue theme (#0024A8) background with white text       */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="grid grid-cols-12 gap-4 px-5 py-3.5 bg-[#0024A8] text-white text-[11px] font-extrabold uppercase tracking-wider items-center">
+      <div className="grid grid-cols-12 gap-2 sm:gap-4 px-3 sm:px-5 py-3.5 bg-[#0024A8] text-white text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider items-center">
         {/* Left: Document Title */}
-        <div className="col-span-6 sm:col-span-5 text-left">
+        <div className="col-span-5 sm:col-span-5 text-left truncate">
           Document Title
         </div>
         
         {/* Center: Recent Status Date */}
-        <div className="col-span-3 sm:col-span-4 text-center">
+        <div className="col-span-3 sm:col-span-4 text-center truncate">
           Recent Status Date
         </div>
 
         {/* Right: Document Status */}
-        <div className="col-span-3 text-right">
+        <div className="col-span-4 sm:col-span-3 text-right truncate">
           Document Status
         </div>
       </div>

@@ -78,10 +78,10 @@ export default function ClientProfileView({ client, onBack }: ClientProfileViewP
         
         {/* Client Name and Small Italic Email */}
         <div className="min-w-0">
-          <h2 className="text-2xl font-black text-[#0B2369] tracking-tight truncate">
+          <h2 className="text-xl sm:text-2xl font-black text-[#0B2369] tracking-tight truncate">
             {client.name}
           </h2>
-          <span className="text-xs text-slate-500 font-medium italic block mt-0.5">
+          <span className="text-xs text-slate-500 font-medium italic block mt-0.5 truncate">
             {client.email}
           </span>
         </div>
@@ -121,25 +121,25 @@ export default function ClientProfileView({ client, onBack }: ClientProfileViewP
           {/* PROFILE DATA FIELDS */}
           {activeSubTab === "Profile" && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Full Name</span>
-                <span className="text-sm font-semibold text-slate-700 block">{client.profile?.fullLegalName || client.name}</span>
+                <span className="text-sm font-semibold text-slate-700 block break-words">{client.profile?.fullLegalName || client.name}</span>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Date of Birth</span>
                 <span className="text-sm font-semibold text-slate-700 block">{client.profile.dob || "N/A"}</span>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Email Address</span>
-                <span className="text-sm font-semibold text-slate-700 block">{client.profile.email || client.email}</span>
+                <span className="text-sm font-semibold text-slate-700 block break-all">{client.profile.email || client.email}</span>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Mobile Number</span>
                 <span className="text-sm font-semibold text-slate-700 block">{client.profile.mobile || client.phone}</span>
               </div>
-              <div className="space-y-1 md:col-span-2">
+              <div className="space-y-1 md:col-span-2 min-w-0">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Address</span>
-                <span className="text-sm font-semibold text-slate-700 block">{client.profile.residentialAddress || client.profile.address || "N/A"}</span>
+                <span className="text-sm font-semibold text-slate-700 block break-words">{client.profile.residentialAddress || client.profile.address || "N/A"}</span>
               </div>
               <div className="space-y-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Visa Subclass</span>

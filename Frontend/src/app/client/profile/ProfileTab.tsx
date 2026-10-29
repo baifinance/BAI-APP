@@ -143,7 +143,7 @@ export default function ProfileTab({ client }: ProfileTabProps) {
   };
 
   return (
-    <div className="space-y-6 pl-6 lg:pl-0">
+    <div className="space-y-6">
 
       {/* ==================================================================== */}
       {/* SECTION 1: CLIENT PROFILE HERO CARD                                  */}
@@ -240,25 +240,25 @@ export default function ProfileTab({ client }: ProfileTabProps) {
 
             <div className="p-6 sm:p-7 space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold">
-                <div>
+                <div className="min-w-0">
                   <span className="text-slate-400 block mb-0.5">Full Name</span>
-                  <span className="text-slate-800 font-bold">{client.profile?.fullLegalName || client.name}</span>
+                  <span className="text-slate-800 font-bold break-words">{client.profile?.fullLegalName || client.name}</span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-slate-400 block mb-0.5">Date of Birth</span>
                   <span className="text-slate-800">{client.profile?.dob || "N/A"}</span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-slate-400 block mb-0.5">Email Address</span>
                   <span className="text-slate-800 truncate block">{client.profile?.email || client.email}</span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-slate-400 block mb-0.5">Mobile Number</span>
                   <span className="text-slate-800">{client.profile?.mobile || client.phone}</span>
                 </div>
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-2 min-w-0">
                   <span className="text-slate-400 block mb-0.5">Address</span>
-                  <span className="text-slate-800 block">{client.profile?.residentialAddress || client.profile?.address || "N/A"}</span>
+                  <span className="text-slate-800 block break-words">{client.profile?.residentialAddress || client.profile?.address || "N/A"}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block mb-0.5">Visa Subclass</span>
@@ -294,12 +294,12 @@ export default function ProfileTab({ client }: ProfileTabProps) {
         </div>
 
         {/* RIGHT COLUMN: 6-STEP LOAN STATUS PROGRESS PREVIEW */}
-        <div className="lg:col-span-5 space-y-5">
+        <div className="lg:col-span-5 space-y-5 min-w-0">
           <div className="bg-white rounded-[15px] border-0 shadow-sm overflow-hidden">
             {/* Header with static blue gradient background (not animated) */}
-            <div className="bg-gradient-to-r from-[#061C65] via-[#0A2881] to-[#0024A8] px-6 py-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-extrabold text-white truncate max-w-[240px] sm:max-w-md">
+            <div className="bg-gradient-to-r from-[#061C65] via-[#0A2881] to-[#0024A8] px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-extrabold text-white truncate">
                   {categoryTitle}
                 </h3>
                 <span className="text-[11px] font-bold text-[#E4BA37] block mt-0.5">
@@ -314,7 +314,7 @@ export default function ProfileTab({ client }: ProfileTabProps) {
               </div>
               <Link
                 href="/client/loan-status"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E4BA37] hover:bg-[#d4ac30] text-[11px] font-black text-[#0A2881] shadow-xs transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E4BA37] hover:bg-[#d4ac30] text-[11px] font-black text-[#0A2881] shadow-xs transition-colors cursor-pointer shrink-0"
               >
                 <span>View Full Stepper</span>
                 <ArrowRight className="w-3.5 h-3.5 text-[#0A2881]" />
@@ -364,13 +364,27 @@ export default function ProfileTab({ client }: ProfileTabProps) {
                 /* Displayed when an active loan application exists in workflow.  */
                 /* Renders the vertical 6-step preview of current & next steps.   */
                 /* ============================================================== */
-                <div className="space-y-3.5 relative pl-3 before:absolute before:left-6.5 before:top-3.5 before:bottom-3.5 before:w-0.5 before:bg-slate-200">
+                <div className="space-y-3.5 relative pl-3">
                   {displayedSteps.map((step, idx) => {
                     const isCurrent = step.status === "in_process";
                     const isCompleted = step.status === "completed";
+                    const isLastStep = idx === displayedSteps.length - 1;
+                    const isNextActive =
+                      isCompleted &&
+                      !isLastStep &&
+                      (displayedSteps[idx + 1].status === "completed" ||
+                        displayedSteps[idx + 1].status === "in_process");
 
                     return (
                       <div key={step.id} className="relative flex items-center gap-3.5 z-10">
+                        {!isLastStep && (
+                          <div
+                            aria-hidden="true"
+                            className={`absolute left-3.5 -translate-x-1/2 top-1/2 -bottom-[calc(50%+0.875rem)] w-0.5 transition-colors duration-300 -z-10 ${
+                              isNextActive ? "bg-[#0024A8]" : "bg-slate-200"
+                            }`}
+                          />
+                        )}
 
                         {/* Stepper Node Circle */}
                         <div
@@ -390,14 +404,14 @@ export default function ProfileTab({ client }: ProfileTabProps) {
 
                         {/* Step Box / Card with Blue Slow Pulsing Ring Animation */}
                         <div
-                          className={`relative flex-1 flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all ${isCurrent
+                          className={`relative flex-1 min-w-0 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all ${isCurrent
                             ? "bg-blue-50/90 text-[#0024A8] border-[#0024A8] ring-1 ring-[#0024A8]/30 animate-pulse-ring"
                             : isCompleted
                               ? "bg-[#0024A8] text-white border-[#0024A8]"
                               : "bg-slate-50/60 text-slate-600 border-slate-200/80"
                             }`}
                         >
-                          <span className="truncate">
+                          <span className="truncate min-w-0">
                             {step.id}. {step.title}
                           </span>
 

@@ -47,7 +47,7 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
   return (
     <div
       className={`bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-[#0024A8] selection:text-white antialiased client-portal-wrap ${
-        isCommunication ? "h-screen h-[100dvh] overflow-hidden" : "min-h-screen"
+        isCommunication ? "h-screen h-[100dvh] overflow-hidden" : "min-h-screen min-h-[100dvh]"
       }`}
     >
 

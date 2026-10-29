@@ -161,7 +161,7 @@ export default function NotificationsTab({
           </div>
 
           {/* Controls on the Right: Type Filter & Mark as Read Button */}
-          <div className="flex items-center gap-2.5 self-end sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
             
             {/* Filter Dropdown: Select specific notification type */}
             <div className="relative">

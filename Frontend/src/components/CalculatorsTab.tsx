@@ -385,9 +385,9 @@ function LoanBalanceChart({
       {/* ---------------------------------------------------------------------- */}
       {/* CHART FOOTER: Legends on bottom left, Eye button on bottom right       */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="flex items-center justify-between gap-4 text-xs font-bold pt-3 border-t border-slate-100">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-bold pt-3 border-t border-slate-100">
         {/* Left: Legends */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           {/* Legend 1: Loan Balance */}
           <div className="flex items-center gap-1.5">
             <span className="w-3.5 h-3.5 rounded-xs bg-[#0B2369]" />
@@ -664,9 +664,9 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
         {/* Page Content Container */}
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 pt-8 space-y-8">
           {/* 2-Container Layout (Top Section) */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
           {/* Left Container: Calculator */}
-          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-[15px] shadow-soft-xl overflow-hidden flex flex-col justify-between">
+          <div className="lg:col-span-6 bg-white border border-slate-200/80 rounded-[15px] shadow-soft-xl overflow-hidden flex flex-col justify-between min-w-0">
             {/* Full-width Gradient Header with #E4BA37 Text */}
             <div className="bg-gradient-to-r from-[#061C65] via-[#0A2881] to-[#0024A8] px-6 py-4 flex items-center gap-3 shrink-0">
               <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-[#E4BA37]">
@@ -744,13 +744,13 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
               </div>
 
               {/* Bottom Button */}
-              <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
+              <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center gap-3">
                 <button
                   onClick={handleCalculateClient}
-                  className="flex-1 py-3.5 bg-[#0A2881] hover:bg-[#071D60] text-[#E4BA37] rounded-xl text-xs sm:text-sm font-extrabold shadow-md shadow-[#0A2881]/20 transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+                  className="flex-1 min-w-[180px] py-3.5 bg-[#0A2881] hover:bg-[#071D60] text-[#E4BA37] rounded-xl text-xs sm:text-sm font-extrabold shadow-md shadow-[#0A2881]/20 transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <Calculator className="w-4 h-4 text-[#E4BA37]" />
-                  Calculate Repayments
+                  <Calculator className="w-4 h-4 text-[#E4BA37] shrink-0" />
+                  <span>Calculate Repayments</span>
                 </button>
                 {isCalculatedClient && (
                   <button
@@ -770,9 +770,9 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           {/* ------------------------------------------------------------------ */}
           {/* Right Container: 60% Calculator Visual + 40% Blue Theme Callout   */}
           {/* ------------------------------------------------------------------ */}
-          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-[15px] shadow-soft-xl overflow-hidden flex flex-col min-h-[480px]">
+          <div className="lg:col-span-6 bg-white border border-slate-200/80 rounded-[15px] shadow-soft-xl overflow-hidden flex flex-col min-h-[380px] lg:min-h-[480px] min-w-0">
             {/* Top 60%: calculator.jpeg image fully consuming container width & height */}
-            <div className="basis-[60%] h-[60%] w-full relative overflow-hidden shrink-0">
+            <div className="basis-[55%] sm:basis-[60%] min-h-[200px] flex-1 w-full relative overflow-hidden">
               <img
                 src="/calculator.jpeg"
                 alt="Calculator illustration"
@@ -781,7 +781,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
             </div>
 
             {/* Bottom 40%: Theme blue background (#0A2881) with white text overlay */}
-            <div className="basis-[40%] flex-1 w-full bg-[#0A2881] flex flex-col items-center justify-center text-center px-6 py-6 sm:px-8 space-y-2">
+            <div className="basis-[45%] sm:basis-[40%] shrink-0 w-full bg-[#0A2881] flex flex-col items-center justify-center text-center px-6 py-6 sm:px-8 space-y-2">
               <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                 Ready to calculate?
               </h3>
@@ -796,7 +796,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
         {/* Blue background similar to theme (#0A2881) for the main container */}
         <div className="bg-[#0A2881] border border-[#001D85] rounded-[15px] shadow-soft-xl overflow-hidden">
           {/* Full-width Gradient Header with #E4BA37 Text and 'Calculation Results' */}
-          <div className="bg-gradient-to-r from-[#061C65] via-[#0A2881] to-[#0024A8] px-6 py-4 flex items-center justify-between shrink-0 border-b border-white/10">
+          <div className="bg-gradient-to-r from-[#061C65] via-[#0A2881] to-[#0024A8] px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-2 shrink-0 border-b border-white/10">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-[#E4BA37]">
                 <BarChart3 className="w-4 h-4 text-[#E4BA37]" />
@@ -830,7 +830,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               {/* Left side: Results in list form */}
-              <div className="lg:col-span-5 space-y-6">
+              <div className="lg:col-span-5 space-y-6 min-w-0">
                 {/* ------------------------------------------------------------ */}
                 {/* SECTION 1: Input Details (Heading in Gold #E4BA37)           */}
                 {/* ------------------------------------------------------------ */}
@@ -840,21 +840,21 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                   </h4>
                   <ul className="space-y-3">
                     {/* Item 1: Loan Amount (White container, Left text Theme Blue) */}
-                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
+                    <li className="flex flex-wrap justify-between items-center gap-2 py-2.5 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
                       <span className="font-bold text-[#0A2881]">Loan Amount</span>
-                      <span className="font-extrabold text-slate-900">
+                      <span className="font-extrabold text-slate-900 break-all">
                         ${numLoanAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </li>
                     {/* Item 2: Interest Rate (White container, Left text Theme Blue) */}
-                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
+                    <li className="flex flex-wrap justify-between items-center gap-2 py-2.5 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
                       <span className="font-bold text-[#0A2881]">Interest Rate</span>
                       <span className="font-extrabold text-slate-900">
                         {numInterestRate}%
                       </span>
                     </li>
                     {/* Item 3: Loan Term (White container, Left text Theme Blue) */}
-                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
+                    <li className="flex flex-wrap justify-between items-center gap-2 py-2.5 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
                       <span className="font-bold text-[#0A2881]">Loan Term</span>
                       <span className="font-extrabold text-slate-900">
                         {clientLoanTerm} {clientLoanTerm === 1 ? "year" : "years"}
@@ -875,23 +875,23 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                   </h4>
                   <ul className="space-y-3">
                     {/* Result 1: Monthly Repayments (White container, Left text Theme Blue) */}
-                    <li className="flex justify-between items-center py-3 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
+                    <li className="flex flex-wrap justify-between items-center gap-2 py-3 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
                       <span className="font-bold text-[#0A2881]">Monthly Repayments</span>
-                      <span className="text-base sm:text-lg font-black text-[#0A2881]">
+                      <span className="text-base sm:text-lg font-black text-[#0A2881] break-all">
                         ${monthlyRepayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </li>
                     {/* Result 2: Total Payments (White container, Left text Theme Blue) */}
-                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
+                    <li className="flex flex-wrap justify-between items-center gap-2 py-2.5 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
                       <span className="font-bold text-[#0A2881]">Total Payments</span>
-                      <span className="font-extrabold text-slate-900">
+                      <span className="font-extrabold text-slate-900 break-all">
                         ${Math.round(totalCostOfLoan).toLocaleString()}
                       </span>
                     </li>
                     {/* Result 3: Total Interest (White container, Left text Theme Blue) */}
-                    <li className="flex justify-between items-center py-2.5 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
+                    <li className="flex flex-wrap justify-between items-center gap-2 py-2.5 px-4 rounded-xl bg-white border border-slate-100 shadow-xs text-xs sm:text-sm">
                       <span className="font-bold text-[#0A2881]">Total Interest</span>
-                      <span className="font-extrabold text-slate-900">
+                      <span className="font-extrabold text-slate-900 break-all">
                         ${Math.round(totalInterestPaid).toLocaleString()}
                       </span>
                     </li>
@@ -987,10 +987,10 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
         </div>
 
         {/* Tab Selectors (Matching 3rd screenshot layout) */}
-        <div className="flex gap-1.5 bg-slate-100 p-1 rounded-xl self-start md:self-auto border border-slate-200/40">
+        <div className="flex flex-wrap gap-1.5 bg-slate-100 p-1 rounded-xl self-start md:self-auto border border-slate-200/40 w-full sm:w-auto">
           <button
             onClick={() => setActiveTab("Repayments")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 sm:flex-initial text-center px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all ${
               activeTab === "Repayments"
                 ? `bg-white ${primaryText} shadow-xs`
                 : "text-slate-500 hover:text-slate-800"
@@ -1000,7 +1000,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           </button>
           <button
             onClick={() => setActiveTab("Borrowing")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 sm:flex-initial text-center px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all ${
               activeTab === "Borrowing"
                 ? `bg-white ${primaryText} shadow-xs`
                 : "text-slate-500 hover:text-slate-800"
@@ -1010,7 +1010,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           </button>
           <button
             onClick={() => setActiveTab("InterestOnly")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 sm:flex-initial text-center px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all ${
               activeTab === "InterestOnly"
                 ? `bg-white ${primaryText} shadow-xs`
                 : "text-slate-500 hover:text-slate-800"
@@ -1025,9 +1025,9 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
       {/* TAB 1: LOAN REPAYMENTS                                               */}
       {/* ==================================================================== */}
       {activeTab === "Repayments" && (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
           {/* Left panel: Loan Details input (styled matching screenshot 3) */}
-          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-soft-xl flex flex-col justify-between">
+          <div className="lg:col-span-6 bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-soft-xl flex flex-col justify-between min-w-0">
             <div className="space-y-6">
               <h3 className={`text-base font-extrabold border-b border-slate-50 pb-2 ${primaryText}`}>
                 Loan Details
@@ -1122,7 +1122,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           </div>
 
           {/* Right panel: Estimated Repayments (styled matching screenshot 3) */}
-          <div className="md:col-span-6 bg-slate-50 border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-inner flex flex-col justify-between">
+          <div className="lg:col-span-6 bg-slate-50 border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-inner flex flex-col justify-between min-w-0 @container">
             <div className="space-y-6">
               <div>
                 <h3 className={`text-base font-extrabold ${primaryText}`}>Estimated Repayments</h3>
@@ -1137,20 +1137,20 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                 <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Monthly Repayment
                 </span>
-                <span className={`text-4xl sm:text-5xl font-black tracking-tight block ${primaryText}`}>
+                <span className={`text-[clamp(1.75rem,6cqi,3rem)] font-black tracking-tight block break-words ${primaryText}`}>
                   ${monthlyRepayment.toLocaleString()}
                 </span>
               </div>
 
               {/* Row Stats */}
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="bg-white border border-slate-200/50 p-4 rounded-2xl">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div className="bg-white border border-slate-200/50 p-4 rounded-2xl min-w-0">
                   <span className="text-[10px] font-bold text-slate-400 block mb-0.5">Total Principal</span>
-                  <span className="text-sm font-bold text-slate-700">${loanAmount.toLocaleString()}</span>
+                  <span className="text-sm font-bold text-slate-700 break-words">${loanAmount.toLocaleString()}</span>
                 </div>
-                <div className="bg-white border border-slate-200/50 p-4 rounded-2xl">
+                <div className="bg-white border border-slate-200/50 p-4 rounded-2xl min-w-0">
                   <span className="text-[10px] font-bold text-slate-400 block mb-0.5">Total Interest Paid</span>
-                  <span className="text-sm font-bold text-slate-700">${totalInterestPaid.toLocaleString()}</span>
+                  <span className="text-sm font-bold text-slate-700 break-words">${totalInterestPaid.toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -1160,7 +1160,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                 Total Cost of Loan
               </span>
-              <span className={`text-2xl font-black tracking-tight ${primaryText}`}>
+              <span className={`text-2xl font-black tracking-tight break-words ${primaryText}`}>
                 ${totalCostOfLoan.toLocaleString()}
               </span>
             </div>
@@ -1172,9 +1172,9 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
       {/* TAB 2: BORROWING POWER                                               */}
       {/* ==================================================================== */}
       {activeTab === "Borrowing" && (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
           {/* Left panel: Financial Inputs */}
-          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-soft-xl space-y-6">
+          <div className="lg:col-span-6 bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-soft-xl space-y-6 min-w-0">
             <h3 className={`text-base font-extrabold border-b border-slate-50 pb-2 ${primaryText}`}>
               Financial Circumstances
             </h3>
@@ -1198,8 +1198,8 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
             </div>
 
             {/* Expenses & Commitments */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="min-w-0">
                 <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Monthly Expenses
                 </label>
@@ -1213,7 +1213,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                 </div>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Other Monthly Loans
                 </label>
@@ -1229,8 +1229,8 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
             </div>
 
             {/* Credit Limits & Dependents */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="min-w-0">
                 <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Credit Card Limits
                 </label>
@@ -1244,7 +1244,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                 </div>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Dependents
                 </label>
@@ -1259,8 +1259,8 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
             </div>
 
             {/* Base Interest Rate & Date inputs */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="min-w-0">
                 <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Assumed Rate
                 </label>
@@ -1278,7 +1278,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                 </div>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Start Date
                 </label>
@@ -1293,7 +1293,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           </div>
 
           {/* Right panel: Estimated Borrowing Capacity */}
-          <div className="md:col-span-6 bg-slate-50 border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-inner flex flex-col justify-between">
+          <div className="lg:col-span-6 bg-slate-50 border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-inner flex flex-col justify-between min-w-0 @container">
             <div className="space-y-6">
               <div>
                 <h3 className={`text-base font-extrabold ${primaryText}`}>Borrowing Capacity</h3>
@@ -1308,18 +1308,18 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                 <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   ESTIMATED BORROWING UP TO
                 </span>
-                <span className={`text-3xl sm:text-4xl font-black tracking-tight block ${primaryText}`}>
+                <span className={`text-[clamp(1.5rem,5.5cqi,2.5rem)] font-black tracking-tight block break-words ${primaryText}`}>
                   A$ {borrowingPower.toLocaleString()}
                 </span>
               </div>
 
               {/* Serviceability info */}
               <div className="bg-white border border-slate-200/50 p-4.5 rounded-2xl space-y-2">
-                <div className="flex justify-between text-xs font-bold text-slate-500">
+                <div className="flex flex-wrap justify-between gap-2 text-xs font-bold text-slate-500">
                   <span>Assessed Interest Rate</span>
                   <span className={primaryText}>{(borrowInterestRate + 3).toFixed(2)}%</span>
                 </div>
-                <div className="flex justify-between text-xs font-bold text-slate-500">
+                <div className="flex flex-wrap justify-between gap-2 text-xs font-bold text-slate-500">
                   <span>Max Monthly Repayment Capacity</span>
                   <span className="text-slate-800">${maxMonthlyAffordable.toLocaleString()}</span>
                 </div>
@@ -1337,9 +1337,9 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
       {/* TAB 3: INTEREST ONLY                                                 */}
       {/* ==================================================================== */}
       {activeTab === "InterestOnly" && (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
           {/* Left panel: Interest Only Details */}
-          <div className="md:col-span-6 bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-soft-xl space-y-6">
+          <div className="lg:col-span-6 bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-soft-xl space-y-6 min-w-0">
             <h3 className={`text-base font-extrabold border-b border-slate-50 pb-2 ${primaryText}`}>
               Interest Only Terms
             </h3>
@@ -1382,8 +1382,8 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
             </div>
 
             {/* Terms grid: total term and IO term */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="min-w-0">
                 <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Total Term (Years)
                 </label>
@@ -1397,7 +1397,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                 </div>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
                   Interest Only Term (Years)
                 </label>
@@ -1427,7 +1427,7 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
           </div>
 
           {/* Right panel: Interest Only Repayments details */}
-          <div className="md:col-span-6 bg-slate-50 border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-inner flex flex-col justify-between">
+          <div className="lg:col-span-6 bg-slate-50 border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-inner flex flex-col justify-between min-w-0">
             <div className="space-y-6">
               <div>
                 <h3 className={`text-base font-extrabold ${primaryText}`}>Interest Only Repayments</h3>
@@ -1442,27 +1442,27 @@ export default function CalculatorsTab({ variant }: CalculatorsTabProps = {}) {
                   <span className="text-[10px] font-bold text-slate-400 block mb-0.5">
                     MONTHLY INTEREST-ONLY REPAYMENT ({ioTerm} Years)
                   </span>
-                  <span className={`text-2xl font-black ${primaryText}`}>${ioMonthlyRepayment.toLocaleString()}</span>
+                  <span className={`text-2xl font-black break-words ${primaryText}`}>${ioMonthlyRepayment.toLocaleString()}</span>
                 </div>
 
                 <div className="bg-white border border-slate-200/50 p-5 rounded-2xl text-center shadow-xs">
                   <span className="text-[10px] font-bold text-slate-400 block mb-0.5">
                     MONTHLY P&I REPAYMENT (Remaining {ioTotalTerm - ioTerm} Years)
                   </span>
-                  <span className="text-2xl font-black text-slate-700">${postIoMonthlyRepayment.toLocaleString()}</span>
+                  <span className="text-2xl font-black text-slate-700 break-words">${postIoMonthlyRepayment.toLocaleString()}</span>
                 </div>
               </div>
             </div>
 
             {/* Cost indicators */}
-            <div className="pt-6 border-t border-slate-200/60 mt-6 grid grid-cols-2 gap-4">
-              <div>
+            <div className="pt-6 border-t border-slate-200/60 mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="min-w-0">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Total Interest Paid</span>
-                <span className={`text-lg font-black ${primaryText}`}>${ioTotalInterest.toLocaleString()}</span>
+                <span className={`text-lg font-black break-words ${primaryText}`}>${ioTotalInterest.toLocaleString()}</span>
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Total Cost of Loan</span>
-                <span className="text-lg font-black text-slate-700">${ioTotalCost.toLocaleString()}</span>
+                <span className="text-lg font-black text-slate-700 break-words">${ioTotalCost.toLocaleString()}</span>
               </div>
             </div>
           </div>

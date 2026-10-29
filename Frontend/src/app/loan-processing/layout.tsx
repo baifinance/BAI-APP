@@ -29,7 +29,17 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
   // Mobile sidebar is open only for the path it was opened on, so navigating closes it
   const [mobileNavPath, setMobileNavPath] = useState<string | null>(null);
   const mobileNavOpen = mobileNavPath === pathname;
+  const closeMobileNav = () => setMobileNavPath(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeMobileNav();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileNavOpen]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -69,7 +79,7 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
 
   return (
     <LoanProcessingProvider>
-      <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-[#1429A9] selection:text-white antialiased loan-processing-portal-wrap">
+      <div className="min-h-screen min-h-[100dvh] bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-[#1429A9] selection:text-white antialiased loan-processing-portal-wrap">
         
         {/* Desktop sidebar (full) */}
         <div className="hidden md:block shrink-0">
@@ -84,8 +94,16 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
             className="bg-[#1429A9] border-black/10 text-white hover:bg-[#0F1F87]"
           />
           {mobileNavOpen && (
-            <div className="fixed inset-y-0 left-8 z-40 w-64 overflow-y-auto">
-              <Sidebar activeTab={activeTab} />
+            <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
+              <button
+                type="button"
+                onClick={closeMobileNav}
+                aria-label="Close navigation menu"
+                className="absolute inset-0 bg-slate-900/60 cursor-pointer"
+              />
+              <div className="absolute inset-y-0 left-8 w-[min(16rem,calc(100vw-2rem))] overflow-y-auto shadow-2xl">
+                <Sidebar activeTab={activeTab} />
+              </div>
             </div>
           )}
         </div>
@@ -101,7 +119,7 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
               </h1>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               
               {/* Notifications Shortcut Link */}
               <Link 
@@ -126,14 +144,14 @@ export default function LoanProcessingLayout({ children }: { children: React.Rea
                 </button>
 
                 {isProfileOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200/80 shadow-lg p-3.5 z-40 animate-fadeIn rounded-none">
+                  <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white border border-slate-200/80 shadow-lg p-3.5 z-40 animate-fadeIn rounded-none">
                     {/* Account detail row */}
-                    <div className="flex items-center gap-3 pb-3 mb-2.5 border-b border-slate-100 select-none">
+                    <div className="flex items-center gap-3 pb-3 mb-2.5 border-b border-slate-100 select-none min-w-0">
                       <div className="w-11 h-11 rounded-full bg-[#1429A9] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
                         {initials}
                       </div>
-                      <div className="flex flex-col text-left">
-                        <span className="font-extrabold text-slate-800 text-xs leading-none">{fullName || "Loan Processing"}</span>
+                      <div className="flex flex-col text-left min-w-0 flex-1">
+                        <span className="font-extrabold text-slate-800 text-xs leading-none truncate">{fullName || "Loan Processing"}</span>
                         <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider mt-1">Loan Processing Profile</span>
                         <span className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">{email}</span>
                       </div>

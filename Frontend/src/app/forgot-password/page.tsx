@@ -168,8 +168,8 @@ export default function ForgotPasswordPage() {
 
   return (
     <main
-      className="min-h-screen bg-[#0A2881] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans
-  selection:bg-[#0024A8] selection:text-white antialiased relative overflow-hidden pt-16 sm:pt-6"
+      className="min-h-screen min-h-[100dvh] bg-[#0A2881] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans
+  selection:bg-[#0024A8] selection:text-white antialiased relative overflow-hidden pt-20 sm:pt-20 xl:pt-8"
     >
       {/* ====================================================================== */}
       {/* 1. BACKGROUND LAYERS (COPIED FROM LOGIN PAGE):                         */}
@@ -320,7 +320,7 @@ export default function ForgotPasswordPage() {
         {/* ------------------------------------------------------------------ */}
         {step === "code" && (
           <form onSubmit={handleVerifyCode} className="mt-8 space-y-5">
-            <div className="flex justify-center gap-2 sm:gap-3">
+            <div className="flex justify-center gap-1.5 sm:gap-3">
               {digits.map((digit, index) => (
                 <input
                   key={index}
@@ -332,7 +332,7 @@ export default function ForgotPasswordPage() {
                   inputMode="numeric"
                   maxLength={1}
                   aria-label={`Verification digit ${index + 1}`}
-                  className="h-12 w-10 rounded-xl border border-slate-200 bg-slate-50 text-center text-xl font-black text-[#0A2881] outline-none focus:border-[#0A2881] focus:ring-2 focus:ring-[#0A2881]/10 sm:w-12"
+                  className="h-12 flex-1 max-w-10 sm:max-w-12 min-w-0 rounded-xl border border-slate-200 bg-slate-50 text-center text-lg sm:text-xl font-black text-[#0A2881] outline-none focus:border-[#0A2881] focus:ring-2 focus:ring-[#0A2881]/10"
                 />
               ))}
             </div>
