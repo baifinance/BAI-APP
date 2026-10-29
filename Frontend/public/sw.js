@@ -1,4 +1,4 @@
-const CACHE_NAME = "bai-app-v2";
+const CACHE_NAME = "bai-app-v3";
 const STATIC_ASSETS = [
   "/",
   "/manifest.webmanifest",
@@ -10,7 +10,12 @@ const STATIC_ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches
+      .open(CACHE_NAME)
+      // One missing asset must not fail the whole service worker install.
+      .then((cache) =>
+        Promise.allSettled(STATIC_ASSETS.map((asset) => cache.add(asset)))
+      )
   );
   self.skipWaiting();
 });
@@ -40,6 +45,22 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Navigations: network-first so a deploy never serves a stale HTML shell.
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const cloned = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
+          return response;
+        })
+        .catch(() =>
+          caches.match(request).then((cached) => cached || caches.match("/"))
+        )
     );
     return;
   }

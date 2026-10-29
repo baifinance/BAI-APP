@@ -23,6 +23,7 @@ import {
   getPushSubscription,
   isPushSupported,
 } from "@/lib/push";
+import InstallAppCard from "@/components/InstallAppCard";
 
 // ==============================================================================
 // SUB-COMPONENT: Accessible Switch Toggle Button
@@ -204,7 +205,8 @@ export default function NotificationSettings() {
   // Render Main Notification Settings Card
   // ----------------------------------------------------------------------------
   return (
-    <section className="bg-white border border-slate-200/80 rounded-xl p-6 sm:p-7 shadow-sm space-y-5">
+    <>
+      <section className="bg-white border border-slate-200/80 rounded-xl p-6 sm:p-7 shadow-sm space-y-5">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-2xl bg-blue-50 text-[#0A2881] flex items-center justify-center shrink-0">
           <Bell className="w-5 h-5" />
@@ -299,6 +301,8 @@ export default function NotificationSettings() {
           {message}
         </p>
       )}
-    </section>
+      </section>
+      <InstallAppCard />
+    </>
   );
 }
