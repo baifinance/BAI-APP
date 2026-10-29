@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import SessionExpiryModal from "@/components/SessionExpiryModal";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
@@ -39,6 +40,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${poppins.variable} scroll-smooth antialiased`}>
       <body className="min-h-screen bg-[#FAFAFA] font-sans text-slate-900 selection:bg-blue-600 selection:text-white flex flex-col">
+        <Script id="bai-install-capture" strategy="beforeInteractive">
+          {`window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__baiInstallPrompt=e;});`}
+        </Script>
         <Providers>{children}</Providers>
         <PwaInstallPrompt />
         <SessionExpiryModal />

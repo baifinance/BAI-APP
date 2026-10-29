@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Download, MoreVertical, Share2, Smartphone } from "lucide-react";
+import { Download, Loader2, MoreVertical, Share2, Smartphone } from "lucide-react";
 import {
+  isAndroid,
   isDismissed,
   isIOS,
-  isMobile,
   promptInstall,
   rememberDismissal,
   useIsClient,
@@ -13,21 +13,18 @@ import {
 } from "@/lib/pwa";
 
 /**
- * Mobile-only hard-block install overlay.
+ * Hard-block install overlay for Android and iOS only.
  *
  * Desktop users get no install prompt UI — they can install via the browser
  * address bar if they choose.
  *
- * Mobile and tablet devices (phone UA, iPad, Android tablet, or ≤1024px) see
- * a full-screen "Download BAI APP" overlay until they install or explicitly
- * continue to the website.
- *
- * Chrome/Android: install button triggers beforeinstallprompt; until the
- * browser fires that event, manual menu instructions are shown instead of a
- * dead button.
- * iOS/iPadOS Safari: "Add to Home Screen → Share" hint (no prompt API).
+ * Android (Chrome): only the full WebAPK install flow. The gold button appears
+ * when beforeinstallprompt is available; until then we point at Chrome's
+ * "Install app" menu entry. "Add to Home screen" is never suggested because it
+ * only creates a shortcut, not a full PWA install.
+ * iOS/iPadOS Safari: "Share → Add to Home Screen" hint (no prompt API).
  * Dismissal is remembered in localStorage for 30 days.
- * Already installed (standalone mode): nothing shown.
+ * Already installed (standalone mode / WebAPK): nothing shown.
  */
 export default function PwaInstallPrompt() {
   const isClient = useIsClient();
@@ -46,16 +43,18 @@ export default function PwaInstallPrompt() {
   // Server + hydration render must match: don't render client-only UI yet.
   if (!isClient) return null;
 
-  // Desktop: no install prompt UI at all.
-  if (!isMobile()) return null;
+  const android = isAndroid();
+  const ios = isIOS();
 
-  // Already installed (standalone mode): nothing shown.
+  // Desktop / other platforms: no install prompt UI at all.
+  if (!android && !ios) return null;
+
+  // Already installed: nothing shown.
   if (installed) return null;
 
   // User dismissed within the last 30 days: nothing shown.
   if (dismissed || isDismissed()) return null;
 
-  // Mobile hard-block overlay.
   return (
     <div
       className="fixed inset-0 z-[60] flex flex-col items-center justify-between bg-gradient-to-b from-[#0024A8] to-[#0A2881] text-white p-6 pointer-events-auto"
@@ -97,32 +96,43 @@ export default function PwaInstallPrompt() {
           even when the tab is closed.
         </p>
 
-        {/* Primary CTA */}
-        {canInstall ? (
-          <button
-            type="button"
-            onClick={installApp}
-            className="pointer-events-auto w-full flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-b from-[#F2C94C] to-[#E4BA37] text-[#0A2881] text-sm font-bold shadow-xl shadow-[#E4BA37]/30 transition-all hover:from-[#F7D45E] hover:to-[#EDC23E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-            aria-label="Install BAI APP"
-          >
-            <Download className="w-5 h-5" />
-            Install BAI APP
-          </button>
-        ) : isIOS() ? (
+        {/* Android: full install only */}
+        {android &&
+          (canInstall ? (
+            <button
+              type="button"
+              onClick={installApp}
+              className="pointer-events-auto w-full flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-b from-[#F2C94C] to-[#E4BA37] text-[#0A2881] text-sm font-bold shadow-xl shadow-[#E4BA37]/30 transition-all hover:from-[#F7D45E] hover:to-[#EDC23E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+              aria-label="Install BAI APP"
+            >
+              <Download className="w-5 h-5" />
+              Install BAI APP
+            </button>
+          ) : (
+            <div className="flex flex-col items-center gap-3 w-full">
+              <div className="flex items-start gap-3 px-6 py-4 rounded-2xl border border-white/20 bg-white/10 text-sm font-bold">
+                <MoreVertical className="w-5 h-5 text-[#E4BA37] shrink-0 mt-0.5" />
+                <span className="text-left leading-relaxed">
+                  Open Chrome&apos;s <span className="text-[#E4BA37]">⋮</span> menu
+                  and choose{" "}
+                  <span className="text-[#E4BA37]">Install app</span>.
+                </span>
+              </div>
+              <p className="flex items-center gap-2 text-xs text-white/70 text-center">
+                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                Preparing install… if it&apos;s not listed, wait a moment and
+                reload.
+              </p>
+            </div>
+          ))}
+
+        {/* iOS: no install prompt API */}
+        {ios && (
           <div className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl border border-white/20 bg-white/10 text-sm font-bold text-center">
             <Smartphone className="w-5 h-5 text-[#E4BA37] shrink-0" />
             <span>Share</span>
             <Share2 className="w-4 h-4 text-[#E4BA37] shrink-0" />
             <span>Add to Home Screen</span>
-          </div>
-        ) : (
-          <div className="flex items-start gap-3 px-6 py-4 rounded-2xl border border-white/20 bg-white/10 text-sm font-bold">
-            <MoreVertical className="w-5 h-5 text-[#E4BA37] shrink-0 mt-0.5" />
-            <span className="text-left leading-relaxed">
-              Open your browser menu and choose{" "}
-              <span className="text-[#E4BA37]">Install app</span> or{" "}
-              <span className="text-[#E4BA37]">Add to Home screen</span>.
-            </span>
           </div>
         )}
       </div>

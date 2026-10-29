@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    id: "/",
     name: "BAI APP",
     short_name: "BAI APP",
     description:
@@ -11,6 +12,12 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     background_color: "#FAFAFA",
     theme_color: "#0A2881",
+    related_applications: [
+      {
+        platform: "webapp",
+        url: "/manifest.webmanifest",
+      },
+    ],
     icons: [
       {
         src: "/icons/icon-192.png",
@@ -29,22 +36,6 @@ export default function manifest(): MetadataRoute.Manifest {
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
-      },
-    ],
-    screenshots: [
-      {
-        src: "/calculator_illustration.jpg",
-        sizes: "1280x720",
-        type: "image/jpeg",
-        form_factor: "wide",
-        label: "BAI APP loan calculator",
-      },
-      {
-        src: "/loginImage.jpeg",
-        sizes: "750x1334",
-        type: "image/jpeg",
-        form_factor: "narrow",
-        label: "BAI APP login",
       },
     ],
   };
