@@ -174,10 +174,10 @@ export default function DashboardTab() {
           
           {/* Active Filter Bar */}
           {(selectedDate || (isRangeActive && startDate && endDate)) && (
-            <div className="bg-[#1429A9]/5 border border-[#1429A9]/20 p-4 flex justify-between items-center text-xs text-slate-700 font-bold select-none rounded-none">
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-[#1429A9] rounded-full" />
-                <span>
+            <div className="bg-[#1429A9]/5 border border-[#1429A9]/20 p-4 flex flex-wrap justify-between items-center gap-3 text-xs text-slate-700 font-bold select-none rounded-none">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-1.5 h-1.5 bg-[#1429A9] rounded-full shrink-0" />
+                <span className="break-words">
                   Filtering audit data for: <strong className="text-[#1429A9]">{selectedDate ? `Date: ${selectedDate}` : `Range: ${startDate} to ${endDate}`}</strong>
                 </span>
               </div>
@@ -188,7 +188,7 @@ export default function DashboardTab() {
                   setStartDate(null);
                   setEndDate(null);
                 }}
-                className="text-[#1429A9] hover:underline"
+                className="text-[#1429A9] hover:underline shrink-0"
               >
                 Clear Filter
               </button>
@@ -207,15 +207,17 @@ export default function DashboardTab() {
                   : "bg-white border-slate-200/80 text-[#1429A9]"
               }`}
             >
-              <div className={`text-4xl font-extrabold tracking-tight block mb-1 ${statusFilter === "To Be Reviewed" ? "text-white" : "text-[#1429A9]"}`}>
-                {toBeReviewedCount}
+              <div className="flex justify-between items-start gap-2 mb-1">
+                <div className={`text-4xl font-extrabold tracking-tight block ${statusFilter === "To Be Reviewed" ? "text-white" : "text-[#1429A9]"}`}>
+                  {toBeReviewedCount}
+                </div>
+                <div className={`shrink-0 ${statusFilter === "To Be Reviewed" ? "text-white/20" : "text-[#1429A9]/20"}`}>
+                  <FileSearch className="w-8 h-8" />
+                </div>
               </div>
               <span className={`text-[10px] font-extrabold uppercase tracking-wider block ${statusFilter === "To Be Reviewed" ? "text-white/80" : "text-slate-500"}`}>
                 To Be Reviewed
               </span>
-              <div className={`absolute bottom-6 right-6 ${statusFilter === "To Be Reviewed" ? "text-white/20" : "text-[#1429A9]/20"}`}>
-                <FileSearch className="w-8 h-8" />
-              </div>
             </div>
 
             {/* Additional Request Card */}
@@ -227,15 +229,17 @@ export default function DashboardTab() {
                   : "bg-white border-slate-200/80 text-amber-600"
               }`}
             >
-              <div className={`text-4xl font-extrabold tracking-tight block mb-1 ${statusFilter === "Additional Request" ? "text-white" : "text-amber-600"}`}>
-                {additionalRequestCount}
+              <div className="flex justify-between items-start gap-2 mb-1">
+                <div className={`text-4xl font-extrabold tracking-tight block ${statusFilter === "Additional Request" ? "text-white" : "text-amber-600"}`}>
+                  {additionalRequestCount}
+                </div>
+                <div className={`shrink-0 ${statusFilter === "Additional Request" ? "text-white/20" : "text-amber-600/20"}`}>
+                  <HelpCircle className="w-8 h-8" />
+                </div>
               </div>
               <span className={`text-[10px] font-extrabold uppercase tracking-wider block ${statusFilter === "Additional Request" ? "text-white/80" : "text-slate-500"}`}>
                 Additional Request
               </span>
-              <div className={`absolute bottom-6 right-6 ${statusFilter === "Additional Request" ? "text-white/20" : "text-amber-600/20"}`}>
-                <HelpCircle className="w-8 h-8" />
-              </div>
             </div>
 
             {/* Approved Card */}
@@ -247,15 +251,17 @@ export default function DashboardTab() {
                   : "bg-white border-slate-200/80 text-emerald-600"
               }`}
             >
-              <div className={`text-4xl font-extrabold tracking-tight block mb-1 ${statusFilter === "Approved" ? "text-white" : "text-emerald-600"}`}>
-                {approvedCount}
+              <div className="flex justify-between items-start gap-2 mb-1">
+                <div className={`text-4xl font-extrabold tracking-tight block ${statusFilter === "Approved" ? "text-white" : "text-emerald-600"}`}>
+                  {approvedCount}
+                </div>
+                <div className={`shrink-0 ${statusFilter === "Approved" ? "text-white/20" : "text-emerald-600/20"}`}>
+                  <CheckCircle className="w-8 h-8" />
+                </div>
               </div>
               <span className={`text-[10px] font-extrabold uppercase tracking-wider block ${statusFilter === "Approved" ? "text-white/80" : "text-slate-500"}`}>
                 Approved
               </span>
-              <div className={`absolute bottom-6 right-6 ${statusFilter === "Approved" ? "text-white/20" : "text-emerald-600/20"}`}>
-                <CheckCircle className="w-8 h-8" />
-              </div>
             </div>
 
             {/* Decline Card */}
@@ -267,15 +273,17 @@ export default function DashboardTab() {
                   : "bg-white border-slate-200/80 text-rose-600"
               }`}
             >
-              <div className={`text-4xl font-extrabold tracking-tight block mb-1 ${statusFilter === "Decline" ? "text-white" : "text-rose-600"}`}>
-                {declineCount}
+              <div className="flex justify-between items-start gap-2 mb-1">
+                <div className={`text-4xl font-extrabold tracking-tight block ${statusFilter === "Decline" ? "text-white" : "text-rose-600"}`}>
+                  {declineCount}
+                </div>
+                <div className={`shrink-0 ${statusFilter === "Decline" ? "text-white/20" : "text-rose-600/20"}`}>
+                  <FileWarning className="w-8 h-8" />
+                </div>
               </div>
               <span className={`text-[10px] font-extrabold uppercase tracking-wider block ${statusFilter === "Decline" ? "text-white/80" : "text-slate-500"}`}>
                 Decline
               </span>
-              <div className={`absolute bottom-6 right-6 ${statusFilter === "Decline" ? "text-white/20" : "text-rose-600/20"}`}>
-                <FileWarning className="w-8 h-8" />
-              </div>
             </div>
 
           </div>
@@ -301,11 +309,11 @@ export default function DashboardTab() {
           </div>
 
           {/* SECTION 2: SUBMITTED DOCUMENTS (TABLE SHARP EDGES override) */}
-          <div className="bg-white rounded-none border border-slate-200/80 shadow-soft-xl overflow-hidden h-[482px] flex flex-col justify-between">
+          <div className="bg-white rounded-none border border-slate-200/80 shadow-soft-xl overflow-hidden min-h-[360px] lg:h-[482px] flex flex-col justify-between">
             
             {/* Header bar */}
-            <div className="p-5 bg-gradient-to-r from-[#0d1b6b] to-[#1429A9] border-b border-white/10 flex items-center justify-between shrink-0">
-              <div>
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-[#0d1b6b] to-[#1429A9] border-b border-white/10 flex flex-wrap items-center justify-between gap-2 shrink-0">
+              <div className="min-w-0">
                 <h3 className="font-extrabold text-amber-400 text-sm">
                   Recently Submitted Documents {statusFilter !== "All" && <span className="text-amber-300">({statusFilter})</span>}
                 </h3>
@@ -317,7 +325,7 @@ export default function DashboardTab() {
               </div>
               <button 
                 onClick={() => router.push("/loan-processing/review")}
-                className="text-[9px] font-bold text-amber-300 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-none border border-amber-400/30 transition-all select-none"
+                className="text-[9px] font-bold text-amber-300 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-none border border-amber-400/30 transition-all select-none shrink-0"
               >
                 Go to Review Audits
               </button>
@@ -398,23 +406,23 @@ export default function DashboardTab() {
           <div className="bg-white border border-slate-200/80 p-3.5 shadow-soft-xl rounded-none">
             
             {/* Header month & Navigation */}
-            <div className="flex justify-between items-center mb-3 pb-2.5 border-b border-slate-100 select-none min-h-[32px]">
+            <div className="flex flex-wrap justify-between items-center gap-2 mb-3 pb-2.5 border-b border-slate-100 select-none min-h-[32px]">
               {showRangeModal ? (
                 /* Inline Picker range selector */
-                <div className="flex items-center justify-between w-full gap-2 animate-fadeIn">
-                  <div className="flex items-center gap-1">
+                <div className="flex flex-wrap items-center justify-between w-full gap-2 animate-fadeIn">
+                  <div className="flex flex-wrap items-center gap-1 flex-1 min-w-0">
                     <input 
                       type="date" 
                       value={rangeStart} 
                       onChange={(e) => setRangeStart(e.target.value)} 
-                      className="bg-slate-50 border border-slate-200 text-xs px-2 py-1 rounded-none font-bold text-slate-800 focus:outline-none focus:border-[#1429A9] w-[105px]"
+                      className="bg-slate-50 border border-slate-200 text-xs px-2 py-1 rounded-none font-bold text-slate-800 focus:outline-none focus:border-[#1429A9] flex-1 min-w-[100px]"
                     />
                     <span className="text-[10px] text-slate-400 font-bold">→</span>
                     <input 
                       type="date" 
                       value={rangeEnd} 
                       onChange={(e) => setRangeEnd(e.target.value)} 
-                      className="bg-slate-50 border border-slate-200 text-xs px-2 py-1 rounded-none font-bold text-slate-800 focus:outline-none focus:border-[#1429A9] w-[105px]"
+                      className="bg-slate-50 border border-slate-200 text-xs px-2 py-1 rounded-none font-bold text-slate-800 focus:outline-none focus:border-[#1429A9] flex-1 min-w-[100px]"
                     />
                   </div>
                   <button 
@@ -437,26 +445,26 @@ export default function DashboardTab() {
               ) : (
                 /* Static view navigation */
                 <>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 min-w-0">
                     <button 
                       onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
-                      className="p-1 hover:bg-slate-100 rounded-none text-slate-500 hover:text-slate-800 transition-colors"
+                      className="p-1 hover:bg-slate-100 rounded-none text-slate-500 hover:text-slate-800 transition-colors shrink-0"
                     >
                       <ChevronLeft className="w-3.5 h-3.5" />
                     </button>
-                    <span className="font-extrabold text-slate-800 text-[11px] uppercase tracking-wider">
+                    <span className="font-extrabold text-slate-800 text-[11px] uppercase tracking-wider truncate">
                       {currentMonth.toLocaleString("default", { month: "long", year: "numeric" })}
                     </span>
                     <button 
                       onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-                      className="p-1 hover:bg-slate-100 rounded-none text-slate-500 hover:text-slate-800 transition-colors"
+                      className="p-1 hover:bg-slate-100 rounded-none text-slate-500 hover:text-slate-800 transition-colors shrink-0"
                     >
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                   <button 
                     onClick={() => setShowRangeModal(true)}
-                    className="bg-[#1429A9] text-amber-400 hover:bg-[#1b32cc] font-extrabold text-[10px] px-3.5 py-1.5 rounded-none transition-all uppercase tracking-wider"
+                    className="bg-[#1429A9] text-amber-400 hover:bg-[#1b32cc] font-extrabold text-[10px] px-3.5 py-1.5 rounded-none transition-all uppercase tracking-wider shrink-0"
                   >
                     Filter
                   </button>
@@ -519,8 +527,8 @@ export default function DashboardTab() {
           </div>
 
           {/* Grouped Compliance Audit logs */}
-          <div className="bg-white border border-slate-200/80 p-3.5 shadow-soft-xl rounded-none flex flex-col h-[482px]">
-            <h3 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider mb-2.5 pb-2 border-b border-slate-100 flex justify-between items-center select-none shrink-0">
+          <div className="bg-white border border-slate-200/80 p-3.5 shadow-soft-xl rounded-none flex flex-col min-h-[320px] lg:h-[482px]">
+            <h3 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider mb-2.5 pb-2 border-b border-slate-100 flex flex-wrap justify-between items-center gap-2 select-none shrink-0">
               <span>Audit Log</span>
               <span className="text-[10px] text-slate-400 font-bold font-mono">({filteredAuditLogs.length} entries)</span>
             </h3>

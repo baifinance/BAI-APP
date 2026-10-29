@@ -166,12 +166,12 @@ export default function ReviewTab({ submittedDocs, setSubmittedDocs, onLogAction
               <div className="space-y-3 pt-2">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Audit Actions</span>
                 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <button
                     onClick={() => handleApprove(selectedDoc.id, selectedDoc.clientName, selectedDoc.documentName)}
                     className="py-3 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold flex items-center justify-center gap-1 shadow-md shadow-emerald-600/10 transition-all"
                   >
-                    <Check className="w-3.5 h-3.5" />
+                    <Check className="w-3.5 h-3.5 shrink-0" />
                     <span>Approve</span>
                   </button>
 
@@ -179,7 +179,7 @@ export default function ReviewTab({ submittedDocs, setSubmittedDocs, onLogAction
                     onClick={() => handleAdditionalRequest(selectedDoc.id, selectedDoc.clientName, selectedDoc.documentName)}
                     className="py-3 px-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold flex items-center justify-center gap-1 shadow-md shadow-amber-500/10 transition-all"
                   >
-                    <HelpCircle className="w-3.5 h-3.5" />
+                    <HelpCircle className="w-3.5 h-3.5 shrink-0" />
                     <span>Request Info</span>
                   </button>
 
@@ -187,7 +187,7 @@ export default function ReviewTab({ submittedDocs, setSubmittedDocs, onLogAction
                     onClick={() => setIsDeclineOpen(true)}
                     className="py-3 px-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold flex items-center justify-center gap-1 shadow-md shadow-rose-600/10 transition-all"
                   >
-                    <XCircle className="w-3.5 h-3.5" />
+                    <XCircle className="w-3.5 h-3.5 shrink-0" />
                     <span>Decline</span>
                   </button>
                 </div>

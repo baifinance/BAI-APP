@@ -157,10 +157,25 @@ export default function LoanProgressStepper({
           const isActionNeeded = step.status === "action_needed";
           const isUpcoming = step.status === "upcoming";
           const isLast = idx === steps.length - 1;
+          const isConnectorActive =
+            isCompleted &&
+            !isLast &&
+            (steps[idx + 1].status === "completed" ||
+              steps[idx + 1].status === "in_process");
 
           return (
             <div key={step.id} className="relative flex items-start gap-4 sm:gap-6 group">
               
+              {/* Vertical Connector Line spanning continuously to the next step circle */}
+              {!isLast && (
+                <div
+                  aria-hidden="true"
+                  className={`absolute left-5 sm:left-[22px] -translate-x-1/2 top-10 sm:top-11 -bottom-5 w-0.5 transition-colors duration-300 z-0 ${
+                    isConnectorActive ? "bg-[#0024A8]" : "bg-slate-200"
+                  }`}
+                />
+              )}
+
               {/* -------------------------------------------------------------- */}
               {/* 1. STEPPER NODE (Check icon when completed, or step number)    */}
               {/* -------------------------------------------------------------- */}
@@ -184,24 +199,13 @@ export default function LoanProgressStepper({
                     <span>{step.id}</span>
                   )}
                 </div>
-
-                {/* Vertical Connector Line */}
-                {!isLast && (
-                  <div
-                    className={`w-0.5 min-h-[44px] sm:min-h-[48px] h-full transition-colors ${
-                      isCompleted && (steps[idx + 1].status === "completed" || steps[idx + 1].status === "in_process")
-                        ? "bg-[#0024A8]"
-                        : "bg-slate-200"
-                    }`}
-                  />
-                )}
               </div>
 
               {/* -------------------------------------------------------------- */}
               {/* 2. VISIBLE BOXED CONTAINER (Aligned to left with pulse ring)   */}
               {/* -------------------------------------------------------------- */}
               <div
-                className={`relative flex-1 rounded-2xl p-4 sm:p-5 transition-all text-left border ${
+                className={`relative flex-1 min-w-0 rounded-2xl p-4 sm:p-5 transition-all text-left border ${
                   isCompleted
                     ? "bg-[#0024A8] border-[#0024A8] text-white shadow-sm shadow-[#0024A8]/10"
                     : isInProcess
@@ -210,11 +214,11 @@ export default function LoanProgressStepper({
                 }`}
               >
                 {/* Header row inside boxed container */}
-                <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
+                <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 mb-1.5">
                   
                   {/* Step Title in a larger font (Left-aligned) */}
                   <h3
-                    className={`text-base sm:text-lg font-black tracking-tight text-left ${
+                    className={`text-base sm:text-lg font-black tracking-tight text-left min-w-0 break-words ${
                       isCompleted
                         ? "text-white"
                         : isInProcess

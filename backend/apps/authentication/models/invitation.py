@@ -62,6 +62,13 @@ class Invitation(models.Model):
         help_text="Current state of the invitation link.",
     )
 
+    asana_project_gid = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        help_text="Asana project GID where the invitee's profile was found.",
+    )
+
     created_at = models .DateTimeField(
         auto_now_add=True
     )

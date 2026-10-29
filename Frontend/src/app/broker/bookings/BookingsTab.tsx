@@ -171,16 +171,16 @@ export default function BookingsTab() {
             </div>
           </div>
 
-          <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
               <span key={d}>{d}</span>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {calendarDays.map((day, idx) => {
               if (day === null) {
-                return <div key={`empty-${idx}`} className="aspect-square bg-slate-50/30 rounded-2xl" />;
+                return <div key={`empty-${idx}`} className="aspect-square bg-slate-50/30 rounded-xl sm:rounded-2xl" />;
               }
               const dateStr = formatDateString(day);
               const isSelected = selectedDate === dateStr;
@@ -196,11 +196,11 @@ export default function BookingsTab() {
                 <button
                   key={`day-${day}`}
                   onClick={() => setSelectedDate(dateStr)}
-                  className={`aspect-square rounded-2xl flex flex-col items-center justify-center relative font-bold text-xs transition-all border ${tileClass} ${selectedHighlight}`}
+                  className={`aspect-square rounded-xl sm:rounded-2xl flex flex-col items-center justify-center relative font-bold text-xs transition-all border overflow-hidden p-0.5 ${tileClass} ${selectedHighlight}`}
                 >
                   <span>{day}</span>
                   {hasContent && (
-                    <span className="text-[7px] font-black uppercase text-amber-300 mt-0.5">
+                    <span className="text-[6px] sm:text-[7px] font-black uppercase text-amber-300 mt-0.5 leading-tight truncate max-w-full px-0.5">
                       {daySlots.length} SLT · {dayBookings.length} MTG
                     </span>
                   )}

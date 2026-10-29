@@ -459,7 +459,7 @@ export default function ProfileSettingsTab({
               className="mt-8"
             >
               {/* 6 input boxes to put the OTP */}
-              <div className="flex justify-center items-center gap-2 sm:gap-3">
+              <div className="flex justify-center items-center gap-1.5 sm:gap-3">
                 {mfaDigits.map((digit, index) => (
                   <input
                     key={index}
@@ -476,7 +476,7 @@ export default function ProfileSettingsTab({
                     onChange={(e) => handleMfaDigitChange(index, e.target.value)}
                     onKeyDown={(e) => handleMfaDigitKeyDown(index, e)}
                     onPaste={handleMfaDigitPaste}
-                    className={`w-11 h-14 sm:w-13 sm:h-16 text-center text-xl sm:text-2xl font-bold font-mono rounded-xl sm:rounded-2xl border-2 transition-all outline-none ${
+                    className={`flex-1 max-w-11 sm:max-w-13 min-w-0 h-12 sm:h-16 text-center text-lg sm:text-2xl font-bold font-mono rounded-xl sm:rounded-2xl border-2 transition-all outline-none ${
                       digit
                         ? "border-[#0024A8] bg-blue-50/30 text-slate-900 shadow-xs"
                         : "border-slate-200 bg-slate-50/80 text-slate-900 hover:border-slate-300"
@@ -487,7 +487,7 @@ export default function ProfileSettingsTab({
               </div>
 
               {/* Timer at Bottom Left & Resend Code at Bottom Right */}
-              <div className="flex items-center justify-between mt-4 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 mt-4 text-xs">
                 {/* Bottom Left: Code Expires in (timer). */}
                 <span className="text-slate-500 font-medium">
                   {mfaCountdown > 0 ? (

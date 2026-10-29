@@ -408,10 +408,10 @@ export default function ClientApplicationDashboard({ client: initialClient, onBa
                     >
                       {circleContent}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
                       <span className={`text-sm ${textClass}`}>{stage.label}</span>
                       {stage.index === 3 && isCompleted && (
-                        <span className="px-2.5 py-0.5 rounded-full bg-[#FEE2E2] text-[#B91C1C] text-[10px] font-extrabold uppercase tracking-wider">
+                        <span className="px-2.5 py-0.5 rounded-full bg-[#FEE2E2] text-[#B91C1C] text-[10px] font-extrabold uppercase tracking-wider shrink-0">
                           Action needed
                         </span>
                       )}
@@ -424,7 +424,7 @@ export default function ClientApplicationDashboard({ client: initialClient, onBa
 
           {/* 2. Notification Container (Under Progress Bar) */}
           <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-soft-xl space-y-4">
-            <div className="border-b border-slate-50 pb-2.5 flex items-center justify-between">
+            <div className="border-b border-slate-50 pb-2.5 flex flex-wrap items-center justify-between gap-2">
               <h4 className="font-extrabold text-slate-800 text-sm">Application Alerts</h4>
               <span className="text-[10px] font-bold text-slate-400">Activity Logs · sample data</span>
             </div>

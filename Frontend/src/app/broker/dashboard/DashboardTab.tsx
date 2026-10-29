@@ -171,10 +171,10 @@ export default function DashboardTab() {
 
           {/* Active Filter Indicators */}
           {(selectedDate || (isRangeActive && startDate && endDate)) && (
-            <div className="bg-white border border-[#0038A8] p-4 flex justify-between items-center text-xs text-[#808080] font-bold select-none rounded-[5px]">
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-[#0038A8] rounded-full" />
-                <span className="font-['Inter',sans-serif]">
+            <div className="bg-white border border-[#0038A8] p-4 flex flex-wrap justify-between items-center gap-3 text-xs text-[#808080] font-bold select-none rounded-[5px]">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-1.5 h-1.5 bg-[#0038A8] rounded-full shrink-0" />
+                <span className="font-['Inter',sans-serif] break-words">
                   Filtering statistics for: <strong className="text-[#000000] font-['Poppins',sans-serif]">{selectedDate ? `Date: ${selectedDate}` : `Range: ${startDate} to ${endDate}`}</strong>
                 </span>
               </div>
@@ -185,7 +185,7 @@ export default function DashboardTab() {
                   setStartDate(null);
                   setEndDate(null);
                 }}
-                className="bg-gradient-to-r from-[#0038A8] to-[#002066] text-white px-3 py-1 rounded-[5px] text-xs font-bold transition-all hover:opacity-90 cursor-pointer font-['Poppins',sans-serif]"
+                className="bg-gradient-to-r from-[#0038A8] to-[#002066] text-white px-3 py-1 rounded-[5px] text-xs font-bold transition-all hover:opacity-90 cursor-pointer shrink-0 font-['Poppins',sans-serif]"
               >
                 Clear Filter
               </button>
@@ -194,12 +194,12 @@ export default function DashboardTab() {
 
           {/* SECTION 1.5: TOTAL LOAN VALUE BANNER */}
           <div className="bg-gradient-to-r from-[#0038A8] to-[#002066] border border-[#0038A8] rounded-[5px] p-6 shadow-soft-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 select-none animate-fadeIn text-white">
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <span className="text-xs font-bold text-white uppercase tracking-wider block font-['Inter',sans-serif]">
                 Total Approved Loan Value
               </span>
               <div className="flex items-baseline gap-3 flex-wrap">
-                <span className="text-4xl font-extrabold text-white tracking-tight font-['Inter',sans-serif]">
+                <span className="text-[clamp(1.75rem,4vw,2.25rem)] font-extrabold text-white tracking-tight break-words font-['Inter',sans-serif]">
                   A$ {totalApprovedLoanValue.toLocaleString()}
                 </span>
                 <div className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-white/20 px-2 py-0.5 rounded-[5px] border border-white/30 font-['Poppins',sans-serif]">
@@ -311,16 +311,16 @@ export default function DashboardTab() {
           </div>
 
           {/* SECTION 3: RECENT CLIENT SUMMARY TABLE */}
-          <div className="bg-white rounded-[5px] border border-[#0038A8] shadow-soft-xl overflow-hidden h-[482px] flex flex-col justify-between">
-            <div className="p-5 bg-white border-b border-[#0038A8]/20 flex items-center justify-between shrink-0">
-              <div>
+          <div className="bg-white rounded-[5px] border border-[#0038A8] shadow-soft-xl overflow-hidden min-h-[360px] lg:h-[482px] flex flex-col justify-between">
+            <div className="p-4 sm:p-5 bg-white border-b border-[#0038A8]/20 flex flex-wrap items-center justify-between gap-2 shrink-0">
+              <div className="min-w-0">
                 <h3 className="font-extrabold text-[#000000] text-sm font-['Inter',sans-serif]">
                   Recent Client Summary {statusFilter !== "All" && <span className="text-[#808080] font-['Poppins',sans-serif]">({statusFilter})</span>}
                 </h3>
               </div>
               <Link
                 href="/broker/applications"
-                className="text-[9px] font-bold text-white bg-gradient-to-r from-[#0038A8] to-[#002066] px-3 py-1 rounded-[5px] border border-[#0038A8] transition-all select-none hover:opacity-90 font-['Poppins',sans-serif]"
+                className="text-[9px] font-bold text-white bg-gradient-to-r from-[#0038A8] to-[#002066] px-3 py-1 rounded-[5px] border border-[#0038A8] transition-all select-none hover:opacity-90 shrink-0 font-['Poppins',sans-serif]"
               >
                 View All
               </Link>
@@ -400,23 +400,23 @@ export default function DashboardTab() {
           <div className="bg-white border border-[#0038A8] p-3.5 shadow-soft-xl rounded-[5px]">
 
             {/* Calendar Header with navigation & Inline Filter/Accept button */}
-            <div className="flex justify-between items-center mb-3 pb-2.5 border-b border-[#0038A8]/20 select-none min-h-[32px]">
+            <div className="flex flex-wrap justify-between items-center gap-2 mb-3 pb-2.5 border-b border-[#0038A8]/20 select-none min-h-[32px]">
               {showRangeModal ? (
                 /* Inline Date Range Picker */
-                <div className="flex items-center justify-between w-full gap-2 animate-fadeIn font-['Poppins',sans-serif]">
-                  <div className="flex items-center gap-1">
+                <div className="flex flex-wrap items-center justify-between w-full gap-2 animate-fadeIn font-['Poppins',sans-serif]">
+                  <div className="flex flex-wrap items-center gap-1 flex-1 min-w-0">
                     <input
                       type="date"
                       value={rangeStart}
                       onChange={(e) => setRangeStart(e.target.value)}
-                      className="bg-white border border-[#0038A8]/40 text-xs px-2 py-1 rounded-[5px] font-bold text-[#808080] focus:outline-none focus:border-[#0038A8] w-[105px]"
+                      className="bg-white border border-[#0038A8]/40 text-xs px-2 py-1 rounded-[5px] font-bold text-[#808080] focus:outline-none focus:border-[#0038A8] flex-1 min-w-[100px]"
                     />
                     <span className="text-[10px] text-[#808080] font-bold">→</span>
                     <input
                       type="date"
                       value={rangeEnd}
                       onChange={(e) => setRangeEnd(e.target.value)}
-                      className="bg-white border border-[#0038A8]/40 text-xs px-2 py-1 rounded-[5px] font-bold text-[#808080] focus:outline-none focus:border-[#0038A8] w-[105px]"
+                      className="bg-white border border-[#0038A8]/40 text-xs px-2 py-1 rounded-[5px] font-bold text-[#808080] focus:outline-none focus:border-[#0038A8] flex-1 min-w-[100px]"
                     />
                   </div>
                   <button
@@ -439,26 +439,26 @@ export default function DashboardTab() {
               ) : (
                 /* Normal Header Month Navigation */
                 <>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 min-w-0">
                     <button
                       onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
-                      className="p-1 bg-gradient-to-r from-[#0038A8] to-[#002066] text-white rounded-[5px] hover:opacity-90 transition-opacity cursor-pointer"
+                      className="p-1 bg-gradient-to-r from-[#0038A8] to-[#002066] text-white rounded-[5px] hover:opacity-90 transition-opacity cursor-pointer shrink-0"
                     >
                       <ChevronLeft className="w-3.5 h-3.5 text-white" />
                     </button>
-                    <span className="font-extrabold text-[#000000] text-[11px] uppercase tracking-wider px-1 font-['Inter',sans-serif]">
+                    <span className="font-extrabold text-[#000000] text-[11px] uppercase tracking-wider px-1 truncate font-['Inter',sans-serif]">
                       {currentMonth.toLocaleString("default", { month: "long", year: "numeric" })}
                     </span>
                     <button
                       onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-                      className="p-1 bg-gradient-to-r from-[#0038A8] to-[#002066] text-white rounded-[5px] hover:opacity-90 transition-opacity cursor-pointer"
+                      className="p-1 bg-gradient-to-r from-[#0038A8] to-[#002066] text-white rounded-[5px] hover:opacity-90 transition-opacity cursor-pointer shrink-0"
                     >
                       <ChevronRight className="w-3.5 h-3.5 text-white" />
                     </button>
                   </div>
                   <button
                     onClick={() => setShowRangeModal(true)}
-                    className="bg-gradient-to-r from-[#0038A8] to-[#002066] text-white font-extrabold text-[10px] px-3.5 py-1.5 rounded-[5px] transition-all uppercase tracking-wider hover:opacity-90 cursor-pointer font-['Poppins',sans-serif]"
+                    className="bg-gradient-to-r from-[#0038A8] to-[#002066] text-white font-extrabold text-[10px] px-3.5 py-1.5 rounded-[5px] transition-all uppercase tracking-wider hover:opacity-90 cursor-pointer shrink-0 font-['Poppins',sans-serif]"
                   >
                     Filter
                   </button>
@@ -523,8 +523,8 @@ export default function DashboardTab() {
           </div>
 
           {/* Activity Logs Container */}
-          <div className="bg-white border border-[#0038A8] p-3.5 shadow-soft-xl rounded-[5px] flex flex-col h-[482px]">
-            <h3 className="font-extrabold text-[#000000] text-xs uppercase tracking-wider mb-2.5 pb-2 border-b border-[#0038A8]/20 flex justify-between items-center select-none shrink-0 font-['Inter',sans-serif]">
+          <div className="bg-white border border-[#0038A8] p-3.5 shadow-soft-xl rounded-[5px] flex flex-col min-h-[320px] lg:h-[482px]">
+            <h3 className="font-extrabold text-[#000000] text-xs uppercase tracking-wider mb-2.5 pb-2 border-b border-[#0038A8]/20 flex flex-wrap justify-between items-center gap-2 select-none shrink-0 font-['Inter',sans-serif]">
               <span>Activity Log <span className="text-[9px] font-bold text-[#808080] normal-case">(sample data)</span></span>
               <span className="text-[10px] text-[#808080] font-bold font-['Poppins',sans-serif]">({filteredLogs.length} entries)</span>
             </h3>

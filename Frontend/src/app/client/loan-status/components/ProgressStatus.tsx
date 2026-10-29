@@ -52,7 +52,7 @@ export default function ProgressStatus({
           <span className="text-[11px] font-extrabold uppercase tracking-widest text-white/90 block drop-shadow-xs">
             Current Progress
           </span>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight max-w-4xl leading-tight drop-shadow-sm">
+          <h1 className="text-[clamp(1.5rem,4vw+0.5rem,3rem)] font-black text-white tracking-tight max-w-4xl leading-tight drop-shadow-sm break-words">
             {statusText}
           </h1>
         </div>

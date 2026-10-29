@@ -29,6 +29,7 @@ export default function ComplianceLayout({
   // Mobile sidebar is open only for the path it was opened on, so navigating closes it
   const [mobileNavPath, setMobileNavPath] = useState<string | null>(null);
   const mobileNavOpen = mobileNavPath === pathname;
+  const closeMobileNav = () => setMobileNavPath(null);
 
   // Server-backed role check (reinforces proxy.ts middleware). Falls back to the
   // hook's loading state while the profile request is in flight.
@@ -84,7 +85,7 @@ export default function ComplianceLayout({
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-[#0024A8] selection:text-white antialiased">
+    <div className="min-h-screen min-h-[100dvh] bg-[#FAFAFA] flex font-sans text-slate-900 selection:bg-[#0024A8] selection:text-white antialiased">
       {/* Desktop sidebar (full, collapsible) */}
       <div className="hidden lg:block shrink-0">
         <ComplianceSidebar
@@ -101,8 +102,16 @@ export default function ComplianceLayout({
           className="bg-[#0A2881] border-[#001D85] text-white hover:bg-[#071D60]"
         />
         {mobileNavOpen && (
-          <div className="fixed inset-y-0 left-8 z-40 w-64 overflow-y-auto">
-            <ComplianceSidebar isCollapsed={false} onToggle={() => {}} />
+          <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
+            <button
+              type="button"
+              onClick={closeMobileNav}
+              aria-label="Close navigation menu"
+              className="absolute inset-0 bg-slate-900/60 cursor-pointer"
+            />
+            <div className="absolute inset-y-0 left-8 w-[min(16rem,calc(100vw-2rem))] overflow-y-auto shadow-2xl">
+              <ComplianceSidebar isCollapsed={false} onToggle={() => {}} />
+            </div>
           </div>
         )}
       </div>
