@@ -36,6 +36,17 @@ function toPayload(subscription: PushSubscription): PushSubscriptionPayload | nu
   };
 }
 
+export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
+  // Avoid the dev server caching stale assets; install prompts are tested on HTTPS production.
+  if (process.env.NODE_ENV !== "production") return null;
+  try {
+    return await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+  } catch {
+    return null;
+  }
+}
+
 export async function registerPushServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!isPushSupported()) return null;
   try {

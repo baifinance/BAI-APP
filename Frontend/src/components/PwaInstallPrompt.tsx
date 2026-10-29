@@ -1,94 +1,16 @@
 "use client";
 
+import { useCallback, useState } from "react";
+import { Download, MoreVertical, Share2, Smartphone } from "lucide-react";
 import {
-  useCallback,
-  useEffect,
-  useState,
-  useSyncExternalStore,
-} from "react";
-import { Download, Share2, Smartphone } from "lucide-react";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-let deferredPrompt: BeforeInstallPromptEvent | null = null;
-
-const DISMISS_KEY = "bai_pwa_dismissed_at";
-const DISMISS_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-
-// Return the server snapshot during SSR/hydration and the client snapshot
-// afterwards, so the first client render matches the server HTML.
-const subscribeNoop = () => () => {};
-const getClientSnapshot = () => true;
-const getServerSnapshot = () => false;
-
-function useIsClient(): boolean {
-  return useSyncExternalStore(
-    subscribeNoop,
-    getClientSnapshot,
-    getServerSnapshot
-  );
-}
-
-function isIPad(): boolean {
-  if (typeof window === "undefined") return false;
-  const nav = window.navigator;
-  return (
-    /iPad/.test(nav.userAgent) ||
-    // iPadOS 13+ Safari reports a Macintosh UA; touch points expose the iPad.
-    (nav.platform === "MacIntel" && nav.maxTouchPoints > 1)
-  );
-}
-
-function isAndroidTablet(): boolean {
-  if (typeof window === "undefined") return false;
-  const ua = window.navigator.userAgent;
-  return /Android/.test(ua) && !/Mobile/.test(ua);
-}
-
-function isPhone(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    /iPhone|iPod|Mobile/.test(window.navigator.userAgent) ||
-    window.innerWidth <= 768
-  );
-}
-
-function isMobile(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    isPhone() ||
-    isIPad() ||
-    isAndroidTablet() ||
-    window.innerWidth <= 1024
-  );
-}
-
-function isDismissed(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const raw = window.localStorage.getItem(DISMISS_KEY);
-    if (!raw) return false;
-    const { ts } = JSON.parse(raw) as { ts: number };
-    return Date.now() - ts < DISMISS_TTL_MS;
-  } catch {
-    return false;
-  }
-}
-
-function setDismissed(): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(
-      DISMISS_KEY,
-      JSON.stringify({ ts: Date.now() })
-    );
-  } catch {
-    // localStorage may be unavailable in private mode; ignore.
-  }
-}
+  isDismissed,
+  isIOS,
+  isMobile,
+  promptInstall,
+  rememberDismissal,
+  useIsClient,
+  usePwaInstall,
+} from "@/lib/pwa";
 
 /**
  * Mobile-only hard-block install overlay.
@@ -100,65 +22,24 @@ function setDismissed(): void {
  * a full-screen "Download BAI APP" overlay until they install or explicitly
  * continue to the website.
  *
- * Chrome/Android: install button triggers beforeinstallprompt.
+ * Chrome/Android: install button triggers beforeinstallprompt; until the
+ * browser fires that event, manual menu instructions are shown instead of a
+ * dead button.
  * iOS/iPadOS Safari: "Add to Home Screen → Share" hint (no prompt API).
  * Dismissal is remembered in localStorage for 30 days.
  * Already installed (standalone mode): nothing shown.
  */
 export default function PwaInstallPrompt() {
   const isClient = useIsClient();
-
-  const isIOS =
-    isIPad() ||
-    (typeof window !== "undefined" &&
-      /iPhone|iPod/.test(window.navigator.platform));
-
-  const isStandalone =
-    typeof window !== "undefined" &&
-    (window.matchMedia?.("(display-mode: standalone)").matches ||
-      (window.navigator as unknown as { standalone?: boolean }).standalone);
-
-  // Initialize from standalone status (avoids set-state-in-effect).
-  const [installed, setInstalled] = useState(() => isStandalone);
-  const [canInstall, setCanInstall] = useState(() => !isStandalone);
+  const { canInstall, installed } = usePwaInstall();
   const [dismissed, setDismissedState] = useState(false);
 
-  const handleBeforeInstallPrompt = useCallback(
-    (event: Event) => {
-      // Prevent Chrome from showing its own mini-infobar so we control the UX.
-      event.preventDefault();
-      deferredPrompt = event as BeforeInstallPromptEvent;
-      setCanInstall(true);
-    },
-    []
-  );
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-
-    return () => {
-      window.removeEventListener(
-        "beforeinstallprompt",
-        handleBeforeInstallPrompt
-      );
-    };
-  }, [handleBeforeInstallPrompt]);
-
   const installApp = useCallback(async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") {
-      setInstalled(true);
-    }
-    deferredPrompt = null;
-    setCanInstall(false);
+    await promptInstall();
   }, []);
 
   const continueToWebsite = useCallback(() => {
-    setDismissed();
+    rememberDismissal();
     setDismissedState(true);
   }, []);
 
@@ -173,9 +54,6 @@ export default function PwaInstallPrompt() {
 
   // User dismissed within the last 30 days: nothing shown.
   if (dismissed || isDismissed()) return null;
-
-  // Not installable and not iOS: nothing useful to show.
-  if (!canInstall && !isIOS) return null;
 
   // Mobile hard-block overlay.
   return (
@@ -230,13 +108,23 @@ export default function PwaInstallPrompt() {
             <Download className="w-5 h-5" />
             Install BAI APP
           </button>
-        ) : isIOS ? (
-          <div className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl border border-white/20 bg-white/10 text-sm font-bold">
-            <Smartphone className="w-5 h-5 text-[#E4BA37]" />
+        ) : isIOS() ? (
+          <div className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl border border-white/20 bg-white/10 text-sm font-bold text-center">
+            <Smartphone className="w-5 h-5 text-[#E4BA37] shrink-0" />
+            <span>Share</span>
+            <Share2 className="w-4 h-4 text-[#E4BA37] shrink-0" />
             <span>Add to Home Screen</span>
-            <Share2 className="w-4 h-4 text-[#E4BA37]" />
           </div>
-        ) : null}
+        ) : (
+          <div className="flex items-start gap-3 px-6 py-4 rounded-2xl border border-white/20 bg-white/10 text-sm font-bold">
+            <MoreVertical className="w-5 h-5 text-[#E4BA37] shrink-0 mt-0.5" />
+            <span className="text-left leading-relaxed">
+              Open your browser menu and choose{" "}
+              <span className="text-[#E4BA37]">Install app</span> or{" "}
+              <span className="text-[#E4BA37]">Add to Home screen</span>.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Bottom dismiss */}
