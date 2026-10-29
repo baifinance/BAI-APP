@@ -89,20 +89,20 @@ export default function ComplianceSidebar({
             title="BAI Compliance Hub"
           >
             <Image
-              src="/bai_logo_white.png"
+              src="/bai_logo_white-384.webp"
               alt="BAI"
-              width={3383}
-              height={1454}
+              width={384}
+              height={165}
               className="h-8 w-auto max-w-none object-left"
             />
           </div>
         ) : (
           <div className="flex flex-col gap-0.5 min-w-0">
             <Image
-              src="/bai_logo_white.png"
+              src="/bai_logo_white-384.webp"
               alt="BAI Group of Companies"
-              width={3383}
-              height={1454}
+              width={384}
+              height={165}
               className="h-8 w-auto object-contain"
             />
             <span className="text-[10px] text-[#E4BA37] font-bold uppercase tracking-wider block pl-0.5">

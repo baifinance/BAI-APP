@@ -49,20 +49,20 @@ export default function Sidebar({ activeTab }: SidebarProps) {
           {isCollapsed ? (
             <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-start shrink-0" title="BAI Group of Companies">
               <Image
-                src="/bai_logo_blue.png"
+                src="/bai_logo_blue-384.webp"
                 alt="BAI"
-                width={3383}
-                height={1454}
+                width={384}
+                height={165}
                 className="h-8 w-auto max-w-none object-left"
               />
             </div>
           ) : (
             <div className="flex flex-col gap-0.5 animate-fadeIn min-w-0">
               <Image
-                src="/bai_logo_blue.png"
+                src="/bai_logo_blue-384.webp"
                 alt="BAI Group of Companies"
-                width={3383}
-                height={1454}
+                width={384}
+                height={165}
                 className="h-8 w-auto object-contain"
               />
               <span className="text-[10px] text-[#0038A8]/80 font-bold uppercase tracking-wider block whitespace-nowrap pl-0.5">
