@@ -18,6 +18,8 @@ export interface LoanStatusResolution {
   totalSteps: number;
   /** True when the application has been withdrawn (terminal state). */
   withdrawn: boolean;
+  /** True when the loan has reached Settlement / Settled (terminal complete state). */
+  completed: boolean;
   /** False when there is no current application to show progress for. */
   hasApplication: boolean;
 }
@@ -41,6 +43,7 @@ export const PIPELINE = [
 ];
 
 export const WITHDRAWN = "Withdrawn";
+export const COMPLETE = "Complete";
 export const NO_ACTIVE_HEADER = "No Current Application";
 
 /** Raw Asana section names that differ from canonical PIPELINE entries. */
@@ -90,6 +93,7 @@ export function resolveLoanStatus(
       activeStepIndex: null,
       totalSteps: PIPELINE.length,
       withdrawn: false,
+      completed: false,
       hasApplication: false,
     };
   }
@@ -102,6 +106,7 @@ export function resolveLoanStatus(
       activeStepIndex: null,
       totalSteps: PIPELINE.length,
       withdrawn: false,
+      completed: false,
       hasApplication: false,
     };
   }
@@ -116,6 +121,20 @@ export function resolveLoanStatus(
       activeStepIndex: null,
       totalSteps: PIPELINE.length,
       withdrawn: true,
+      completed: false,
+      hasApplication: true,
+    };
+  }
+
+  // Terminal state: loan fully settled, all pipeline steps complete.
+  if (clean === "settled") {
+    return {
+      states: PIPELINE.map(() => "completed"),
+      header: COMPLETE,
+      activeStepIndex: null,
+      totalSteps: PIPELINE.length,
+      withdrawn: false,
+      completed: true,
       hasApplication: true,
     };
   }
@@ -130,6 +149,7 @@ export function resolveLoanStatus(
       activeStepIndex: null,
       totalSteps: PIPELINE.length,
       withdrawn: false,
+      completed: false,
       hasApplication: false,
     };
   }
@@ -142,6 +162,7 @@ export function resolveLoanStatus(
     activeStepIndex: index + 1,
     totalSteps: PIPELINE.length,
     withdrawn: false,
+    completed: false,
     hasApplication: true,
   };
 }
