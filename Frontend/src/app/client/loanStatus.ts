@@ -43,6 +43,15 @@ export const PIPELINE = [
 export const WITHDRAWN = "Withdrawn";
 export const NO_ACTIVE_HEADER = "No Current Application";
 
+/** Raw Asana section names that differ from canonical PIPELINE entries. */
+const STATUS_ALIASES: Record<string, string> = {
+  "for lodgement": "For Lodgment",
+  "withdrawn": "Withdraw",
+  "settlements": "Settlement",
+  "unconditionally approved": "Unconditional Approval",
+  "final assessment": "Assessment",
+};
+
 export function cleanStatusStr(s: string): string {
   return s.trim().toLowerCase().replace(/[_-]/g, " ").replace(/\s+/g, " ");
 }
@@ -51,6 +60,8 @@ export function normalizeLoanStatus(status?: string | null): string | null {
   if (!status) return null;
   const clean = cleanStatusStr(status);
   if (clean === "withdraw" || clean === "withdrawn") return WITHDRAWN;
+  const alias = STATUS_ALIASES[clean];
+  if (alias) return alias;
   const match = PIPELINE.find((step) => cleanStatusStr(step) === clean);
   return match ?? status.trim();
 }
@@ -83,7 +94,19 @@ export function resolveLoanStatus(
     };
   }
 
-  const clean = cleanStatusStr(status);
+  const normalized = normalizeLoanStatus(status);
+  if (!normalized) {
+    return {
+      states: PIPELINE.map(() => "upcoming"),
+      header: NO_ACTIVE_HEADER,
+      activeStepIndex: null,
+      totalSteps: PIPELINE.length,
+      withdrawn: false,
+      hasApplication: false,
+    };
+  }
+
+  const clean = cleanStatusStr(normalized);
 
   // Terminal state: nothing was achieved, the file is closed.
   if (clean === "withdraw" || clean === "withdrawn") {
