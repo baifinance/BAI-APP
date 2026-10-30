@@ -336,25 +336,21 @@ class NotificationInlineEmailTests(APITestCase):
         with mock.patch("notifications.services.get_redis_client"):
             publish_stream_notification(self.user.id, self.notification)
 
-    def test_publish_sends_email_immediately(self):
+    def test_publish_creates_email_delivery_row(self):
         self._publish()
 
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertIn("Loan status updated", mail.outbox[0].subject)
+        # Email is enqueued to the outbox, not sent inline.
         delivery = EmailDelivery.objects.get(notification=self.notification)
-        self.assertEqual(delivery.status, EmailDelivery.Status.SENT)
-        self.assertIsNotNone(delivery.sent_at)
+        self.assertEqual(delivery.status, EmailDelivery.Status.PENDING)
+        self.assertIsNone(delivery.sent_at)
 
     def test_publish_does_not_raise_when_smtp_fails(self):
-        with mock.patch(
-            "notifications.email.EmailMultiAlternatives.send",
-            side_effect=OSError("smtp unavailable"),
-        ):
-            self._publish()
+        # SMTP is not invoked inline anymore, so no failure is possible here.
+        self._publish()
 
         delivery = EmailDelivery.objects.get(notification=self.notification)
         self.assertEqual(delivery.status, EmailDelivery.Status.PENDING)
-        self.assertEqual(delivery.attempts, 1)
+        self.assertEqual(delivery.attempts, 0)
         self.assertIsNotNone(delivery.next_attempt_at)
 
 

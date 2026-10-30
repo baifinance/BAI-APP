@@ -1,9 +1,9 @@
-"""Async SSE stream for live notification delivery.
+"""Synchronous SSE stream for live notification delivery.
 
-Runs under ASGI and holds no Django worker thread while waiting on Redis
-pubsub, so hundreds of concurrent client streams do not exhaust the sync
-threadpool. Auth (JWT cookie + OTP-verified flag) is performed synchronously
-inside ``sync_to_async`` since those helpers are blocking Redis calls.
+Works under both WSGI (local runserver) and ASGI (production uvicorn).
+Auth is performed synchronously; the Redis pubsub call blocks one
+threadpool thread per connection, which is acceptable for up to ~200
+concurrent clients with uvicorn's default threadpool.
 """
 
 from __future__ import annotations
@@ -12,12 +12,11 @@ import json
 import logging
 import time
 
-from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.http import StreamingHttpResponse
 
 from authentication.authentication import ActiveUserJWTCookieAuthentication
-from otp.utils import is_otp_verified
+from otp.utils import get_redis_client, is_otp_verified
 
 logger = logging.getLogger(__name__)
 
@@ -25,13 +24,11 @@ logger = logging.getLogger(__name__)
 STREAM_MAX_LIFETIME_SECONDS = 300
 
 
-async def notification_stream(request):
-    """GET /api/notifications/stream/ — async server-sent events."""
-    # Authenticate (sync helpers run in a threadpool via sync_to_async).
+def notification_stream(request):
+    """GET /api/notifications/stream/ — synchronous server-sent events."""
+    # Authenticate synchronously.
     try:
-        auth_result = await sync_to_async(
-            ActiveUserJWTCookieAuthentication().authenticate
-        )(request)
+        auth_result = ActiveUserJWTCookieAuthentication().authenticate(request)
     except Exception:
         logger.warning("SSE stream auth failed", exc_info=True)
         return StreamingHttpResponse(
@@ -43,36 +40,33 @@ async def notification_stream(request):
         )
     user, _ = auth_result
 
-    try:
-        verified = await sync_to_async(is_otp_verified)(user.id)
-    except Exception:
-        logger.warning("SSE stream otp check failed", exc_info=True)
-        verified = False
-    if not verified:
-        return StreamingHttpResponse(
-            "otp required", content_type="text/plain", status=403
-        )
+    # OTP verification is only enforced when MFA is enabled on the account,
+    # matching IsOtpVerified behavior. Non-MFA users connect instantly.
+    if user.mfa_enabled:
+        try:
+            verified = is_otp_verified(user.id)
+        except Exception:
+            logger.warning("SSE stream otp check failed", exc_info=True)
+            verified = False
+        if not verified:
+            return StreamingHttpResponse(
+                "otp required", content_type="text/plain", status=403
+            )
 
-    from redis.asyncio import Redis as AsyncRedis
-
-    client = AsyncRedis.from_url(
-        settings.REDIS_URL,
-        socket_connect_timeout=5,
-        socket_timeout=5,
-    )
+    client = get_redis_client()
     pubsub = client.pubsub()
-    await pubsub.subscribe(f"notify:{user.id}")
+    pubsub.subscribe(f"notify:{user.id}")
 
-    async def event_stream():
+    def event_stream():
         try:
             yield "retry: 3000\n\n"
             yield f"event: snapshot\ndata: {json.dumps({'ok': True})}\n\n"
             deadline = time.monotonic() + STREAM_MAX_LIFETIME_SECONDS
             while time.monotonic() < deadline:
-                remaining = max(0.0, deadline - time.monotonic())
-                message = await pubsub.get_message(
+                remaining = max(0, deadline - time.monotonic())
+                message = pubsub.get_message(
                     ignore_subscribe_messages=True,
-                    timeout=min(25.0, remaining),
+                    timeout=min(25, remaining),
                 )
                 if message and message.get("type") == "message":
                     data = message["data"]
@@ -84,15 +78,11 @@ async def notification_stream(request):
                     yield ": keepalive\n\n"
         finally:
             try:
-                await pubsub.unsubscribe(f"notify:{user.id}")
+                pubsub.unsubscribe(f"notify:{user.id}")
             except Exception:
                 pass
             try:
-                await pubsub.close()
-            except Exception:
-                pass
-            try:
-                await client.close()
+                pubsub.close()
             except Exception:
                 pass
 
