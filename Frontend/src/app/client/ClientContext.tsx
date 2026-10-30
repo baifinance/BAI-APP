@@ -267,6 +267,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     queryFn: loansApi.getCurrentStatus,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
+    refetchInterval: 10_000,
     meta: { persist: false },
   });
 
@@ -275,6 +276,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     queryFn: loansApi.listApplications,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
+    refetchInterval: 10_000,
     meta: { persist: false },
   });
 

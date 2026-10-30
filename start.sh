@@ -13,7 +13,30 @@ DJANGO_SETTINGS_MODULE=config.settings.production python manage.py migrate --noi
 DJANGO_SETTINGS_MODULE=config.settings.production \
     uvicorn config.asgi:application --host 127.0.0.1 --port 8000 &
 DJANGO_SETTINGS_MODULE=config.settings.production \
-    python manage.py run_asana_worker &
+    python manage.py run_asana_worker --queue ${ASANA_QUEUE_NAME:-asana} &
+# Worker 2: login-sync / backfill / reconciliation (kept off the event queue).
+DJANGO_SETTINGS_MODULE=config.settings.production \
+    python manage.py run_asana_worker --queue ${ASANA_QUEUE_NAME:-asana}_sync &
+# Email outbox drain: delivers queued notification emails without blocking SSE/push.
+(
+    while true; do
+        DJANGO_SETTINGS_MODULE=config.settings.production \
+            python manage.py send_notification_emails --limit 50
+        sleep 30
+    done
+) &
+
+# Auto-sync reconciliation: every hour, scans all configured Asana projects for
+# recently modified tasks and creates/updates LoanApplication rows. The command
+# internally rate-limits to ~once per 25h via Redis (asana:reconcile:last_run)
+# and a 1h lock (asana:reconcile:lock), so this loop is safe to run hourly.
+(
+    while true; do
+        DJANGO_SETTINGS_MODULE=config.settings.production \
+            python manage.py backfill_loan_applications --reconcile
+        sleep 3600
+    done
+) &
 
 # Next.js on 127.0.0.1:3000 (internal only)
 cd /app/Frontend

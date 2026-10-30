@@ -1,6 +1,8 @@
 :{$PORT} {
     handle /api/* {
-        reverse_proxy localhost:8000
+        reverse_proxy localhost:8000 {
+            flush_interval -1
+        }
     }
     handle /admin/* {
         reverse_proxy localhost:8000

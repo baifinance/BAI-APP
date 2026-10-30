@@ -49,13 +49,25 @@ DJANGO_SETTINGS_MODULE=config.settings.development \
 `config/asgi.py` defaults to production settings, so the explicit
 `DJANGO_SETTINGS_MODULE` above is required for local development.
 
-In a second terminal, start the Asana/RQ worker (Redis must be running):
+In a second terminal, start the Asana/RQ workers (Redis must be running).
+Two queues are supported so webhook events never block login-sync scans:
 
 ```bash
 cd backend
 source venv/bin/activate
+# Queue 1: Asana webhook events (low latency).
 DJANGO_SETTINGS_MODULE=config.settings.development \
-  python manage.py run_asana_worker
+  python manage.py run_asana_worker --queue asana &
+# Queue 2: login-sync / backfill / reconciliation.
+DJANGO_SETTINGS_MODULE=config.settings.development \
+  python manage.py run_asana_worker --queue asana_sync &
+```
+
+Drain the notification email outbox in a third terminal (optional locally):
+
+```bash
+DJANGO_SETTINGS_MODULE=config.settings.development \
+  python manage.py send_notification_emails --limit 50
 ```
 
 Key `.env` variables:
@@ -105,8 +117,43 @@ the same path in the Docker/Railway deployment.
    Then disable `ASANA_WEBHOOK_HANDSHAKE_ENABLED` and restart.
 4. New ngrok sessions get new URLs; re-register. List/clear with
    `register_asana_webhook --list` / `--delete <WEBHOOK_GID>`.
+   `--list` now resolves each project's workspace individually, so it works
+   across multiple Asana workspaces.
 
 ---
+
+## Loan-status auto sync (reconciliation)
+
+Loan applications are created and kept current three ways, all sharing the
+same sync service:
+
+1. **Webhooks** — Asana pushes section moves → RQ job → `sync_task_snapshot`
+   creates/updates the `LoanApplication` and publishes an SSE/push/email
+   notification. Keep webhooks registered for **every** project in
+   `ASANA_PROJECT_GIDS`.
+2. **Post-login sync** — on login, `sync_client_applications(email)` scans all
+   configured projects for the user's email and creates any missing rows.
+   Runs on the `asana_sync` queue so it never blocks webhook processing.
+   One failed project no longer aborts the whole scan.
+3. **Hourly reconciliation** — `start.sh` runs
+   `backfill_loan_applications --reconcile` every hour. It is Redis-guarded
+   (`asana:reconcile:lock` + `asana:reconcile:last_run`, ~25h interval) so it
+   only does meaningful work when needed, and notifies clients of status
+   changes.
+
+Manual reconciliation (one-off or after adding a project):
+
+```bash
+# Scan everything, create missing rows, notify on status changes.
+python manage.py backfill_loan_applications --full
+
+# Incremental: only tasks modified in the last N hours.
+python manage.py backfill_loan_applications --since-hours 25
+
+# Audit only (no writes): shows unlabeled tasks per project.
+python manage.py backfill_loan_applications --audit --full
+```
+
 
 ## Tests
 
@@ -119,6 +166,13 @@ npm run lint
 npm run build
 ```
 
+Standalone status-canonicalization self-check (no Django needed):
+
+```bash
+cd backend
+python apps/asana_integration/test_statuses.py
+```
+
 The backend suite uses `DATABASE_URL`; point it at a disposable database and
 Redis before running it.
 
@@ -126,9 +180,10 @@ Redis before running it.
 
 ## Docker (single service)
 
-The root `Dockerfile` builds one image containing Django, the RQ worker,
-Next.js, and Caddy. `start.sh` runs migrations, starts all processes, and exits
-the container if any of them dies so Railway can restart it.
+The root `Dockerfile` builds one image containing Django, two RQ workers,
+Next.js, and Caddy. `start.sh` runs migrations, starts all processes
+(uvicorn, webhook worker, sync worker, email drain, hourly reconciliation
+loop), and exits the container if any of them dies so Railway can restart it.
 
 ```bash
 docker build -t bai-app \
@@ -177,24 +232,39 @@ Required Railway variables:
 - `NEXT_PUBLIC_API_BASE_URL` empty (same origin) and passed as a Docker build
   arg; the frontend bundle reads public variables at build time
 
-Optional maintenance jobs can run as separate Railway cron services rooted at
-`backend`:
+**`ASANA_PROJECT_GIDS` must list every Asana project that holds client loans**
+(e.g. Home Loans, Commercial, Asset Finance, Business Loans). If a project GID
+is missing, its tasks are never scanned and no `LoanApplication` rows are
+created for it.
 
-| Job | Command | Schedule |
-|-----|---------|----------|
-| Daily sync | `python manage.py backfill_loan_applications --since-hours 25` | `0 3 * * *` UTC |
-| Weekly full sync | `python manage.py backfill_loan_applications --full` | `0 4 * * 0` UTC |
+First deploy — create the missing rows once:
 
-Register webhooks against the Railway service domain:
+```bash
+python manage.py backfill_loan_applications --full
+```
+
+After that, `start.sh` runs `backfill_loan_applications --reconcile` every hour
+(Redis-guarded to ~once per 25h), so statuses stay current automatically.
+
+Register webhooks against the Railway service domain for **each** project:
+
 ```bash
 ASANA_WEBHOOK_HANDSHAKE_ENABLED=True python manage.py register_asana_webhook \
   --hook railway \
   --target https://<service>.up.railway.app/api/asana/webhook \
   --project <gid>
 ```
-Turn `ASANA_WEBHOOK_HANDSHAKE_ENABLED` back off after registration.
+Turn `ASANA_WEBHOOK_HANDSHAKE_ENABLED` back off after registration. Verify
+coverage with `register_asana_webhook --list`.
 
----
+Optional maintenance jobs (only if you prefer Railway Cron over the built-in
+hourly loop in `start.sh`):
+
+| Job | Command | Schedule |
+|-----|---------|----------|
+| Hourly reconcile | `python manage.py backfill_loan_applications --reconcile` | `0 * * * *` UTC |
+| Weekly full sync | `python manage.py backfill_loan_applications --full` | `0 4 * * 0` UTC |
+
 
 ## Architecture notes
 
@@ -205,3 +275,11 @@ Turn `ASANA_WEBHOOK_HANDSHAKE_ENABLED` back off after registration.
 - Removed Asana tasks are logged and retained, not deleted.
 - Webhooks are acknowledged immediately and processed by RQ workers; login
   sync for zero-application clients is best-effort and non-blocking.
+- SSE (`/api/notifications/stream/`) is an async ASGI stream backed by
+  `redis.asyncio` pubsub: it holds no Django worker thread while waiting on
+  Redis, so hundreds of concurrent client streams do not exhaust the sync
+  threadpool. Caddy proxies `/api/*` with `flush_interval -1` so SSE frames are
+  not buffered.
+- RQ is split into two queues: `asana` (webhook events) and `asana_sync`
+  (login-sync, backfill, reconciliation). `start.sh` runs one worker per queue
+  plus an email outbox drain loop and the hourly reconciliation loop.
