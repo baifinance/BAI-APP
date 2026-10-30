@@ -100,6 +100,10 @@ With `NEXT_PUBLIC_API_BASE_URL` empty, the frontend calls the same origin and
 Next rewrites `/api` to `http://localhost:8000` in development. Caddy handles
 the same path in the Docker/Railway deployment.
 
+The site icon (browser tab / PWA) is the BAI logo:
+`public/favicon.ico` (ICO, served via `src/proxy.ts` to override Next.js's
+built-in default), referenced from `src/app/layout.tsx` and `src/app/manifest.ts`.
+
 ---
 
 ## Asana webhook (local, via ngrok)
@@ -275,11 +279,19 @@ hourly loop in `start.sh`):
 - Removed Asana tasks are logged and retained, not deleted.
 - Webhooks are acknowledged immediately and processed by RQ workers; login
   sync for zero-application clients is best-effort and non-blocking.
-- SSE (`/api/notifications/stream/`) is an async ASGI stream backed by
-  `redis.asyncio` pubsub: it holds no Django worker thread while waiting on
-  Redis, so hundreds of concurrent client streams do not exhaust the sync
-  threadpool. Caddy proxies `/api/*` with `flush_interval -1` so SSE frames are
-  not buffered.
+- SSE (`/api/notifications/stream/`) is a **synchronous** StreamingHttpResponse
+  backed by Redis pubsub: it holds one Django threadpool thread per connection
+  while waiting on Redis, which is fine for up to ~200 concurrent client
+  streams with uvicorn's default threadpool. Auth (JWT cookie + OTP-verified
+  flag) is checked once on connect; OTP is only enforced when MFA is enabled.
+  Caddy proxies `/api/*` with `flush_interval -1` so SSE frames are not
+  buffered.
 - RQ is split into two queues: `asana` (webhook events) and `asana_sync`
   (login-sync, backfill, reconciliation). `start.sh` runs one worker per queue
   plus an email outbox drain loop and the hourly reconciliation loop.
+
+## Documentation
+
+- `backend/BACKEND_DOCS.md` — full API reference (auth, invitations, loans,
+  notifications, Asana webhook, health).
+- `backend/task.txt` — change log for the current session.
