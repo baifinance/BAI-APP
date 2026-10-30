@@ -1,7 +1,8 @@
-const CACHE_NAME = "bai-app-v5";
+const CACHE_NAME = "bai-app-v6";
 const STATIC_ASSETS = [
   "/",
   "/manifest.webmanifest",
+  "/favicon.ico",
   "/bai_logo_blue-384.webp",
   "/bai_logo_white-384.webp",
   "/bai_notification_icon.png",

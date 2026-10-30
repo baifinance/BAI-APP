@@ -36,6 +36,11 @@ function isAccessTokenExpired(token: string | undefined): boolean {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Serve BAI logo favicon to override Next.js built-in default
+  if (pathname === "/favicon.ico") {
+    return NextResponse.rewrite(new URL("/bai-favicon.ico", request.url));
+  }
+
   // Check for JWT access token
   const accessToken = request.cookies.get("jwt-access-token")?.value;
 
@@ -174,6 +179,7 @@ export function proxy(request: NextRequest) {
 export const config = {
   // Apply auth routing to all document routes (exclude static/assets/api)
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)).*)",
+    "/favicon.ico",
+    "/((?!api|_next/static|_next/image|sw.js|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)).*)",
   ],
 };

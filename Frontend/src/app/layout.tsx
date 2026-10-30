@@ -22,8 +22,8 @@ export const metadata: Metadata = {
   description: "BAI APP — broker-led loan preparation and live tracking for Philippines & Australia. Track your home loans, refinancing, and investments from submission to settlement.",
   keywords: ["Loan Brokerage", "Australia Home Loans", "Philippines Finance", "Loan Tracking", "BAI APP"],
   icons: {
-    icon: "/icons/favicon-32.png",
-    apple: "/icons/apple-touch-icon-180.png",
+    icon: "/bai-favicon.ico",
+    apple: "/bai-favicon.ico",
   },
   appleWebApp: {
     capable: true,
