@@ -131,7 +131,8 @@ class Command(BaseCommand):
             return
 
         if options["list_webhooks"]:
-            self._list_webhooks(client, api)
+            first_project = project_values[0] if project_values else None
+            self._list_webhooks(client, api, project_gid=first_project)
             return
 
         target = options["target"]
@@ -178,9 +179,10 @@ class Command(BaseCommand):
                 )
             )
 
-    def _list_webhooks(self, client, api):
+    def _list_webhooks(self, client, api, project_gid=None):
+        project_gid = project_gid or settings.ASANA_PROJECT_GID
         project = asana.ProjectsApi(client).get_project(
-            settings.ASANA_PROJECT_GID, {"opt_fields": "workspace"}
+            project_gid, {"opt_fields": "workspace"}
         )
         workspace_gid = (project.get("workspace") or {}).get("gid")
         if not workspace_gid:
