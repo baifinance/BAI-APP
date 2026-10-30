@@ -131,8 +131,7 @@ class Command(BaseCommand):
             return
 
         if options["list_webhooks"]:
-            first_project = project_values[0] if project_values else None
-            self._list_webhooks(client, api, project_gid=first_project)
+            self._list_webhooks(client, api, project_values)
             return
 
         target = options["target"]
@@ -179,39 +178,93 @@ class Command(BaseCommand):
                 )
             )
 
-    def _list_webhooks(self, client, api, project_gid=None):
-        project_gid = project_gid or settings.ASANA_PROJECT_GID
-        project = asana.ProjectsApi(client).get_project(
-            project_gid, {"opt_fields": "workspace"}
-        )
-        workspace_gid = (project.get("workspace") or {}).get("gid")
-        if not workspace_gid:
-            raise CommandError("Could not resolve the project's workspace.")
+    def _list_webhooks(self, client, api, project_values):
+        """List registered webhooks across every configured project's workspace.
 
-        webhooks = list(
-            api.get_webhooks(
-                workspace_gid,
-                {
-                    "opt_fields": "target,active,last_failure_at,"
-                    "last_failure_content"
-                },
-            )
-        )
-        if not webhooks:
+        Resolves each project's workspace individually so a single project that
+        can't be inspected (e.g. token lacks access, multi-workspace rule) does
+        not abort the whole list. Webhooks are deduplicated by GID.
+        """
+        seen = set()
+        rows = []
+        for project_gid in project_values:
+            try:
+                project = asana.ProjectsApi(client).get_project(
+                    project_gid, {"opt_fields": "workspace"}
+                )
+            except Exception as error:  # noqa: BLE001 - list must not abort
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Could not resolve workspace for project {project_gid}: "
+                        f"{error}"
+                    )
+                )
+                continue
+            workspace_gid = (project.get("workspace") or {}).get("gid")
+            if not workspace_gid:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Project {project_gid} has no resolvable workspace."
+                    )
+                )
+                continue
+            try:
+                webhooks = list(
+                    api.get_webhooks(
+                        workspace_gid,
+                        {
+                            "opt_fields": "target,active,last_failure_at,"
+                            "last_failure_content"
+                        },
+                    )
+                )
+            except Exception as error:  # noqa: BLE001 - list must not abort
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Could not list webhooks for workspace {workspace_gid}: "
+                        f"{error}"
+                    )
+                )
+                continue
+            for item in webhooks:
+                gid = item.get("gid")
+                if gid in seen:
+                    continue
+                seen.add(gid)
+                target = item.get("target") or ""
+                query = dict(parse_qsl(urlsplit(target).query))
+                hook = query.get("hook", DEFAULT_HOOK_KEY)
+                project = query.get("project", "")
+                rows.append(
+                    (
+                        gid,
+                        hook,
+                        project,
+                        item.get("active"),
+                        target,
+                        item.get("last_failure_at"),
+                        item.get("last_failure_content"),
+                    )
+                )
+        if not rows:
             self.stdout.write("No webhooks registered.")
             return
 
-        for item in webhooks:
-            target = item.get("target") or ""
-            query = dict(parse_qsl(urlsplit(target).query))
-            hook = query.get("hook", DEFAULT_HOOK_KEY)
-            project = query.get("project", "")
+        for (
+            gid,
+            hook,
+            project,
+            active,
+            target,
+            failure_at,
+            failure_content,
+        ) in rows:
             self.stdout.write(
-                f"{item.get('gid')}  hook={hook}  project={project}  "
-                f"active={item.get('active')}  target={target}"
+                f"{gid}  hook={hook}  project={project}  active={active}  "
+                f"target={target}"
             )
-            if item.get("last_failure_at"):
+            if failure_at:
                 self.stdout.write(
-                    f"  last_failure_at={item['last_failure_at']} "
-                    f"{str(item.get('last_failure_content') or '')[:200]}"
+                    f"  last_failure_at={failure_at} "
+                    f"{str(failure_content or '')[:200]}"
                 )

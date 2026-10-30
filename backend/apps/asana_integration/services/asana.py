@@ -13,29 +13,12 @@ from asana.rest import ApiException
 from django.conf import settings
 from otp.utils import get_redis_client
 
+from asana_integration.statuses import LOAN_STATUSES, canonical_loan_status
+
 logger = logging.getLogger(__name__)
 
 class AsanaProfileError(RuntimeError):
     """ Raised when the Asana profile lookup failes"""
-
-LOAN_STATUSES = {
-    "Pending",
-    "Appointment Booked",
-    "Under Review",
-    "Revisit",
-    "Proceeding",
-    "Collection of Documents",
-    "Assessment",
-    "Docs for Sign",
-    "For Lodgment",
-    "Submitted",
-    "Conditional Approval",
-    "Conversion to Unconditional Approval",
-    "Unconditional Approval",
-    "Settlement",
-    "Settled",
-    "Withdraw"
-}
 
 
 def get_project_gids():
@@ -406,7 +389,7 @@ class AsanaProfileService:
             )
 
             for section in sections:
-                if section.get("name") == loan_status:
+                if canonical_loan_status(section.get("name")) == loan_status:
                     target_section = section
                     break
 
@@ -494,9 +477,7 @@ class AsanaProfileService:
         if section_name:
             profile["asana_section"] = section_name
             profile["asana_section_gid"] = section.get("gid")
-            profile["loan_status"] = (
-                section_name if section_name in LOAN_STATUSES else None
-            )
+            profile["loan_status"] = canonical_loan_status(section_name)
 
         return profile
 
@@ -910,13 +891,15 @@ def handle_task_moved_event(event, project_gid=None):
         )
         return
 
-    if section_name not in LOAN_STATUSES:
+    canonical_section = canonical_loan_status(section_name)
+    if canonical_section is None:
         logger.info(
             "Asana event ignored: action=%s section_name=%r",
             action,
             section_name,
         )
         return
+    section_name = canonical_section
 
     project_gid = project_gid or _task_project_gid(task_gid)
     if not project_gid:

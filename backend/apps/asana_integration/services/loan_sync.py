@@ -12,11 +12,11 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from asana_integration.services.asana import (
-    LOAN_STATUSES,
     AsanaProfileError,
     AsanaProfileService,
     get_project_gids,
 )
+from asana_integration.statuses import LOAN_STATUSES, canonical_loan_status
 from loans.choices import ApplicationStatus
 from loans.models import LoanApplication
 from notifications.choices import NotificationType
@@ -203,7 +203,8 @@ def _apply_snapshot_status(application, section, status_at, *, created):
     if not section:
         return application, False
 
-    if section not in LOAN_STATUSES:
+    canonical = canonical_loan_status(section)
+    if canonical is None:
         application.asana_status = section
         application.status = _map_asana_status_to_application_status(section)
         application.asana_synced_at = timezone.now()
@@ -215,12 +216,12 @@ def _apply_snapshot_status(application, section, status_at, *, created):
     if created:
         return apply_application_status_change(
             application,
-            section,
+            canonical,
             when=status_at,
         )
     return apply_application_status_change(
         application,
-        section,
+        canonical,
         asana_event_at=status_at,
     )
 
@@ -358,15 +359,17 @@ def sync_task_snapshot(
         else:
             result.unchanged += 1
 
-        if changed and section in LOAN_STATUSES:
-            if notify:
-                _notify_status_change(profile, application, section)
-            elif publish:
-                publish_stream_notification(
-                    profile.user_id,
-                    loan_status=section,
-                    application_id=str(application.id),
-                )
+        if changed:
+            status_section = canonical_loan_status(section)
+            if status_section:
+                if notify:
+                    _notify_status_change(profile, application, status_section)
+                elif publish:
+                    publish_stream_notification(
+                        profile.user_id,
+                        loan_status=status_section,
+                        application_id=str(application.id),
+                    )
 
     result.clients = list(dict.fromkeys(result.clients))
     return result
@@ -421,6 +424,10 @@ def apply_task_status(
     notify=True,
     publish=True,
 ):
+    section = canonical_loan_status(section)
+    if section is None:
+        return []
+
     applications = list(
         LoanApplication.objects.filter(
             asana_project_gid=project_gid,
@@ -467,7 +474,15 @@ def sync_project_tasks(
     dry_run=False,
 ):
     service = AsanaProfileService(project_gid)
-    project_name = service._project_name(project_gid)
+    try:
+        project_name = service._project_name(project_gid)
+    except Exception as error:  # noqa: BLE001 - one project must not abort the scan
+        logger.warning(
+            "Failed to resolve Asana project name %s: %s",
+            project_gid,
+            error,
+        )
+        project_name = None
     result = SyncResult()
 
     for task in list_project_tasks(
@@ -509,14 +524,27 @@ def sync_client_applications(email, *, publish=True):
     result = SyncResult()
     project_gids = get_project_gids()
     for project_gid in project_gids:
-        result.merge(
-            sync_project_tasks(
-                project_gid,
-                include_emails={email},
-                notify=False,
-                publish=publish,
+        try:
+            result.merge(
+                sync_project_tasks(
+                    project_gid,
+                    include_emails={email},
+                    notify=False,
+                    publish=publish,
+                )
             )
-        )
+            get_redis_client().setex(
+                f"asana:login-sync-ok:{email}:{project_gid}",
+                3600,
+                "1",
+            )
+        except Exception as error:  # noqa: BLE001 - one project must not abort the rest
+            logger.exception(
+                "Login sync failed for project %s email=%s: %s",
+                project_gid,
+                email,
+                error,
+            )
     return result
 
 
@@ -636,16 +664,21 @@ def enqueue_login_sync(user, response):
         return False
 
     try:
-        key = f"asana:login-sync:{user.id}"
-        existing = get_redis_client().get(key)
-        if not existing:
-            queued = get_redis_client().set(key, "1", nx=True, ex=300)
-            if not queued:
-                existing = True
-
-        if existing:
-            response.data["applications_sync_queued"] = True
+        project_gids = get_project_gids()
+        all_synced = bool(project_gids) and all(
+            get_redis_client().get(
+                f"asana:login-sync-ok:{user.email}:{project_gid}"
+            )
+            for project_gid in project_gids
+        )
+        if all_synced:
+            # Every configured project was synced recently; nothing to do.
             return False
+
+        # Not every project has been synced recently (markers expired or a
+        # previous scan failed partway). Clear any stale per-user gate so a
+        # fresh scan is enqueued rather than silently skipped.
+        get_redis_client().delete(f"asana:login-sync:{user.id}")
 
         from asana_integration.queue import enqueue_login_sync_job
 

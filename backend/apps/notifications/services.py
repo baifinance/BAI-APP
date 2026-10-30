@@ -78,20 +78,7 @@ def publish_stream_notification(user_id, notification=None, loan_status=None, ap
         delivery = None
 
     if delivery is not None:
-        # Deliver right away instead of waiting for a scheduled outbox drain.
-        # `send_email_delivery` never raises on an SMTP failure: it records the
-        # attempt, applies the backoff, and returns False.
-        try:
-            from notifications.email import send_email_delivery
-
-            if not send_email_delivery(delivery):
-                logger.warning(
-                    "Notification email for notification %s was not sent; "
-                    "see the email_deliveries row for details",
-                    notification.pk,
-                )
-        except Exception:
-            logger.exception(
-                "Notification email delivery failed for notification %s",
-                notification.pk,
-            )
+        # Email is delivered by the scheduled outbox drain
+        # (send_notification_emails management command), not inline here, so
+        # SMTP latency never blocks SSE/push delivery.
+        pass
