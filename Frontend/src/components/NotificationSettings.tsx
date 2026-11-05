@@ -214,32 +214,33 @@ export default function NotificationSettings({
   // ----------------------------------------------------------------------------
   return (
     <>
-      <section className="bg-white border border-slate-200/80 rounded-xl p-6 sm:p-7 shadow-sm space-y-5">
+      <section className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
         {/* ------------------------------------------------------------------ */}
-        {/* CATEGORY 1 HEADER: Icon on the Left, Title on the Right            */}
-        {/* Format: Bell icon on left, Category Title on right. No extra text  */}
+        {/* CATEGORY 1 HEADER: Blue theme background, gold icon, white text    */}
+        {/* Format: Gold Bell icon on left, White Category Title on right.     */}
         {/* ------------------------------------------------------------------ */}
-        <div className={`flex items-center gap-3 pb-4 border-b border-slate-100 ${!hideHeaderDescription ? "items-start" : ""}`}>
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0A2881] flex items-center justify-center shrink-0">
-            <Bell className="w-5 h-5 text-[#0A2881]" />
+        <div className={`bg-gradient-to-r from-[#061C65] via-[#0A2881] to-[#0024A8] px-6 py-4 flex items-center gap-3 ${!hideHeaderDescription ? "items-start" : ""}`}>
+          <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+            <Bell className="w-5 h-5 text-[#E4BA37]" />
           </div>
           {hideHeaderDescription ? (
-            <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
               {title}
             </h2>
           ) : (
             <div>
-              <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
+              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
                 {title}
               </h2>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+              <p className="text-xs sm:text-sm text-blue-100 font-medium mt-0.5">
                 Choose how BAI Finance reaches you. Security and account emails are always sent.
               </p>
             </div>
           )}
         </div>
 
-      <div className="divide-y divide-slate-100">
+        <div className="p-6 sm:p-7 space-y-5">
+          <div className="divide-y divide-slate-100">
         <div className="flex items-center justify-between gap-4 py-4">
           <div className="flex items-start gap-3 min-w-0">
             <Mail className="w-4 h-4 text-slate-400 mt-1 shrink-0" />
@@ -319,6 +320,7 @@ export default function NotificationSettings({
           {message}
         </p>
       )}
+        </div>
       </section>
       <InstallAppCard />
     </>

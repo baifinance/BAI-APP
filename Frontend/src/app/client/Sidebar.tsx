@@ -143,15 +143,27 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle, 
                 }`}
               >
                 {/* Icon wrapper: hover scale, rotation, and closed-state diagonal swipe highlight */}
-                <div
-                  data-active={isActive ? "true" : "false"}
-                  className="sidebar-icon-container shrink-0 z-10"
-                >
-                  <Icon
-                    className={`w-4.5 h-4.5 shrink-0 transition-colors ${
-                      isActive ? "text-[#0A2881]" : "text-white/85 group-hover:text-white"
-                    }`}
-                  />
+                <div className="relative shrink-0 flex items-center justify-center">
+                  <div
+                    data-active={isActive ? "true" : "false"}
+                    className="sidebar-icon-container z-10"
+                  >
+                    <Icon
+                      className={`w-4.5 h-4.5 shrink-0 transition-colors ${
+                        isActive ? "text-[#0A2881]" : "text-white/85 group-hover:text-white"
+                      }`}
+                    />
+                  </div>
+
+                  {/* Collapsed Mode Unread Badge: Anchored directly to top-right of icon so the bell icon is never displaced */}
+                  {item.id === "Notifications" && unreadCount > 0 && isCollapsed && (
+                    <span
+                      className="absolute -top-1.5 -right-2.5 z-20 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold leading-none flex items-center justify-center animate-pulse pointer-events-none ring-2 ring-[#0024A8] shadow-sm"
+                      title={`${unreadCount} unread`}
+                    >
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </div>
 
                 {!isCollapsed && (
@@ -160,13 +172,9 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle, 
                   </span>
                 )}
 
-                {item.id === "Notifications" && unreadCount > 0 && (
+                {!isCollapsed && item.id === "Notifications" && unreadCount > 0 && (
                   <span
-                    className={`relative z-10 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-black animate-pulse ${
-                      isCollapsed
-                        ? "absolute right-1 top-1 min-w-4 h-4 text-[9px]"
-                        : "ml-auto"
-                    }`}
+                    className="ml-auto relative z-10 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none animate-pulse shadow-sm"
                     title={`${unreadCount} unread`}
                   >
                     {unreadCount > 99 ? "99+" : unreadCount}
@@ -293,10 +301,7 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle, 
       <button
         type="button"
         onClick={onToggle}
-        className="absolute top-0 bottom-0 -right-5 w-5 z-30 hidden lg:flex items-center justify-center border-r border-[#001D85] transition-colors cursor-pointer group focus:outline-none rounded-none"
-        style={{ backgroundColor: "#071E63" }}
-        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#0D35A4"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#071E63"; }}
+        className="absolute top-0 bottom-0 -right-5 w-5 z-30 hidden lg:flex items-center justify-center border-r border-[#001D85]/80 bg-[#0024A8] hover:bg-[#071E63] transition-colors duration-200 cursor-pointer group focus:outline-none rounded-none"
         title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
