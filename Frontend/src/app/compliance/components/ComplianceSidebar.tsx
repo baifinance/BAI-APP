@@ -173,10 +173,10 @@ export default function ComplianceSidebar({
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {isCollapsed ? (
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 text-[#E4BA37]" />
           ) : (
             <>
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4 text-[#E4BA37]" />
               <span>Collapse Sidebar</span>
             </>
           )}
