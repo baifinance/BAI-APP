@@ -389,13 +389,8 @@ export default function LoanStatusTab({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                    Loan Progress
+                    {currentCategoryTitle || "Loan Application"}
                   </h3>
-                  {currentCategoryTitle && (
-                    <p className="text-xs sm:text-sm font-semibold text-blue-100/80 mt-0.5">
-                      {currentCategoryTitle}
-                    </p>
-                  )}
                 </div>
               </div>
 

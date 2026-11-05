@@ -63,7 +63,15 @@ function Toggle({
 // ==============================================================================
 // MAIN COMPONENT: NotificationSettings
 // ==============================================================================
-export default function NotificationSettings() {
+interface NotificationSettingsProps {
+  title?: string;
+  hideHeaderDescription?: boolean;
+}
+
+export default function NotificationSettings({
+  title = "Notifications",
+  hideHeaderDescription = false,
+}: NotificationSettingsProps = {}) {
   const [preference, setPreference] = useState<NotificationPreference | null>(null);
   const [hasPushSubscription, setHasPushSubscription] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -207,19 +215,29 @@ export default function NotificationSettings() {
   return (
     <>
       <section className="bg-white border border-slate-200/80 rounded-xl p-6 sm:p-7 shadow-sm space-y-5">
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-blue-50 text-[#0A2881] flex items-center justify-center shrink-0">
-          <Bell className="w-5 h-5" />
+        {/* ------------------------------------------------------------------ */}
+        {/* CATEGORY 1 HEADER: Icon on the Left, Title on the Right            */}
+        {/* Format: Bell icon on left, Category Title on right. No extra text  */}
+        {/* ------------------------------------------------------------------ */}
+        <div className={`flex items-center gap-3 pb-4 border-b border-slate-100 ${!hideHeaderDescription ? "items-start" : ""}`}>
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0A2881] flex items-center justify-center shrink-0">
+            <Bell className="w-5 h-5 text-[#0A2881]" />
+          </div>
+          {hideHeaderDescription ? (
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+              {title}
+            </h2>
+          ) : (
+            <div>
+              <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
+                {title}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+                Choose how BAI Finance reaches you. Security and account emails are always sent.
+              </p>
+            </div>
+          )}
         </div>
-        <div>
-          <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
-            Notification Settings
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-            Choose how BAI Finance reaches you. Security and account emails are always sent.
-          </p>
-        </div>
-      </div>
 
       <div className="divide-y divide-slate-100">
         <div className="flex items-center justify-between gap-4 py-4">

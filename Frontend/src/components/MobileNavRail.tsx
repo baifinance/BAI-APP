@@ -31,7 +31,7 @@ export default function MobileNavRail({ open, onToggle, className = "" }: Mobile
         aria-expanded={open}
         className="w-full min-h-11 px-2 py-3 flex items-center justify-center transition-colors cursor-pointer"
       >
-        {open ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        <div className="w-6 h-6 rounded-md bg-[#0A2881] border border-[#001D85] flex items-center justify-center shadow-xs">{open ? <ChevronLeft className="w-3.5 h-3.5 text-[#E4BA37]" /> : <ChevronRight className="w-3.5 h-3.5 text-[#E4BA37]" />}</div>
       </button>
     </div>
   );

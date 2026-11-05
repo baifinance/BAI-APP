@@ -23,6 +23,7 @@ import {
   Check,
   AlertTriangle,
   ShieldAlert,
+  ShieldCheck,
   Lock,
   Eye,
   EyeOff,
@@ -346,56 +347,85 @@ export default function ProfileSettingsTab({
       </div>
 
       {/* ==================================================================== */}
-      {/* SECTION 1: NOTIFICATION PREFERENCES & DEVICE PUSH                    */}
-      {/* Configure critical/optional email alerts and browser push on device  */}
+      {/* CATEGORY 1: NOTIFICATIONS                                            */}
+      {/* Header: Bell icon on the left, "Notifications" title on the right    */}
+      {/* Under header: Notification preferences and device push options       */}
       {/* ==================================================================== */}
-      <NotificationSettings />
+      <NotificationSettings title="Notifications" hideHeaderDescription={true} />
 
       {/* ==================================================================== */}
-      {/* SECTION 2: TWO-FACTOR AUTHENTICATION (2FA) WITH SLIDER TOGGLE        */}
-      {/* Slider turns #0A2881 when on and dark red (#8B0000) when off          */}
+      {/* CATEGORY 2: TWO FACTOR AUTHENTICATION                                */}
+      {/* Header: Lock icon on the left, "Two Factor Authentication" on right  */}
+      {/* Under header: Two-Factor Authentication setting options              */}
       {/* ==================================================================== */}
-      <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 sm:p-7 flex items-center justify-between gap-4">
-        <div>
-          <span className="font-bold text-slate-900 text-sm sm:text-base block">
-            Enable Two-Factor Authentication
-          </span>
+      <section className="bg-white border border-slate-200/80 rounded-xl p-6 sm:p-7 shadow-sm space-y-5">
+        
+        {/* ------------------------------------------------------------------ */}
+        {/* CATEGORY 2 HEADER: Icon on the Left, Title on the Right            */}
+        {/* Format: Lock icon on left, Category Title on right. No extra text  */}
+        {/* ------------------------------------------------------------------ */}
+        <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0A2881] flex items-center justify-center shrink-0">
+            <Lock className="w-5 h-5 text-[#0A2881]" />
+          </div>
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+            Two Factor Authentication
+          </h2>
         </div>
 
-        {/* Interactive Slider Switch Button */}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={!!mfaEnabled}
-          onClick={handleToggleSlider}
-          disabled={mfaActionLoading || mfaInitialLoading || mfaVerifying}
-          className={`relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#0A2881] focus:ring-offset-2 disabled:opacity-50 ${
-            mfaEnabled ? "bg-[#0A2881]" : "bg-[#8B0000]"
-          }`}
-          title={
-            mfaEnabled
-              ? "Two-Factor Authentication is ON. Click to disable."
-              : "Two-Factor Authentication is OFF. Click to enable."
-          }
-          aria-label="Toggle Two-Factor Authentication"
-        >
-          {/* Slider knob */}
-          <span
-            aria-hidden="true"
-            className={`pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-              mfaEnabled ? "translate-x-6" : "translate-x-0"
-            }`}
-          />
-        </button>
-      </div>
+        {/* ------------------------------------------------------------------ */}
+        {/* SETTING OPTIONS: Two-Factor Authentication Toggle Switch           */}
+        {/* ------------------------------------------------------------------ */}
+        <div className="divide-y divide-slate-100">
+          <div className="flex items-center justify-between gap-4 py-4">
+            <div className="flex items-start gap-3 min-w-0">
+              <ShieldCheck className="w-4 h-4 text-slate-400 mt-1 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-slate-800">
+                  Enable Two-Factor Authentication
+                </p>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Protect your account with a 6-digit confirmation code sent to your registered email when you sign in.
+                </p>
+              </div>
+            </div>
 
-      {/* Error banner (if an error occurs outside of modals) */}
-      {mfaError && !showMfaEnable && !showDisableModal && (
-        <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-          <span>{mfaError}</span>
+            {/* Interactive Slider Switch Button */}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!!mfaEnabled}
+              onClick={handleToggleSlider}
+              disabled={mfaActionLoading || mfaInitialLoading || mfaVerifying}
+              className={`relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#0A2881] focus:ring-offset-2 disabled:opacity-50 ${
+                mfaEnabled ? "bg-[#0A2881]" : "bg-[#8B0000]"
+              }`}
+              title={
+                mfaEnabled
+                  ? "Two-Factor Authentication is ON. Click to disable."
+                  : "Two-Factor Authentication is OFF. Click to enable."
+              }
+              aria-label="Toggle Two-Factor Authentication"
+            >
+              {/* Slider knob */}
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                  mfaEnabled ? "translate-x-6" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
         </div>
-      )}
+
+        {/* Error banner (if an error occurs outside of modals) */}
+        {mfaError && !showMfaEnable && !showDisableModal && (
+          <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{mfaError}</span>
+          </div>
+        )}
+      </section>
 
       {/* ==================================================================== */}
       {/* MODAL 1: ENABLE TWO-FACTOR AUTHENTICATION OTP POP-UP                 */}

@@ -52,7 +52,7 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
     >
 
       {/* Desktop sidebar (full, collapsible) */}
-      <div className="hidden lg:block shrink-0 mr-5">
+      <div className="hidden lg:block shrink-0 mr-5" style={{ backgroundColor: "#071E63" }}>
         <Sidebar
           activeTab={activeTab}
           isCollapsed={isSidebarCollapsed}
@@ -65,7 +65,7 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
         <MobileNavRail
           open={mobileNavOpen}
           onToggle={() => setMobileNavPath((prev) => (prev === pathname ? null : pathname))}
-          className="bg-[#0A2881] border-[#001D85] text-white hover:bg-[#071D60]"
+          className="sidebar-duotone-bg border-[#001D85] text-white hover:brightness-110"
         />
         {mobileNavOpen && (
           <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">

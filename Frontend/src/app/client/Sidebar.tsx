@@ -293,15 +293,18 @@ export default function Sidebar({ activeTab, clientName, isCollapsed, onToggle, 
       <button
         type="button"
         onClick={onToggle}
-        className="absolute top-0 bottom-0 -right-5 w-5 z-30 hidden lg:flex items-center justify-center bg-[#071E63] hover:bg-[#E4BA37] text-white/70 hover:text-[#0A2881] border-r border-[#001D85] transition-all cursor-pointer group focus:outline-none rounded-none shadow-2xs"
+        className="absolute top-0 bottom-0 -right-5 w-5 z-30 hidden lg:flex items-center justify-center border-r border-[#001D85] transition-colors cursor-pointer group focus:outline-none rounded-none"
+        style={{ backgroundColor: "#071E63" }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#0D35A4"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#071E63"; }}
         title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
-        <div className="sticky top-1/2 -translate-y-1/2 flex items-center justify-center w-full group-hover:scale-125 transition-all">
+        <div className="sticky top-1/2 -translate-y-1/2 flex items-center justify-center w-full group-hover:scale-125 transition-transform">
           {isCollapsed ? (
-            <ChevronRight className="w-3.5 h-3.5 stroke-[2.5]" />
+            <ChevronRight className="w-3.5 h-3.5 stroke-[2.5] text-[#E4BA37] drop-shadow-[0_0_3px_rgba(228,186,55,0.5)] transition-colors" />
           ) : (
-            <ChevronLeft className="w-3.5 h-3.5 stroke-[2.5]" />
+            <ChevronLeft className="w-3.5 h-3.5 stroke-[2.5] text-[#E4BA37] drop-shadow-[0_0_3px_rgba(228,186,55,0.5)] transition-colors" />
           )}
         </div>
       </button>
