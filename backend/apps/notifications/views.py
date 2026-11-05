@@ -1,13 +1,8 @@
-import json
-import time
-
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.http import StreamingHttpResponse
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, status
-from rest_framework.renderers import BaseRenderer
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
@@ -22,23 +17,10 @@ from notifications.serializers import (
     PushUnsubscribeSerializer,
 )
 from notifications.tokens import read_email_preferences_token
-from otp.utils import get_redis_client
 
 
 NOTIFICATION_HISTORY_LIMIT = 100
-# Keep well below the proxy idle timeout; the client reconnects with backoff.
-STREAM_MAX_LIFETIME_SECONDS = 300
 
-
-class EventStreamRenderer(BaseRenderer):
-    """Let DRF content negotiation accept SSE requests."""
-
-    media_type = "text/event-stream"
-    format = "sse"
-    charset = "utf-8"
-
-    def render(self, data, accepted_media_type=None, renderer_context=None):
-        return data
 
 class NotificationListView(generics.ListAPIView):
     serializer_class = NotificationSerializer
@@ -102,63 +84,6 @@ class NotificationMarkAllReadView(APIView):
             {"updated_count": updated_count},
             status=status.HTTP_200_OK,
         )
-
-class NotificationStreamView(APIView):
-    """
-    GET /api/notifications/stream/
-
-    Server-sent Events: emits a ping on the user's Redis channel whenever
-    a notification is created, so clients refresh instantly instead of
-    waiting on the 30s poll.
-    """
-
-    permission_classes = [
-        permissions.IsAuthenticated,
-        IsOtpVerified
-    ]
-    throttle_classes = []
-    renderer_classes = [EventStreamRenderer]
-
-    def get(self, request):
-        def event_stream():
-            # Subscribe inside the generator so the Redis connection is
-            # created (and released) on the streaming worker, not during
-            # request handling.
-            pubsub = get_redis_client().pubsub()
-            pubsub.subscribe(f"notify:{request.user.id}")
-            try:
-                yield "retry: 3000\n\n"
-                yield f"event: snapshot\ndata: {json.dumps({'ok': True})}\n\n"
-                deadline = time.monotonic() + STREAM_MAX_LIFETIME_SECONDS
-                while time.monotonic() < deadline:
-                    remaining = max(0, deadline - time.monotonic())
-                    message = pubsub.get_message(
-                        ignore_subscribe_messages=True,
-                        timeout=min(25, remaining),
-                    )
-                    if message and message.get("type") == "message":
-                        data = message["data"]
-                        if isinstance(data, bytes):
-                            data = data.decode()
-                        data = data.replace("\r", "").replace("\n", "")
-                        yield f"event: notification\ndata: {data}\n\n"
-                    else:
-                        yield ": keepalive\n\n" # keep proxies/NAT alive
-
-            finally:
-                try:
-                    pubsub.unsubscribe(f"notify:{request.user.id}")
-                except Exception:
-                    pass
-                pubsub.close()
-
-        response = StreamingHttpResponse(
-            event_stream(),
-            content_type="text/event-stream"
-        )
-        response["Cache-Control"] = "no-cache"
-        response["X-Accel-Buffering"] = "no"
-        return response
 
 class PushTestThrottle(ScopedRateThrottle):
     scope = "push_test"

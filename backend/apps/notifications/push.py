@@ -52,6 +52,7 @@ def _send_to_subscriptions(subscriptions, payload):
                     )
                 },
                 ttl=getattr(settings, "WEB_PUSH_TTL", 86400),
+                timeout=5,
             )
             sent += 1
         except WebPushException as exc:

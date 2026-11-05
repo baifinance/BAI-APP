@@ -118,15 +118,18 @@ class SendInviteSerializer(serializers.Serializer):
                     AsanaProfileService,
                 )
                 try:
-                    profile = AsanaProfileService().find_profile_by_email(email)
+                    profiles = AsanaProfileService().find_profiles_by_email(email)
                 except AsanaProfileError:
                     raise serializers.ValidationError(
                         {"email": "Unable to verify Asana right now. Try again later."}
                     )
-                if profile is None:
+                if not profiles:
                     raise serializers.ValidationError(
                         {"email": "Must exist in Asana — no record found for this email in the loan project."}
                     )
+                # Record the matched Asana project so the invite can be tied back
+                # to the loan project the client belongs to.
+                attrs["asana_project_gid"] = profiles[0].get("asana_project_gid")
 
         broker_id = attrs.get("broker_id")
         if broker_id:
@@ -175,7 +178,8 @@ class SendInviteSerializer(serializers.Serializer):
             Invitation.objects.filter(user=user, status=InviteStatus.PENDING).update(status=InviteStatus.REVOKED)
             invitation = Invitation.objects.create(
                 user=user,
-                sent_by=actor
+                sent_by=actor,
+                asana_project_gid=validated_data.pop("asana_project_gid", None),
             )
         return user, invitation
             

@@ -267,9 +267,11 @@ export default function LoanStatusTab({
   // Calculate overall progress percentage (0 - 100%)
   const activeStepNum = resolution.activeStepIndex ?? 0;
   const totalStepNum = resolution.totalSteps || 15;
-  const progressPercent = resolution.withdrawn
-    ? 0
-    : Math.min(100, Math.round((activeStepNum / totalStepNum) * 100));
+  const progressPercent = resolution.completed
+    ? 100
+    : resolution.withdrawn
+      ? 0
+      : Math.min(100, Math.round((activeStepNum / totalStepNum) * 100));
 
   // Current active category title for right container header
   const currentCategoryTitle =

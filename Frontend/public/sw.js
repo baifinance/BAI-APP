@@ -1,7 +1,8 @@
-const CACHE_NAME = "bai-app-v4";
+const CACHE_NAME = "bai-app-v6";
 const STATIC_ASSETS = [
   "/",
   "/manifest.webmanifest",
+  "/favicon.ico",
   "/bai_logo_blue-384.webp",
   "/bai_logo_white-384.webp",
   "/bai_notification_icon.png",
@@ -39,26 +40,9 @@ self.addEventListener("fetch", (event) => {
   // Letting the browser handle them avoids rejected respondWith() promises.
   if (url.origin !== self.location.origin) return;
 
-  // API calls: network-first, fallback to cache
-  if (url.pathname.startsWith("/api/")) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (request.method === "GET") {
-            const cloned = response.clone();
-            caches
-              .open(CACHE_NAME)
-              .then((cache) => cache.put(request, cloned))
-              .catch(() => {});
-          }
-          return response;
-        })
-        .catch(() =>
-          caches.match(request).then((cached) => cached || Response.error())
-        )
-    );
-    return;
-  }
+  // Never intercept API calls: let the browser handle them directly.
+  // Caching them stored PII and buffered the SSE notification stream.
+  if (url.pathname.startsWith("/api/")) return;
 
   // Navigations: network-first so a deploy never serves a stale HTML shell.
   if (request.mode === "navigate") {

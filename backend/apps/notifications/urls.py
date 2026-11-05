@@ -1,12 +1,12 @@
 from django.urls import path
 
+from notifications.stream import notification_stream
 from notifications.views import (
     EmailPreferencesView,
     NotificationListView,
     NotificationMarkAllReadView,
     NotificationMarkReadView,
     NotificationPreferenceView,
-    NotificationStreamView,
     PushConfigView,
     PushSubscribeView,
     PushTestView,
@@ -15,7 +15,7 @@ from notifications.views import (
 
 urlpatterns = [
     path("", NotificationListView.as_view(), name="notification-list"),
-    path("stream/", NotificationStreamView.as_view(), name="notification-stream"),
+    path("stream/", notification_stream, name="notification-stream"),
     path(
         "preferences/",
         NotificationPreferenceView.as_view(),

@@ -5,6 +5,7 @@ from rq.serializers import JSONSerializer
 from django.conf import settings
 
 _queue = None
+_sync_queue = None
 
 
 def get_queue():
@@ -17,6 +18,23 @@ def get_queue():
             serializer=JSONSerializer(),
         )
     return _queue
+
+
+def get_sync_queue():
+    """Dedicated queue for login-sync / backfill / reconciliation jobs.
+
+    Kept separate from the webhook event queue so a burst of Asana events
+    never blocks post-login application scans and vice-versa.
+    """
+    global _sync_queue
+    if _sync_queue is None:
+        connection = Redis.from_url(settings.REDIS_QUEUE_URL)
+        _sync_queue = Queue(
+            f"{settings.ASANA_QUEUE_NAME}_sync",
+            connection=connection,
+            serializer=JSONSerializer(),
+        )
+    return _sync_queue
 
 
 def enqueue_webhook_event(event, digest, project_gid=None):
@@ -40,8 +58,12 @@ def run_login_sync_job(email):
 
 
 def enqueue_login_sync_job(user_id, email):
-    """Queue a post-login scan so the login response never waits on Asana."""
-    return get_queue().enqueue(
+    """Queue a post-login scan so the login response never waits on Asana.
+
+    Runs on the dedicated ``asana_sync`` queue so login scans never wait
+    behind webhook event processing.
+    """
+    return get_sync_queue().enqueue(
         run_login_sync_job,
         email,
         job_timeout=settings.ASANA_JOB_TIMEOUT,
