@@ -49,10 +49,23 @@ def _dispatch_event(event, project_gid=None):
 
     try:
         enqueue_webhook_event(event, digest, project_gid=project_gid)
-    except Exception:  # noqa: BLE001 - RQ/Redis must not kill the webhook
-        release_event(digest)
-        logger.exception("Could not queue Asana event: %s", event)
-        raise QueueUnavailable()
+    except Exception:  # noqa: BLE001 - fallback to sync if queue/Redis unavailable
+        logger.warning(
+            "Could not queue Asana event to RQ/Redis; falling back to synchronous processing"
+        )
+        try:
+            close_old_connections()
+            from asana_integration.services.asana import (
+                process_webhook_event_job,
+            )
+
+            process_webhook_event_job(event, digest, project_gid=project_gid)
+        except Exception:
+            release_event(digest)
+            logger.exception("Could not process Asana event synchronously: %s", event)
+            raise QueueUnavailable()
+        finally:
+            close_old_connections()
 
 # Each environment (deployment) stores its own handshake secret under a label
 # carried in the target URL as ``?hook=<label>``. Asana sends the full target

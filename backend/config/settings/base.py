@@ -308,7 +308,7 @@ ASANA_ALLOW_UNLABELED_EMAIL_MATCH = env.bool(
 
 ASANA_WEBHOOK_ENABLED = env.bool(
     "ASANA_WEBHOOK_ENABLED",
-    default=False
+    default=True,
 )
 
 ASANA_WEBHOOK_SECRET = os.getenv("ASANA_WEBHOOK_SECRET", "").strip()
@@ -323,7 +323,7 @@ ASANA_SECRET_ENC_KEY = os.getenv("ASANA_SECRET_ENC_KEY", "").strip()
 # requires ASANA_WEBHOOK_ALLOW_ROTATION.
 ASANA_WEBHOOK_HANDSHAKE_ENABLED = env.bool(
     "ASANA_WEBHOOK_HANDSHAKE_ENABLED",
-    default=False,
+    default=True,
 )
 
 ASANA_WEBHOOK_ALLOW_ROTATION = env.bool(
