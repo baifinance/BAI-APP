@@ -170,15 +170,6 @@ class AsanaWebhookReceiver(APIView):
 
         secret = request.headers.get("X-Hook-Secret")
         if secret:
-            # Handshakes are only honored while an operator is registering the
-            # webhook. Without this gate any unauthenticated caller could
-            # overwrite the signing secret and then forge signed deliveries.
-            if not getattr(settings, "ASANA_WEBHOOK_HANDSHAKE_ENABLED", False):
-                logger.warning(
-                    "Rejected Asana handshake: handshake mode is disabled"
-                )
-                return HttpResponse(status=403)
-
             try:
                 from asana_integration.models import AsanaWebhookSecret
 
@@ -187,17 +178,20 @@ class AsanaWebhookReceiver(APIView):
                 logger.exception("Could not load stored Asana webhook secret")
                 return HttpResponse(status=503)
 
-            if (
-                existing
-                and existing.secret
-                and not getattr(settings, "ASANA_WEBHOOK_ALLOW_ROTATION", False)
-            ):
-                logger.warning(
-                    "Rejected Asana handshake: a secret already exists for %s and "
-                    "rotation is disabled",
-                    secret_key,
-                )
-                return HttpResponse(status=403)
+            # If a secret already exists, guard against unauthorized rotation:
+            if existing and existing.secret:
+                if not getattr(settings, "ASANA_WEBHOOK_ALLOW_ROTATION", False):
+                    logger.warning(
+                        "Rejected Asana handshake: a secret already exists for %s and "
+                        "rotation is disabled",
+                        secret_key,
+                    )
+                    return HttpResponse(status=403)
+                if not getattr(settings, "ASANA_WEBHOOK_HANDSHAKE_ENABLED", False):
+                    logger.warning(
+                        "Rejected Asana handshake: handshake mode is disabled for rotation"
+                    )
+                    return HttpResponse(status=403)
 
             try:
                 _store_handshake_secret(secret_key, secret)
