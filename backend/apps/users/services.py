@@ -105,7 +105,7 @@ def apply_loan_status_change(
             except (TypeError, ValueError):
                 max_age = 3600
 
-            if max_age > 0:
+            if max_age > 0 and profile.loan_status == status:
                 age = (timezone.now() - asana_event_at).total_seconds()
                 if age > max_age:
                     logger.info(
@@ -117,7 +117,7 @@ def apply_loan_status_change(
                     return profile, False
 
             latest = _latest_history_at(history)
-            if latest is not None and asana_event_at <= latest:
+            if latest is not None and asana_event_at < latest and profile.loan_status == status:
                 logger.info(
                     "Out-of-order Asana event ignored: user=%s status=%s "
                     "event_at=%s latest=%s",
@@ -268,7 +268,7 @@ def apply_application_status_change(
             except (TypeError, ValueError):
                 max_age = 3600
 
-            if max_age > 0:
+            if max_age > 0 and app.asana_status == status:
                 age = (timezone.now() - asana_event_at).total_seconds()
                 if age > max_age:
                     logger.info(
@@ -280,7 +280,7 @@ def apply_application_status_change(
                     return app, False
 
             latest = _latest_history_at(history)
-            if latest is not None and asana_event_at <= latest:
+            if latest is not None and asana_event_at < latest and app.asana_status == status:
                 logger.info(
                     "Out-of-order Asana event ignored: app=%s status=%s "
                     "event_at=%s latest=%s",
